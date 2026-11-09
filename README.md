@@ -41,6 +41,8 @@ npm run verificar      # el grep de tecnicismos
 npm run capturas       # 390 / 768 / 1440 a .capturas/
 npm run detalle        # lupa de bloques sueltos sobre el DOM
 npm run og             # regenera public/og.png (1200×630)
+npm run deploy         # build + gh-pages
+npm run vivo           # comprueba el dominio ya publicado
 ```
 
 `capturas`, `detalle`, `og` y las tres mediciones necesitan Chromium. En
@@ -124,33 +126,45 @@ tinta que el resto de la fila.
 
 ## Publicar
 
-Estado a 2026-11-09. Hecho:
+Estado a 2026-11-09, de noche. El sitio **está sirviendo** en
+`https://bws.blink.com.ve/`.
+
+Hecho y comprobado contra el dominio (no contra `npm run preview`):
 
 1. Repo `BLINK-SERVERS/BWS` (público, como `Pay` y `POS`), rama `main`
    con las fuentes.
-2. `npm run deploy` construye y publica `dist/` en la rama `gh-pages`.
-   GitHub Pages ya la tomó como origen (`build_type: legacy`, `status:
-   built`), leyó `public/CNAME` y registró `bws.blink.com.ve` como
-   dominio personalizado, con `404.html` como página de error propia.
-   `.nojekyll` viaja desde `public/` para que Pages no pase el `dist/`
-   por Jekyll.
+2. `npm run deploy` publica `dist/` en la rama `gh-pages`. Pages la toma
+   como origen (`status: built`), leyó `public/CNAME` y registró el
+   dominio personalizado con `404.html` propio. `.nojekyll` viaja desde
+   `public/` para que Pages no pase el `dist/` por Jekyll.
+3. El `CNAME` de `bws` a `blink-servers.github.io` existe en la zona, sin
+   proxy, igual que `pay` y `pos`. Responde en 1.1.1.1 y en 8.8.8.8; el
+   router de esta casa todavía tiene cacheada la respuesta negativa de
+   antes (mínimo de la zona: 1800 s), así que las comprobaciones
+   inyectan la IP con `--resolve` en `curl` y con
+   `--host-resolver-rules` en Chromium.
+4. Rutas: `/`, `/404.html`, `/robots.txt`, `/sitemap.xml`,
+   `/favicon.svg`, `/favicon.png`, `/og.png`, el JS y el CSS con hash y
+   el `inter-latin.woff2` que referencia el CSS — todas 200. El HTML
+   servido lleva la frase ancla nueva en los cinco `meta` y cero
+   apariciones de la palabra vieja. Render real en 1440: 4 beneficios,
+   3 servicios, 3 pasos, 5 aliados, la promesa literal, los tres
+   enlaces de contacto, el acordeón abriéndose, 0 px de overflow y 0
+   errores de consola.
+
+Se comprueba con `npm run vivo` (`scripts/en-vivo.mjs`), que sale con
+código distinto de cero si algo de lo anterior falla.
 
 Quedan dos cosas, y ninguna se puede hacer desde esta máquina:
 
-3. **El registro DNS.** `bws.blink.com.ve` sigue en NXDOMAIN. Hay que
-   añadir en la zona de `blink.com.ve` (Cloudflare) un `CNAME` de
-   `bws` a `blink-servers.github.io`, sin proxy — igual que `pay` y
-   `pos`, que responden el alias directo y no el de la CDN. El token de
-   `~/Escritorio/.env` está revocado (`Invalid API Token`), así que o se
-   entra al panel o se pasa un token con permiso de *DNS:Edit*.
-4. **HTTPS forzado.** `Pay` y `POS` lo tienen activado; aquí el token de
+5. **El certificado propio.** Todavía no está: el edge contesta el
+   comodín `*.github.io`, que no ampara a `bws.blink.com.ve`, así que un
+   navegador estricto rechaza la conexión aunque el contenido sea
+   correcto. GitHub lo emite solo, minutos u horas después de ver el
+   registro — el de `pay.blink.com.ve` se firmó dos días después de
+   crear el suyo.
+6. **HTTPS forzado.** `Pay` y `POS` lo tienen activado; aquí el token de
    `gh` no trae el scope `pages` y el `PATCH` responde 404. Se marca en
-   Settings → Pages → *Enforce HTTPS* en cuanto exista el registro.
-
-Hasta el punto 3 el sitio no es visible: como Pages ya conoce el
-dominio, `https://blink-servers.github.io/BWS/` responde `301` hacia
-`http://bws.blink.com.ve/`, que todavía no resuelve.
-
-Después, comprobar que `https://bws.blink.com.ve/` y `/404.html`
-responden y que el enlace de WhatsApp (`wa.me/16318211938`) y el
-`mailto:` salen como se escribieron.
+   Settings → Pages → *Enforce HTTPS*, y marcarlo suele provocar el
+   punto 5. Mientras esté apagado, `http://` responde 200 en lugar de
+   redirigir.
