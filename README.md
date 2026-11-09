@@ -124,16 +124,33 @@ tinta que el resto de la fila.
 
 ## Publicar
 
-Nada de esto se ejecuta solo; hace falta pedirlo.
+Estado a 2026-11-09. Hecho:
 
-1. `bws.blink.com.ve` sigue siendo NXDOMAIN. Hay que añadir un CNAME en
-   la zona de `blink.com.ve` (Cloudflare) apuntando al host de GitHub
-   Pages.
-2. Repo nuevo en la organización `BLINK-SERVERS` (o una rama del
-   existente) y `npm run deploy`, que construye y publica `dist/` con
-   `gh-pages`. `public/CNAME` ya lleva el dominio para que Pages lo
-   sirva como dominio personalizado.
-3. Con el certificado de Cloudflare por delante, comprobar que
-   `https://bws.blink.com.ve/` y `/404.html` responden y que el enlace
-   de WhatsApp (`wa.me/16318211938`) y el `mailto:` salen como se
-   escribieron.
+1. Repo `BLINK-SERVERS/BWS` (público, como `Pay` y `POS`), rama `main`
+   con las fuentes.
+2. `npm run deploy` construye y publica `dist/` en la rama `gh-pages`.
+   GitHub Pages ya la tomó como origen (`build_type: legacy`, `status:
+   built`), leyó `public/CNAME` y registró `bws.blink.com.ve` como
+   dominio personalizado, con `404.html` como página de error propia.
+   `.nojekyll` viaja desde `public/` para que Pages no pase el `dist/`
+   por Jekyll.
+
+Quedan dos cosas, y ninguna se puede hacer desde esta máquina:
+
+3. **El registro DNS.** `bws.blink.com.ve` sigue en NXDOMAIN. Hay que
+   añadir en la zona de `blink.com.ve` (Cloudflare) un `CNAME` de
+   `bws` a `blink-servers.github.io`, sin proxy — igual que `pay` y
+   `pos`, que responden el alias directo y no el de la CDN. El token de
+   `~/Escritorio/.env` está revocado (`Invalid API Token`), así que o se
+   entra al panel o se pasa un token con permiso de *DNS:Edit*.
+4. **HTTPS forzado.** `Pay` y `POS` lo tienen activado; aquí el token de
+   `gh` no trae el scope `pages` y el `PATCH` responde 404. Se marca en
+   Settings → Pages → *Enforce HTTPS* en cuanto exista el registro.
+
+Hasta el punto 3 el sitio no es visible: como Pages ya conoce el
+dominio, `https://blink-servers.github.io/BWS/` responde `301` hacia
+`http://bws.blink.com.ve/`, que todavía no resuelve.
+
+Después, comprobar que `https://bws.blink.com.ve/` y `/404.html`
+responden y que el enlace de WhatsApp (`wa.me/16318211938`) y el
+`mailto:` salen como se escribieron.
