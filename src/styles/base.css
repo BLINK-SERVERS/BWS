@@ -1,0 +1,180 @@
+/* ============================================================
+   BLINK WEB SERVICES — Base
+   ------------------------------------------------------------
+   Copia del armazón de Blink Pay (mismo reset, mismas
+   utilidades), con dos diferencias deliberadas porque BWS es un
+   SITIO y no una app instalable:
+
+   · Se permite seleccionar texto. En la cartera está bloqueado
+     para que se sienta nativa; aquí bloquearlo impediría copiar
+     un teléfono o un correo, que es justo lo que el sitio quiere
+     que el cliente haga.
+   · No hay SF Symbols: los iconos del sitio son dos SVG inline
+     propios (check y flecha), así que solo queda la regla de
+     tamaño y heredado de `.icon`.
+
+   El orden de importación en `main.tsx` es:
+     fonts.css → base.css → tokens.css → landing.css
+   ============================================================ */
+
+/* --- Reset / base --- */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+html,
+body,
+#root {
+  height: 100%;
+}
+/* La pila tipográfica vive en :root y no en body: así la heredan
+   TODO (incluidos los controles de formulario, que el navegador
+   viste por su cuenta) y también el <html>, donde el preflight de
+   Tailwind escribe su propia font-family. */
+:root {
+  font-family: var(--font-primary);
+  /* El eje óptico (opsz) de SF Pro interpola entre los tamaños
+     Display y Text: la misma familia se adapta a cada cuerpo. */
+  font-optical-sizing: auto;
+}
+
+body {
+  margin: 0;
+  background: var(--color-bg-primary);
+  color: var(--color-text-primary);
+  font-family: var(--font-text);
+  font-optical-sizing: auto;
+  font-size: var(--fs-base);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  -webkit-touch-callout: default;
+  touch-action: manipulation;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+h1,
+h2,
+h3,
+h4 {
+  margin: 0;
+  font-weight: 700;
+  line-height: 1.2;
+  color: var(--color-text-primary);
+}
+p {
+  margin: 0;
+}
+a {
+  color: var(--color-accent);
+  text-decoration: none;
+}
+/* El navegador da su propia fuente a los controles de formulario
+   (y al texto que se selecciona dentro de ellos). Se fuerza la de la
+   app para que un campo, un boton y su etiqueta digan lo mismo. */
+button,
+input,
+select,
+textarea,
+optgroup,
+option {
+  font-family: inherit;
+  font-optical-sizing: auto;
+}
+
+button {
+  touch-action: manipulation;
+}
+
+html {
+  touch-action: manipulation;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+input,
+textarea,
+select,
+[contenteditable="true"],
+.allow-select {
+  -webkit-user-select: text;
+  -moz-user-select: text;
+  user-select: text;
+  -webkit-touch-callout: default;
+  font-size: 16px;
+}
+
+img,
+svg {
+  -webkit-user-drag: none;
+  user-drag: none;
+}
+:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+/* --- Iconos SVG del sitio ---
+   Geometrías propias, dibujadas a mano en `components/Icono.tsx` sobre
+   una retícula de 24 y con trazo de 1,75 — el equivalente visual del
+   `checkmark` de SF Symbols. BWS no usa SF Symbols: son cuatro piezas
+   (check, chevron, flecha y tres glifos de servicio) y no hace falta
+   arrastrar la librería de Pay para pintarlas.
+
+   El default es de TRAZO (`fill: none`) porque los glifos se leen mejor
+   a 28-32 px como línea fina, que es el criterio de la marca en la
+   landing. `.icon--relleno` existe para la única pieza que va llena: el
+   logotipo de WhatsApp del cierre, que pierde su forma en contorno. */
+.icon {
+  width: 1.15em;
+  height: 1.15em;
+  flex: none;
+  display: inline-block;
+  vertical-align: -0.15em;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.75;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  overflow: visible;
+}
+.icon--relleno {
+  fill: currentColor;
+  stroke: none;
+}
+.icon--xs {
+  width: 0.75rem;
+  height: 0.75rem;
+}
+.icon--sm {
+  width: 0.95rem;
+  height: 0.95rem;
+}
+.icon--lg {
+  width: 1.5rem;
+  height: 1.5rem;
+}
+
+/* --- Utilidades --- */
+.muted {
+  color: var(--color-text-secondary);
+}
+.dim {
+  color: var(--color-text-tertiary);
+}
+.mono {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+.visualmente-oculto {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}

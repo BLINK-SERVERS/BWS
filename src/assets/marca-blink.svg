@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" width="869" height="194" viewBox="0 0 869 194" version="1.1" shape-rendering="geometricPrecision" fill="currentColor">
+  <title>Blink</title>
+  <desc>«Blink» en SF Pro Display Heavy Italic reconstruido sobre el logotipo oficial, con el isotipo del rostro a la derecha (hueco y alto oficiales).</desc>
+  <g inkscape:groupmode="layer" inkscape:label="Marca" id="capa-marca">
+    <g id="wordmark" transform="translate(-0 193.14)" fill="currentColor">
+      <path d="M92.42 0C131.74 0 159.77 -23.82 159.77 -57.06C159.77 -75.42 146.25 -89.19 127.15 -93.28L127.27 -94.15C151.46 -98.99 168.7 -116.85 168.7 -140.55C168.7 -162.5 150.35 -179 116.48 -179H38.08L0 0ZM76.29 -149.48H100.35C115.36 -149.48 123.18 -142.78 123.18 -132.23C123.18 -118.22 111.27 -108.05 93.28 -108.05H67.61ZM51.48 -32.25 61.28 -78.65H88.69C105.56 -78.65 114.25 -71.33 114.25 -59.17C114.25 -43.04 101.59 -32.25 82 -32.25Z"/>
+      <path d="M158.52 0H201.31L241.48 -188.8H198.68Z"/>
+      <path d="M278.02 -150.59C290.18 -150.59 299.73 -160.27 299.73 -171.81C299.73 -183.47 290.18 -193.14 278.02 -193.14C265.86 -193.14 256.31 -183.47 256.31 -171.81C256.31 -160.27 265.86 -150.59 278.02 -150.59ZM219.97 0H262.76L291.54 -135.09H248.74Z"/>
+      <path d="M280.52 0H323.07L340.06 -79.64C343.16 -94.65 354.33 -104.57 367.48 -104.57C379.63 -104.57 387.94 -97.13 387.94 -86.21C387.94 -83.36 387.57 -80.38 386.95 -76.54L370.7 0H413.12L430.62 -83.24C431.86 -89.19 432.48 -94.77 432.48 -99.73C432.48 -122.68 415.73 -138.31 391.42 -138.31C373.06 -138.31 356.31 -129.63 347.01 -114.5H346.02L350.48 -135.09H309.3Z"/>
+      <path d="M472.81 0 482.01 -43.64 495.19 -56.39 519.32 0H565.59L529.72 -80.98L592.12 -143.15H542.75L493 -90.7H492L513.16 -189.69H470.49L430.13 0Z"/>
+    </g>
+  </g>
+  <g inkscape:groupmode="layer" inkscape:label="Isotipo" id="capa-isotipo">
+<g id="isotipo" transform="translate(630.08 5.24) scale(0.6616) translate(-76 -114)" fill="currentColor">
+      <path id="ojo-guino" d="M 122 164 H 178 C 198 164 224 164 224 198 C 224 232 198 232 178 232 H 122 C 102 232 76 232 76 198 C 76 164 102 164 122 164 Z"/>
+      <path id="ojo-abierto" d="M 436 182 A 68 68 0 1 1 299.99 182 A 68 68 0 1 1 436 182 Z"/>
+      <path id="boca" d="M 212 286 H 300 C 331.55 286 340.42 286 337.5 314 C 332.064081 366.125250 298 398 256 398 C 214 398 179.935919 366.125250 174.5 314 C 171.58 286 180.45 286 212 286 Z"/>
+    </g>
+  </g>
+</svg>

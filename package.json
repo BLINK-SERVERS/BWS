@@ -1,0 +1,33 @@
+{
+  "name": "blink-bws",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Blink Web Services — paginas web, web apps y portafolios. El cliente trae la idea; del resto nos encargamos nosotros.",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit",
+    "verificar": "node scripts/sin-tecnicismos.mjs",
+    "capturas": "node scripts/capturas.mjs",
+    "detalle": "node scripts/detalle.mjs",
+    "og": "node scripts/og.mjs",
+    "deploy": "npm run build && gh-pages -d dist -t"
+  },
+  "dependencies": {
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.6",
+    "@types/react": "^19.2.0",
+    "@types/react-dom": "^19.2.0",
+    "@vitejs/plugin-react": "^6.1.2",
+    "axe-core": "^4.14.0",
+    "gh-pages": "^6.3.0",
+    "playwright-core": "^1.64.1",
+    "typescript": "^5.9.0",
+    "vite": "^8.3.5"
+  }
+}

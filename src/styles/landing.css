@@ -1,0 +1,1062 @@
+/* ============================================================
+   BLINK WEB SERVICES — Landing de bws.blink.com.ve
+
+   Derivada de la landing de Blink Pay (a su vez calcada de
+   https://www.apple.com/la/apple-pay/): mismo orden de secciones,
+   mismos temas FIJOS por sección, párrafos de dos tonos, acordeón y
+   notas al pie. Se conserva el nombre de clase `lp-*` para que las
+   tres páginas de Blink (pay., pos. y bws.) hablen la misma voz y
+   nadie tenga que mantener dos sistemas visuales.
+
+   Qué se quedó fuera y por qué
+   · Bezels y hardware (`lp-dispositivo*`, `lp-mini*`, `lp-pegajoso*`):
+     Pay los necesita porque muestra una app. BWS vende un servicio,
+     así que no hay pantallas que simular; poner un mockup inventado
+     sería prometer una interfaz que no existe.
+   · `lp-ondas*`, `lp-validador*`, avisos de cookies y de demo.
+
+   Qué se agregó
+   · `.lp-marca-bws`: el lockup mixto (wordmark aprobado + subword
+     tipográfico).
+   · `.lp-servicios__rejilla` y `.lp-socios`: la parrilla de servicios
+     y la banda de aliados.
+   · `.lp-pasos--tres`: el proceso en tres columnas.
+
+   Todo lo demás sale de tokens.css: la pila SF Pro/Inter, los radios,
+   las sombras y la escala de iOS 27. Los colores de cada tema se fijan
+   aquí con el valor de token de ESA apariencia, porque `light-dark()`
+   se resuelve donde se declara el token (:root) y no seguiría al tema
+   de la sección.
+
+   Escala tipográfica de marketing: la app usa los cuerpos de iOS 27
+   (17/22); una landing necesita titulares mucho mayores. Se derivan con
+   `clamp()` sobre la MISMA pila y se documentan como extensión de la
+   escala, no como una segunda tipografía.
+   ============================================================ */
+
+.lp {
+  /* --- Tema claro por defecto: barra y pie --- */
+  --lp-fondo: #ffffff;              /* --color-bg-elevated (claro) */
+  --lp-fondo-alt: #f2f2f7;          /* --color-bg-primary (claro) */
+  --lp-texto: #1d1d1f;              /* --color-text-primary (claro) */
+  --lp-texto-2: #424242;            /* --color-text-secondary (claro) */
+  --lp-texto-3: #6e6e6e;            /* --color-text-tertiary (claro) */
+  --lp-enlace: #0066cc;             /* --color-accent-text (claro) */
+  --lp-acento: #007aff;             /* --blink-blue-light */
+  --lp-borde: rgba(66, 66, 66, 0.16);   /* --color-border (claro) */
+  --lp-relleno: rgba(66, 66, 66, 0.06); /* --color-neutral-soft (claro) */
+  --lp-relleno-fuerte: rgba(66, 66, 66, 0.1);
+
+  /* --- Escala de marketing (extensión documentada de iOS 27) --- */
+  /* El mínimo manda solo por debajo de ~516 px de ventana, y ahí es
+     donde se decide el corte del titular. Con 2,375rem (38 px) la frase
+     ancla caía en 3 líneas y `text-wrap: balance` partía «planes: una»
+     por la mitad; con 2rem (32 px) mide 324 + 292 px dentro de los
+     358 px disponibles en un iPhone de 390 y el quiebre queda justo
+     después de los dos puntos, que es el quiebre de la frase. Medido con
+     `scripts/medir-titular.mjs`, no calculado a ojo. */
+  --lp-fs-hero: clamp(2rem, 6.2vw, 4.75rem);
+  --lp-fs-seccion: clamp(2rem, 4.8vw, 3.5rem);
+  --lp-fs-beneficio: clamp(1.375rem, 2.5vw, 2rem);
+  --lp-fs-parrafo: clamp(1.0625rem, 1.55vw, 1.3125rem);
+  --lp-fs-cuerpo: 1.0625rem;        /* 17 px, --ios-fs-body */
+  --lp-fs-nota: 0.75rem;            /* 12 px, --ios-fs-caption1 */
+
+  --lp-ancho: 980px;
+  --lp-curva: cubic-bezier(0.32, 0.72, 0, 1); /* curva iOS de traslación */
+
+  background: var(--lp-fondo);
+  color: var(--lp-texto);
+  font-family: var(--font-text);
+  /* En una landing el texto se lee y se copia: un teléfono o un correo
+     bloqueado en la selección es una puerta cerrada. */
+  -webkit-user-select: text;
+  -moz-user-select: text;
+  user-select: text;
+  overflow-x: clip;
+}
+
+.lp-seccion--oscura {
+  --lp-fondo: #000000;              /* --color-bg-primary (oscuro) */
+  --lp-fondo-alt: #1c1c1e;          /* --color-bg-elevated (oscuro) */
+  --lp-texto: #ffffff;              /* --color-text-primary (oscuro) */
+  --lp-texto-2: #ebebf5;            /* --color-text-secondary (oscuro) */
+  --lp-texto-3: #a1a1aa;            /* --color-text-tertiary (oscuro) */
+  --lp-enlace: #8cc7ff;             /* --color-accent-text (oscuro) */
+  --lp-acento: #0091ff;             /* --blink-blue-dark */
+  --lp-borde: rgba(235, 235, 245, 0.18);
+  --lp-relleno: rgba(235, 235, 245, 0.07);
+  --lp-relleno-fuerte: rgba(235, 235, 245, 0.12);
+}
+
+/* Tema gris: mismo texto claro que la sección blanca, sobre el papel
+   de la marca. Se usa para romper el blanco/negro/blanco sin subir
+   otro nivel de jerarquía. */
+.lp-seccion--gris {
+  --lp-fondo: #f2f2f7;
+}
+
+.lp *,
+.lp *::before,
+.lp *::after {
+  box-sizing: border-box;
+}
+
+.lp-seccion {
+  background: var(--lp-fondo);
+  color: var(--lp-texto);
+  padding-block: clamp(3.5rem, 8vw, 6.5rem);
+}
+
+.lp-seccion[id] {
+  scroll-margin-top: 72px;
+}
+
+.lp-contenido {
+  width: min(100% - 2.5rem, var(--lp-ancho));
+  margin-inline: auto;
+}
+
+.lp-contenido--estrecho {
+  max-width: 720px;
+}
+
+.lp-titulo-seccion {
+  font-size: var(--lp-fs-seccion);
+  font-weight: 700;
+  line-height: 1.08;
+  letter-spacing: -0.022em;
+  text-align: center;
+  text-wrap: balance;
+  color: var(--lp-texto);
+}
+
+.lp-subtitulo {
+  font-size: clamp(1.25rem, 2.1vw, 1.625rem);
+  font-weight: 650;
+  line-height: 1.2;
+  letter-spacing: -0.015em;
+  margin-bottom: 0.85rem;
+  color: var(--lp-texto);
+}
+
+/* Párrafo de dos tonos de la referencia: frase inicial en negrita y
+   el resto en cuerpo normal, dentro del mismo párrafo. */
+.lp-dos-tonos {
+  font-size: var(--lp-fs-parrafo);
+  line-height: 1.45;
+  letter-spacing: -0.005em;
+  color: var(--lp-texto-2);
+  text-wrap: pretty;
+}
+
+.lp-dos-tonos strong {
+  font-weight: 700;
+  color: var(--lp-texto);
+}
+
+/* --- Enlaces y botones --- */
+
+.lp-enlace {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+  min-height: 44px; /* --ios-touch-target */
+  padding: 0.35rem 0;
+  border: 0;
+  background: none;
+  color: var(--lp-enlace);
+  font-family: inherit;
+  font-size: var(--lp-fs-cuerpo);
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.lp-enlace:hover {
+  text-decoration: underline;
+}
+
+.lp-enlace .icon {
+  width: 0.7em;
+  height: 0.7em;
+  vertical-align: 0;
+}
+
+.lp-enlaces {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.15rem;
+  margin: 0.5rem 0 0;
+  padding: 0 0 1.15rem;
+  list-style: none;
+}
+
+.lp-enlaces--pie {
+  margin-top: clamp(1.75rem, 4vw, 2.5rem);
+  padding-bottom: 0;
+}
+
+.lp-boton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  min-height: 48px;
+  padding: 0.7rem 1.4rem;
+  border: 0;
+  border-radius: var(--radius-pill);
+  font-family: inherit;
+  /* 19 px / 700 = texto grande a efectos de contraste (WCAG 1.4.3). */
+  font-size: 1.1875rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  line-height: 1.2;
+  text-decoration: none;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition:
+    transform 0.12s ease,
+    filter var(--transition-speed),
+    background var(--transition-speed);
+}
+
+.lp-boton:active {
+  transform: scale(0.98);
+}
+
+.lp-boton--primario {
+  /* Relleno de acción de la app: blanco encima da 5,6:1, no 4,0:1. */
+  background: var(--color-action-fill);
+  color: var(--color-text-on-accent);
+}
+
+.lp-boton--primario:hover {
+  filter: brightness(1.08);
+}
+
+.lp-boton--fantasma {
+  background: transparent;
+  color: var(--lp-enlace);
+  padding-inline: 0.9rem;
+}
+
+.lp-boton--fantasma:hover {
+  text-decoration: underline;
+}
+
+.lp-boton .icon {
+  width: 0.85em;
+  height: 0.85em;
+}
+
+/* --- Salto al contenido --- */
+
+.lp-salto {
+  position: absolute;
+  left: -9999px;
+  top: 0;
+  z-index: 100;
+  padding: 0.85rem 1.25rem;
+  border-radius: 0 0 var(--radius-md) 0;
+  background: var(--lp-fondo);
+  color: var(--lp-enlace);
+  font-weight: 600;
+}
+
+.lp-salto:focus {
+  left: 0;
+}
+
+/* ============================================================
+   Marca BWS — wordmark aprobado + subword tipográfico
+   ------------------------------------------------------------
+   El wordmark «Blink» es geometría aprobada y se pinta tal cual
+   desde `src/assets/marca-blink.svg`. «Web Services» NO está
+   vectorizado: se compone con la pila de la marca en peso 500, que
+   es exactamente el peso con el que `blink-pay.svg` declara su «Pay»
+   (SF Pro Display Medium). Se alinean por línea base, como en los
+   lockups maestros.
+
+   Riesgo declarado: quien revise el lockup contra `Pay/marca/` no
+   encontrará paths para el subword. Es deliberado — no hay geometría
+   aprobada para esas letras y reinterpretarlas violaría la regla de
+   marca de no tocar la silueta.
+   ============================================================ */
+
+.lp-marca-bws {
+  /* UN SOLO MANDO. El wordmark se dimensiona en `em` sobre el
+     `font-size` de este contenedor y el subword hereda ese mismo
+     tamaño, así que la proporción entre los dos no puede desviarse al
+     cambiar de quiebre: era justamente lo que pasaba antes, cuando cada
+     pieza traía su propio `clamp()` y «Web Services» se quedó a 0,27 de
+     la mayúscula del wordmark en la captura de 1440.
+
+     La proporción maestra sale de `Pay/marca/blink-pay.svg`, medido con
+     `scripts/medir-pay.mjs`: ahí «Pay» ocupa 176 unidades de mayúscula
+     contra 176 de «Blink» — razón 1,00 — y las separan 31,5 unidades
+     sobre 582 de ancho del wordmark. Razón 1,00 no es trasladable: «Pay»
+     son tres letras y «Web Services» doce, así que a igual mayúscula el
+     descriptor mediría ~475 px junto a un wordmark de 321 y dejaría de
+     leerse como división para convertirse en segunda marca. BWS fija
+     0,62, que es la razón a la que un descriptor acompaña sin discutir.
+
+     Calibrado y verificado con `scripts/medir-lockup.mjs` sobre la pila
+     que de verdad se sirve en esta máquina (Inter, cap 0,75 em):
+       390 px  → mando 30,9 px · wordmark 179 px (cap 36,9) · «BWS» 70 px · lockup 258 px
+       768 px  → mando 42,2 px · wordmark 245 px (cap 50,4) · largo 276 px · lockup 534 px
+       1440 px → mando 55,4 px · wordmark 321 px (cap 66,1) · largo 362 px · lockup 700 px
+     `font-size: 1em` en el descriptor da razón 0,629 contra el 0,62
+     pedido: 1,4 % de desvío, invisible, y mantiene el mando único. El
+     mínimo de marca (120 px de ancho) no se baja ni en móvil. */
+  display: flex;
+  align-items: baseline;
+  /* El hueco también viene del lockup maestro: 31,5 / 582 = 0,054 del
+     ancho del wordmark, que con 5,79 em de wordmark y mando de 1 em
+     resulta en 0,3 em. En `em` para que tampoco se abra al escalar. */
+  gap: 0.3em;
+  font-size: clamp(1.75rem, 1.2rem + 3vw, 3.4625rem);
+  color: var(--lp-acento);
+}
+
+.lp-marca-bws__blink {
+  /* La caja aprobada es 869×194 y su «B» mide 179 unidades de mayúscula
+     (0,923 de la caja). 5,79 em de mando = 321 px de wordmark en
+     escritorio, que es exactamente el techo que tenía la versión
+     anterior en píxeles: lo único que cambió es que ahora el ancho y el
+     descriptor atan del mismo número. */
+  width: 5.79em;
+  flex: none;
+}
+
+.lp-marca-bws__blink svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+/* En la barra la marca no va en azul: el azul es el acento de la página
+   y la barra se lee como llamada a la acción, no como marco. */
+.lp-marca-bws--nav {
+  color: inherit;
+}
+
+.lp-marca-bws__sub {
+  /* Nada de `clamp()` propio: hereda el mando del contenedor y por eso
+     vive en la misma proporción en móvil que en escritorio. El peso 500
+     es el Medium que ya declara el subword «Pay» del lockup maestro. */
+  font-size: 1em;
+  font-weight: 500;
+  line-height: 1.1;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+  color: var(--lp-texto-2);
+}
+
+/* La regla del subword corto va AQUI, antes de los media queries, y no
+   al final de la hoja: ambas variantes (`--largo` y `--corto`) tienen la
+   misma especificidad, así que gana la que va última en el fuente.
+   Declarada abajo, el `display: inline` de móvil perdía y la sigla
+   nunca aparecía. El HTML lleva los dos textos; solo cambian de
+   visibilidad según el ancho. */
+.lp-marca-bws__sub--corto {
+  display: none;
+}
+
+/* ============================================================
+   Barra superior (localnav de la referencia)
+   ============================================================ */
+
+.lp-nav {
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  background: rgb(from var(--lp-fondo) r g b / 0.72);
+  -webkit-backdrop-filter: saturate(180%) blur(var(--ios-material-blur-large));
+  backdrop-filter: saturate(180%) blur(var(--ios-material-blur-large));
+  border-bottom: 1px solid var(--lp-borde);
+}
+
+.lp-nav__fila {
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+  width: min(100% - 2.5rem, var(--lp-ancho));
+  min-height: 56px;
+  margin-inline: auto;
+}
+
+/* En la barra el lockup va reducido: el wordmark a 116 px deja aire
+   para los enlaces y supera el mínimo de marca de 120 px sumando el
+   subword. */
+.lp-nav__marca {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.4rem;
+  min-height: 44px;
+  color: var(--lp-texto);
+  white-space: nowrap;
+}
+
+.lp-nav__marca:hover {
+  text-decoration: none;
+  opacity: 0.72;
+}
+
+/* En la barra el lockup va reducido pero con LA MISMA proporción que en
+   el hero: se cambia una sola vez el mando (`font-size`) y el wordmark
+   sale a 5,79 em = 92,6 px, que con el descriptor al lado pasa holgado
+   del mínimo de marca. Declarar anchos sueltos por pieza fue lo que
+   permitió que el subword se despegara arriba. */
+.lp-nav__marca .lp-marca-bws {
+  font-size: 1rem;
+}
+
+.lp-nav__marca .lp-marca-bws__sub {
+  font-weight: 600;
+  color: var(--lp-texto-2);
+}
+
+.lp-nav__enlaces {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  margin-inline: auto;
+}
+
+.lp-nav__enlaces a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  color: var(--lp-texto-2);
+  font-size: 0.875rem;
+  font-weight: 500;
+  letter-spacing: -0.005em;
+}
+
+.lp-nav__enlaces a:hover {
+  color: var(--lp-texto);
+  text-decoration: none;
+}
+
+.lp-nav__cta {
+  min-height: 44px;
+  padding: 0.45rem 1.1rem;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+/* ============================================================
+   Hero
+   ============================================================ */
+
+.lp-hero {
+  padding-block: clamp(3rem, 7vw, 5rem) clamp(2.5rem, 6vw, 4rem);
+  text-align: center;
+  /* Velo muy tenue del acento sobre el papel: la misma paleta. */
+  background:
+    radial-gradient(120% 70% at 50% 0%, rgb(from var(--lp-acento) r g b / 0.07) 0%, rgb(from var(--lp-acento) r g b / 0) 62%),
+    var(--lp-fondo);
+}
+
+.lp-cinta {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-bottom: clamp(1.75rem, 4vw, 2.75rem);
+  padding: 0.35rem 1rem;
+  border-radius: var(--radius-pill);
+  background: var(--lp-fondo-alt);
+  font-size: 0.875rem;
+  font-weight: 500;
+  line-height: 1.4;
+  color: var(--lp-texto-2);
+}
+
+.lp-hero__marca {
+  display: flex;
+  justify-content: center;
+  margin-bottom: clamp(1.75rem, 4vw, 2.75rem);
+}
+
+/* El titular es el H1 del sitio (ver el comentario en `Landing.tsx`):
+   en Pay el equivalente va en un H2 porque allí el H1 se lo queda la
+   marca vectorial del lockup. Aquí el prefijo de marca va oculto, así
+   que el elemento visible más grande de la página sigue siendo el que
+   manda en el esquema del documento. */
+.lp-hero__titular {
+  max-width: 22ch;
+  margin-inline: auto;
+  font-size: var(--lp-fs-hero);
+  font-weight: 700;
+  line-height: 1.05;
+  letter-spacing: -0.028em;
+  text-wrap: balance;
+  color: var(--lp-texto);
+}
+
+.lp-hero__sub {
+  max-width: 46ch;
+  margin: 0.9rem auto 0;
+  font-size: var(--lp-fs-parrafo);
+  font-weight: 500;
+  line-height: 1.4;
+  letter-spacing: -0.012em;
+  text-wrap: pretty;
+  color: var(--lp-texto-2);
+}
+
+.lp-hero__cta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem 0.75rem;
+  margin-top: clamp(1.75rem, 4vw, 2.5rem);
+}
+
+/* ============================================================
+   Beneficios (oscuro)
+   ============================================================ */
+
+.lp-beneficios__rejilla {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: clamp(2.25rem, 5vw, 3.5rem) clamp(2rem, 6vw, 5rem);
+  margin: clamp(2.5rem, 6vw, 4rem) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.lp-beneficio__check {
+  display: block;
+  margin-bottom: 0.9rem;
+  color: var(--lp-acento);
+  animation: lp-check 0.5s var(--lp-curva) both;
+}
+
+.lp-beneficio__check .icon {
+  width: 28px;
+  height: 28px;
+}
+
+.lp-beneficio:nth-child(2) .lp-beneficio__check { animation-delay: 0.08s; }
+.lp-beneficio:nth-child(3) .lp-beneficio__check { animation-delay: 0.16s; }
+.lp-beneficio:nth-child(4) .lp-beneficio__check { animation-delay: 0.24s; }
+
+@keyframes lp-check {
+  from { opacity: 0; transform: scale(0.72); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+.lp-beneficio__titulo {
+  font-size: var(--lp-fs-beneficio);
+  font-weight: 650;
+  line-height: 1.16;
+  letter-spacing: -0.018em;
+  text-wrap: balance;
+  color: var(--lp-texto);
+  /* El título y su explicación son bloques consecutivos y `.lp-dos-tonos`
+     no trae margen propio, así que sin esta línea se pegan: en la captura
+     de 1440 el párrafo arrancaba a 0 px del descendente del título. */
+  margin-bottom: 0.4em;
+}
+
+/* ============================================================
+   Qué hacemos — parrilla de piezas (icono + título + dos tonos)
+   ============================================================ */
+
+.lp-servicios__rejilla {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: clamp(2rem, 4vw, 3rem);
+  margin: clamp(2.5rem, 6vw, 4rem) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.lp-pieza__icono {
+  display: block;
+  margin-bottom: 1rem;
+  color: var(--lp-acento);
+}
+
+.lp-pieza__icono .icon {
+  width: 32px;
+  height: 32px;
+}
+
+.lp-pieza .lp-dos-tonos {
+  font-size: var(--lp-fs-cuerpo);
+  line-height: 1.5;
+}
+
+/* ============================================================
+   Proceso
+   ============================================================ */
+
+.lp-simple {
+  background: var(--lp-fondo-alt);
+}
+
+.lp-cuerpo-icono {
+  max-width: 44ch;
+  margin: clamp(1.25rem, 3vw, 1.75rem) auto 0;
+  font-size: var(--lp-fs-parrafo);
+  line-height: 1.5;
+  text-align: center;
+  color: var(--lp-texto-2);
+  text-wrap: balance;
+}
+
+.lp-pasos {
+  display: flex;
+  flex-direction: column;
+  gap: clamp(2.75rem, 8vw, 4rem);
+}
+
+/* Tres columnas numeradas: el proceso de BWS cabe en una pantalla,
+   así que no necesita el scroll pegajoso de Pay. */
+.lp-pasos--tres {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: clamp(1.5rem, 4vw, 3rem);
+  margin: clamp(2.5rem, 6vw, 4rem) 0 0;
+  padding: 0;
+  list-style: none;
+  text-align: left;
+}
+
+.lp-numero {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  margin-bottom: 1.15rem;
+  border-radius: var(--radius-pill);
+  /* Blanco sobre `--lp-acento` (#007AFF) da 3,36:1 y se reprueba AA:
+     el dígito es texto normal (17 px en negrita no alcanza la categoría
+     de "texto grande", que pide 18,66 px). Se usa el azul de enlace
+     propio de la sección gris (#0066cc), que sube a 5,6:1 y es el mismo
+     que ya viste los botones. */
+  background: var(--lp-enlace);
+  color: #ffffff;
+  font-size: 1.0625rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+
+.lp-paso__titulo {
+  font-size: clamp(1.375rem, 2.6vw, 2rem);
+  font-weight: 650;
+  line-height: 1.16;
+  letter-spacing: -0.018em;
+  margin-bottom: 0.85rem;
+  color: var(--lp-texto);
+  text-wrap: balance;
+  /* En las tres columnas, «Nosotros hacemos todo.» mide dos líneas y
+     sus compañeros una: sin esto, la explicación del paso 2 arranca 37
+     px más abajo que la de los pasos 1 y 3 y la fila se desangra por
+     abajo. Dos líneas de 1,16 = 2,32 em reservadas para todos. */
+  min-height: 2.32em;
+}
+
+/* ============================================================
+   La promesa
+   ============================================================ */
+
+.lp-promesa {
+  max-width: 24ch;
+  margin-inline: auto;
+  font-size: clamp(1.75rem, 4vw, 2.75rem);
+  font-weight: 700;
+  line-height: 1.14;
+  letter-spacing: -0.022em;
+  text-align: center;
+  text-wrap: balance;
+  color: var(--lp-texto);
+}
+
+.lp-promesa__apoyo {
+  max-width: 52ch;
+  margin: clamp(1.25rem, 3vw, 1.75rem) auto 0;
+  font-size: var(--lp-fs-parrafo);
+  line-height: 1.5;
+  text-align: center;
+  color: var(--lp-texto-2);
+  text-wrap: pretty;
+}
+
+/* ============================================================
+   Banda de aliados
+   ------------------------------------------------------------
+   Prueba social, no documentación: los logos van sin una sola línea
+   que explique qué hace cada uno. Peso óptico parejo sobre un alto
+   fijo, con `escala` por marca porque las cajas de tinta de los
+   viewBox 24x24 son muy distintas entre sí.
+
+   El tenue usa --lp-texto-3 (5,1:1 sobre blanco). No se baja de ahí:
+   es el mínimo que sigue siendo legible y cumple AA.
+   ============================================================ */
+
+.lp-socios {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: clamp(1.75rem, 5vw, 3.5rem) clamp(1.5rem, 4vw, 3rem);
+  margin: clamp(2.25rem, 5vw, 3.25rem) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.lp-socio {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 26px;
+  color: var(--lp-texto-3);
+  transition: color var(--transition-speed);
+}
+
+.lp-socio:hover,
+.lp-socio:focus-visible {
+  color: var(--lp-texto);
+}
+
+.lp-socio svg {
+  display: block;
+  height: 100%;
+  width: auto;
+  fill: currentColor;
+}
+
+/* nic.ve no tiene marca vectorial oficial disponible: se compone con
+   la pila de la marca y el mismo alto de línea que la fila. */
+.lp-socio--texto {
+  font-family: var(--font-pila);
+  font-size: 20px;
+  font-weight: 500;
+  line-height: 26px;
+  letter-spacing: -0.02em;
+}
+
+.lp-socios__nota {
+  max-width: 48ch;
+  margin: clamp(2rem, 4vw, 2.75rem) auto 0;
+  font-size: var(--lp-fs-nota);
+  line-height: 1.5;
+  text-align: center;
+  color: var(--lp-texto-3);
+}
+
+/* ============================================================
+   Preguntas
+   ============================================================ */
+
+.lp-acordeon {
+  margin: clamp(2rem, 5vw, 3rem) 0 0;
+  padding: 0;
+  list-style: none;
+  border-top: 1px solid var(--lp-borde);
+}
+
+.lp-acordeon__item {
+  border-bottom: 1px solid var(--lp-borde);
+}
+
+.lp-acordeon__titulo {
+  margin: 0;
+  font-size: inherit;
+  font-weight: inherit;
+}
+
+.lp-acordeon__boton {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.25rem;
+  width: 100%;
+  min-height: 64px;
+  padding: 1.05rem 0.25rem;
+  border: 0;
+  background: none;
+  color: var(--lp-texto);
+  font-family: inherit;
+  font-size: clamp(1.0625rem, 1.9vw, 1.3125rem);
+  font-weight: 600;
+  line-height: 1.3;
+  letter-spacing: -0.012em;
+  text-align: left;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.lp-acordeon__boton:hover .lp-acordeon__texto {
+  color: var(--lp-enlace);
+}
+
+.lp-acordeon__chevron {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  color: var(--lp-texto-3);
+  transition: transform 0.32s var(--lp-curva);
+}
+
+.lp-acordeon__item--abierto .lp-acordeon__chevron {
+  transform: rotate(90deg);
+}
+
+.lp-acordeon__bandeja {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 0.32s var(--lp-curva);
+}
+
+.lp-acordeon__item--abierto .lp-acordeon__bandeja {
+  grid-template-rows: 1fr;
+}
+
+.lp-acordeon__contenido {
+  overflow: hidden;
+  min-height: 0;
+}
+
+.lp-acordeon__respuesta {
+  max-width: 62ch;
+  padding: 0 0.25rem;
+  font-size: var(--lp-fs-cuerpo);
+  line-height: 1.55;
+  color: var(--lp-texto-2);
+}
+
+.lp-acordeon__item--abierto .lp-acordeon__respuesta {
+  padding-bottom: 0.5rem;
+}
+
+/* ============================================================
+   Cierre
+   ============================================================ */
+
+.lp-cierre {
+  text-align: center;
+}
+
+.lp-cierre__cta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem 0.75rem;
+  margin-top: clamp(1.75rem, 4vw, 2.5rem);
+}
+
+/* ============================================================
+   Notas al pie y pie
+   ============================================================ */
+
+.lp-notas {
+  padding-block: clamp(2rem, 4vw, 2.75rem);
+  background: var(--lp-fondo);
+  color: var(--lp-texto);
+  border-top: 1px solid var(--lp-borde);
+}
+
+.lp-notas__lista {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin: 0;
+  padding-left: 1.35rem;
+  font-size: var(--lp-fs-nota);
+  line-height: 1.5;
+  color: var(--lp-texto-3);
+}
+
+.lp-pie {
+  padding-block: clamp(2rem, 4vw, 2.75rem);
+  background: var(--lp-fondo-alt);
+  color: var(--lp-texto-2);
+}
+
+.lp-pie__marca {
+  /* `display: block` es obligatorio: es un <span>, y a un inline el
+     `width` no se lo aplica. Sin esto el SVG ocupaba el ancho entero del
+     contenido y el pie salía con un «Blink» de 800 px (captura
+     escritorio-1440 del 2026-11-09). */
+  display: block;
+  width: 132px; /* mínimo de marca: 120 px */
+  margin-bottom: 1.25rem;
+  color: var(--lp-texto-2);
+}
+
+/* El SVG aprobado trae width="869" height="194" propios. Sin esta regla
+   el pie desborda la página en móvil (lo detectó el barrido de
+   `scripts/capturas.mjs`: el span llegaba a 885 px en una pantalla de
+   390). El contenedor manda y el vector solo escala. */
+.lp-pie__marca svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.lp-pie__fila {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem 2rem;
+  padding-top: 1.15rem;
+  border-top: 1px solid var(--lp-borde);
+}
+
+.lp-pie__legal {
+  font-size: var(--lp-fs-nota);
+  color: var(--lp-texto-2);
+}
+
+.lp-pie__enlaces {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem 1.5rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.lp-pie__enlaces .lp-enlace {
+  font-size: var(--lp-fs-nota);
+  color: var(--lp-texto-2);
+}
+
+.lp-pie__enlaces .lp-enlace:hover {
+  color: var(--lp-texto);
+}
+
+/* ============================================================
+   Responsive
+   ============================================================ */
+
+@media (max-width: 1068px) {
+  .lp-servicios__rejilla {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 2rem;
+    max-width: 620px;
+    margin-inline: auto;
+  }
+}
+
+@media (max-width: 767px) {
+  .lp-nav__enlaces {
+    display: none;
+  }
+
+  .lp-nav__fila {
+    justify-content: space-between;
+  }
+
+  .lp-nav__cta {
+    padding-inline: 0.9rem;
+    font-size: 0.875rem;
+  }
+
+  .lp-beneficios__rejilla {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 2rem;
+  }
+
+  /* El proceso pasa a una columna antes de que los títulos de tres
+     pasos empiecen a partir líneas. */
+  .lp-pasos--tres {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 2.25rem;
+    max-width: 560px;
+    margin-inline: auto;
+  }
+
+  /* Y con una columna ya no hay fila que alinear: el reserva de dos
+     líneas del título sería aire muerto debajo de cada paso. */
+  .lp-paso__titulo {
+    min-height: 0;
+  }
+
+  .lp-pie__fila {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .lp-socios {
+    gap: 1.75rem 2rem;
+  }
+}
+
+@media (max-width: 420px) {
+  .lp-contenido {
+    width: min(100% - 2rem, var(--lp-ancho));
+  }
+
+  .lp-nav__fila {
+    width: min(100% - 2rem, var(--lp-ancho));
+    gap: 0.75rem;
+  }
+
+  /* En móvil el subword largo se parte solo: se muestra la sigla, que
+     es lo que cabe sin romper el hueco de aire del hero. El HTML lleva
+     ambos textos y la visibilidad la decide este bloque. */
+  .lp-marca-bws__sub--largo {
+    display: none;
+  }
+
+  .lp-marca-bws__sub--corto {
+    display: inline;
+  }
+
+  .lp-hero__cta,
+  .lp-cierre__cta {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .lp-hero__cta .lp-boton,
+  .lp-cierre__cta .lp-boton {
+    width: 100%;
+  }
+}
+
+/* El subword corto lleva su regla por defecto junto a `.lp-marca-bws__sub`,
+   mas arriba: si se declarara aqui, ganaria por orden de fuente sobre el
+   `display: inline` del media query y la sigla no apareceriamos nunca. */
+
+/* ============================================================
+   Movimiento reducido: versión estática de cada animación.
+   En BWS solo se mueven el check de los beneficios y el acordeón,
+   así que cubrirlo son dos bloques.
+   ============================================================ */
+
+@media (prefers-reduced-motion: reduce) {
+  .lp-beneficio__check {
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
+
+  .lp-acordeon__bandeja,
+  .lp-acordeon__chevron,
+  .lp-socio,
+  .lp-boton {
+    transition: none;
+  }
+
+  .lp-boton:active {
+    transform: none;
+  }
+}
