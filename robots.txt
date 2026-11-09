@@ -1,0 +1,6 @@
+# Blink Web Services — bws.blink.com.ve
+# Página pública de una sola ruta: no hay zona privada que proteger.
+User-agent: *
+Allow: /
+
+Sitemap: https://bws.blink.com.ve/sitemap.xml

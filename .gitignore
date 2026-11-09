@@ -1,0 +1,11 @@
+node_modules/
+dist/
+.capturas/
+.env
+.env.*
+!.env.example
+*.local
+.DS_Store
+
+# Archivo suelto de capturas: es un zip de `.capturas/`, que ya está ignorado.
+.capturas.zip
