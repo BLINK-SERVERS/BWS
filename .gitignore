@@ -6,3 +6,6 @@ dist/
 !.env.example
 *.local
 .DS_Store
+
+# Archivo suelto de capturas: es un zip de `.capturas/`, que ya está ignorado.
+.capturas.zip

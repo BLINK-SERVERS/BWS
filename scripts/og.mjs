@@ -65,7 +65,7 @@ const html = `<!doctype html>
 </style></head>
 <body>
   <p class="marca">${MARCA}<span>Web Services</span></p>
-  <h1>Solo traes dos planes: una idea y el dinero.</h1>
+  <h1>Solo traes dos cosas: una idea y el dinero.</h1>
   <p class="pie"><span class="punto"></span>bws.blink.com.ve
      <span class="dominio">· Páginas, web apps y portafolios</span></p>
 </body></html>`;

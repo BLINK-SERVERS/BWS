@@ -1,7 +1,7 @@
 # Blink Web Services — bws.blink.com.ve
 
 La landing de la división de Blink que pone proyectos en Internet. El
-cliente trae dos planes: una idea y el dinero para pagarla. Del resto —
+cliente trae dos cosas: una idea y el dinero para pagarla. Del resto —
 el nombre, el correo, el diseño, la publicación — se encarga BWS, y esa
 es la única promesa que el sitio hace en voz alta.
 
@@ -82,9 +82,9 @@ La proporción del lockup no está a ojo, está medida:
   contenedor). Antes cada pieza tenía su propio `clamp()` y el descriptor
   se quedó a 0,27 de la mayúscula del wordmark en la captura de 1440.
 - `scripts/medir-titular.mjs` decide el mínimo del `clamp()` del titular:
-  con 38 px la frase ancla caía en 3 líneas y partía «planes: una» por la
-  mitad; con 32 px mide 324 + 292 px en los 358 disponibles y el quiebre
-  cae después de los dos puntos.
+  con 38 px la frase ancla caía en 3 líneas [249, 272, 190] y partía
+  «cosas: una» por la mitad; con 32 px mide 314 + 292 px en los 358
+  disponibles y el quiebre cae después de los dos puntos.
 
 En pantallas de menos de 421 px el descriptor pasa a la sigla «BWS»; el
 HTML lleva los dos textos y solo cambia la visibilidad.

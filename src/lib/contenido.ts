@@ -56,7 +56,7 @@ export const NAV = [
 ];
 
 export const HERO = {
-  titulo: "Solo traes dos planes: una idea y el dinero.",
+  titulo: "Solo traes dos cosas: una idea y el dinero.",
   /** La bajada tiene que explicar el negocio de una, porque el titular
       solo no vende: hay que decir qué se lleva uno a cambio. */
   sub: "Nosotros nos encargamos del resto: tu página, tu dirección en Internet y tus correos.",

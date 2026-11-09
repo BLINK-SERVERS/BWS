@@ -2,10 +2,10 @@
    medir-titular.mjs — en cuántas líneas cae el titular del hero
    ------------------------------------------------------------
    El titular es la frase ancla y su corte importa: «Solo traes dos
-   planes: / una idea y el dinero.» es el corte que se quiere, y para
+   cosas: / una idea y el dinero.» es el corte que se quiere, y para
    eso la primera línea tiene que caber entera. `text-wrap: balance`
    reparte las líneas a ojo de la máquina y en móvil terminaba partiendo
-   «planes: una» en medio, así que el tamaño mínimo del `clamp()` se
+   «cosas: una» en medio, así que el tamaño mínimo del `clamp()` se
    decide midiendo cuántas líneas produce, no por gusto.
 
    Se prueba el titular real sobre el `--lp-fs-hero` publicado y sobre
@@ -22,7 +22,7 @@ const navegador = await chromium.launch({
   args: ["--no-sandbox", "--disable-dev-shm-usage"],
 });
 
-const CANDIDATOS = ["var(--lp-fs-hero)", "2.25rem", "2rem", "1.875rem"];
+const CANDIDATOS = ["var(--lp-fs-hero)", "2.375rem", "2.25rem", "2rem", "1.875rem"];
 
 for (const ancho of [390, 430, 768, 1024, 1440]) {
   const pagina = await navegador.newPage({ viewport: { width: ancho, height: 900 } });

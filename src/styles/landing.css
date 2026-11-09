@@ -50,11 +50,11 @@
   /* --- Escala de marketing (extensión documentada de iOS 27) --- */
   /* El mínimo manda solo por debajo de ~516 px de ventana, y ahí es
      donde se decide el corte del titular. Con 2,375rem (38 px) la frase
-     ancla caía en 3 líneas y `text-wrap: balance` partía «planes: una»
-     por la mitad; con 2rem (32 px) mide 324 + 292 px dentro de los
-     358 px disponibles en un iPhone de 390 y el quiebre queda justo
-     después de los dos puntos, que es el quiebre de la frase. Medido con
-     `scripts/medir-titular.mjs`, no calculado a ojo. */
+     ancla caía en 3 líneas — [249, 272, 190] — y `text-wrap: balance`
+     partía «cosas: una» por la mitad; con 2rem (32 px) mide 314 + 292 px
+     dentro de los 358 px disponibles en un iPhone de 390 y el quiebre
+     queda justo después de los dos puntos, que es el quiebre de la frase.
+     Medido con `scripts/medir-titular.mjs`, no calculado a ojo. */
   --lp-fs-hero: clamp(2rem, 6.2vw, 4.75rem);
   --lp-fs-seccion: clamp(2rem, 4.8vw, 3.5rem);
   --lp-fs-beneficio: clamp(1.375rem, 2.5vw, 2rem);
