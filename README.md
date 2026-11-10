@@ -127,7 +127,7 @@ tinta que el resto de la fila.
 ## Publicar
 
 Estado a 2026-11-09, de noche. El sitio **está sirviendo** en
-`https://bws.blink.com.ve/`.
+`https://bws.blink.com.ve/` con certificado propio válido.
 
 Hecho y comprobado contra el dominio (no contra `npm run preview`):
 
@@ -159,16 +159,19 @@ Hecho y comprobado contra el dominio (no contra `npm run preview`):
 Se comprueba con `npm run vivo` (`scripts/en-vivo.mjs`), que sale con
 código distinto de cero si algo de lo anterior falla.
 
-Quedan dos cosas, y ninguna se puede hacer desde esta máquina:
+Queda una sola cosa, y no se puede hacer desde esta máquina:
 
-5. **El certificado propio.** Todavía no está: el edge contesta el
-   comodín `*.github.io`, que no ampara a `bws.blink.com.ve`, así que un
-   navegador estricto rechaza la conexión aunque el contenido sea
-   correcto. GitHub lo emite solo, minutos u horas después de ver el
-   registro — el de `pay.blink.com.ve` se firmó dos días después de
-   crear el suyo.
-6. **HTTPS forzado.** `Pay` y `POS` lo tienen activado; aquí el token de
-   `gh` no trae el scope `pages` y el `PATCH` responde 404. Se marca en
-   Settings → Pages → *Enforce HTTPS*, y marcarlo suele provocar el
-   punto 5. Mientras esté apagado, `http://` responde 200 en lugar de
-   redirigir.
+5. **El certificado propio ya está.** Se emitió el 2026-11-09 a las
+   23:17:53 UTC — Let's Encrypt `YR2`, `CN = bws.blink.com.ve`, vigente
+   hasta el 2027-02-07 — y se propagó por los cuatro bordes de Pages
+   unos minutos después. Un cliente estricto (`curl` sin `-k`) responde
+   `200` con `ssl_verify_result = 0`. Antes de eso el edge servía el
+   comodín `*.github.io`, que no ampara el nombre, y la casilla de
+   *Enforce HTTPS* aparecía deshabilitada: sin certificado no hay
+   botón, así que el orden era forzado.
+6. **HTTPS forzado.** `Pay` y `POS` lo tienen activado; aquí sigue
+   apagado, y el token de `gh` no trae el scope `pages` — el `PATCH` a
+   `/pages` responde `404` incluso ahora que el certificado existe,
+   mientras que `POST /pages/builds` sí pasa. Se marca en
+   Settings → Pages → *Enforce HTTPS*. Mientras esté apagado, `http://`
+   responde `200` en lugar de redirigir a `https://`.
