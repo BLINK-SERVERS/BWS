@@ -142,7 +142,11 @@ Hecho y comprobado contra el dominio (no contra `npm run preview`):
    router de esta casa todavía tiene cacheada la respuesta negativa de
    antes (mínimo de la zona: 1800 s), así que las comprobaciones
    inyectan la IP con `--resolve` en `curl` y con
-   `--host-resolver-rules` en Chromium.
+   `--host-resolver-rules` en Chromium. El export de la zona del
+   2026-11-09 lo confirma: `bws`, `pay` y `pos` salen con
+   `cf-proxied:false`, y el raíz y `www` con `true`. Como los dos
+   subdominios sin proxy tienen certificado propio de GitHub, al de
+   `bws` le falta solo emisión — no es un problema de Cloudflare.
 4. Rutas: `/`, `/404.html`, `/robots.txt`, `/sitemap.xml`,
    `/favicon.svg`, `/favicon.png`, `/og.png`, el JS y el CSS con hash y
    el `inter-latin.woff2` que referencia el CSS — todas 200. El HTML
