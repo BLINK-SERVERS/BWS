@@ -274,12 +274,14 @@
 /* ============================================================
    Marca BWS — wordmark aprobado + subword tipográfico
    ------------------------------------------------------------
-   El wordmark «Blink» es geometría aprobada y se pinta tal cual
-   desde `src/assets/marca-blink.svg`. «Web Services» NO está
-   vectorizado: se compone con la pila de la marca en peso 500, que
-   es exactamente el peso con el que `blink-pay.svg` declara su «Pay»
-   (SF Pro Display Medium). Se alinean por línea base, como en los
-   lockups maestros.
+   El wordmark «Blink» es geometría aprobada y se pinta tal cual desde
+   `src/assets/marca-blink-texto.svg` — la misma silueta de cinco trazos
+   del maestro `marca-blink.svg`, recortada a su tinta y sin el isotipo
+   (lo genera `scripts/generar-marca-texto.mjs`, que verifica que ningún
+   `d` cambie). «Web Services» NO está vectorizado: se compone con la
+   pila de la marca en peso 500, que es exactamente el peso con el que
+   `blink-pay.svg` declara su «Pay» (SF Pro Display Medium). Se alinean
+   por línea base, como en los lockups maestros.
 
    Riesgo declarado: quien revise el lockup contra `Pay/marca/` no
    encontrará paths para el subword. Es deliberado — no hay geometría
@@ -306,9 +308,9 @@
 
      Calibrado y verificado con `scripts/medir-lockup.mjs` sobre la pila
      que de verdad se sirve en esta máquina (Inter, cap 0,75 em):
-       390 px  → mando 30,9 px · wordmark 179 px (cap 36,9) · «BWS» 70 px · lockup 258 px
-       768 px  → mando 42,2 px · wordmark 245 px (cap 50,4) · largo 276 px · lockup 534 px
-       1440 px → mando 55,4 px · wordmark 321 px (cap 66,1) · largo 362 px · lockup 700 px
+       390 px  → mando 30,9 px · wordmark 122 px (cap 36,8) · «BWS» 69 px · lockup 200 px de 358
+       768 px  → mando 42,2 px · wordmark 167 px (cap 50,4) · largo 272 px · lockup 451 px de 728
+       1440 px → mando 55,4 px · wordmark 218 px (cap 66,1) · largo 357 px · lockup 592 px de 980
      `font-size: 1em` en el descriptor da razón 0,629 contra el 0,62
      pedido: 1,4 % de desvío, invisible, y mantiene el mando único. El
      mínimo de marca (120 px de ancho) no se baja ni en móvil. */
@@ -323,12 +325,18 @@
 }
 
 .lp-marca-bws__blink {
-  /* La caja aprobada es 869×194 y su «B» mide 179 unidades de mayúscula
-     (0,923 de la caja). 5,79 em de mando = 321 px de wordmark en
-     escritorio, que es exactamente el techo que tenía la versión
-     anterior en píxeles: lo único que cambió es que ahora el ancho y el
-     descriptor atan del mismo número. */
-  width: 5.79em;
+  /* La caja que se sirve (`marca-blink-texto.svg`) es 592,12 x 193,14:
+     el wordmark recortado a su tinta, sin las 277 unidades de aire que
+     ocupaba el isotipo a la derecha. Su «B» mide 179 unidades, o sea
+     0,927 de la caja.
+
+     3,943 em es 5,79 em x (592,12/869) x (194/193,14): el ancho al que
+     la tinta queda EXACTAMENTE del tamaño de antes. Con la caja maestra,
+     5,79 em de ancho eran 218,5 px de wordmark en el mando de escritorio
+     y 1,19 em de mayúscula; recortar la caja sin tocar el `em` habría
+     agrandado la marca un 47 % y habría roto la razón 0,62 con el
+     descriptor. Se vuelve a medir con `scripts/medir-lockup.mjs`. */
+  width: 3.943em;
   flex: none;
 }
 
@@ -389,14 +397,28 @@
   margin-inline: auto;
 }
 
-/* En la barra el lockup va reducido: el wordmark a 116 px deja aire
-   para los enlaces y supera el mínimo de marca de 120 px sumando el
-   subword. */
+/* En la barra la marca va reducida y CENTRADA en el renglón. Con
+   `align-items: baseline` dentro de un ancla de 44 px el único hijo
+   quedaba pegado al borde de arriba — labaseline line se ancla al
+   content-box y el aire sobrante cae abajo: era el «muy arriba» de la
+   captura. El ancla ahora centra su hijo y la alineación entre wordmark
+   y descriptor la decide el propio lockup (`.lp-marca-bws` sí es de
+   línea base). */
 .lp-nav__marca {
   display: inline-flex;
-  align-items: baseline;
-  gap: 0.4rem;
+  align-items: center;
   min-height: 44px;
+  /* Y encima un `padding-top` para bajar la tinta. El ancla ya centra su
+     caja, pero la caja del lockup mide la línea tipográfica del
+     descriptor —que incluye su descendente— y no la tinta: por eso la
+     marca seguía 3,6 px por encima del eje de la barra después de
+     arreglar el `baseline`. El valor no se deduce, se calibra: con 7,2 px
+     el desvío pasó de −3,6 a +3,6 (el padding desplaza la tinta 1:1 y no
+     1:2, porque el `min-height` de la ancla sigue mandando sobre el alto
+     de la línea). Con 3,6 px —0,225 rem— la tinta cae exactamente sobre
+     el eje: `desvioConEnlaces: 0` y `desvioConBoton: 0` en la pasada del
+     2026-11-10. */
+  padding-top: 0.225rem;
   color: var(--lp-texto);
   white-space: nowrap;
 }
@@ -408,7 +430,7 @@
 
 /* En la barra el lockup va reducido pero con LA MISMA proporción que en
    el hero: se cambia una sola vez el mando (`font-size`) y el wordmark
-   sale a 5,79 em = 92,6 px, que con el descriptor al lado pasa holgado
+   sale a 3,943 em = 63,1 px, que con el descriptor al lado pasa holgado
    del mínimo de marca. Declarar anchos sueltos por pieza fue lo que
    permitió que el subword se despegara arriba. */
 .lp-nav__marca .lp-marca-bws {
@@ -461,20 +483,6 @@
   background:
     radial-gradient(120% 70% at 50% 0%, rgb(from var(--lp-acento) r g b / 0.07) 0%, rgb(from var(--lp-acento) r g b / 0) 62%),
     var(--lp-fondo);
-}
-
-.lp-cinta {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4rem;
-  margin-bottom: clamp(1.75rem, 4vw, 2.75rem);
-  padding: 0.35rem 1rem;
-  border-radius: var(--radius-pill);
-  background: var(--lp-fondo-alt);
-  font-size: 0.875rem;
-  font-weight: 500;
-  line-height: 1.4;
-  color: var(--lp-texto-2);
 }
 
 .lp-hero__marca {
@@ -659,10 +667,10 @@
   margin-bottom: 0.85rem;
   color: var(--lp-texto);
   text-wrap: balance;
-  /* En las tres columnas, «Nosotros hacemos todo.» mide dos líneas y
-     sus compañeros una: sin esto, la explicación del paso 2 arranca 37
-     px más abajo que la de los pasos 1 y 3 y la fila se desangra por
-     abajo. Dos líneas de 1,16 = 2,32 em reservadas para todos. */
+  /* En las tres columnas, «¿Ya está en Internet?» mide dos líneas y sus
+     compañeros una: sin esto, la explicación del paso 2 arranca 37 px más
+     abajo que la de los pasos 1 y 3 y la fila se desangra por abajo. Dos
+     líneas de 1,16 = 2,32 em reservadas para todos. */
   min-height: 2.32em;
 }
 
@@ -682,44 +690,56 @@
   color: var(--lp-texto);
 }
 
-.lp-promesa__apoyo {
-  max-width: 52ch;
-  margin: clamp(1.25rem, 3vw, 1.75rem) auto 0;
-  font-size: var(--lp-fs-parrafo);
-  line-height: 1.5;
-  text-align: center;
-  color: var(--lp-texto-2);
-  text-wrap: pretty;
-}
-
 /* ============================================================
    Banda de aliados
    ------------------------------------------------------------
-   Prueba social, no documentación: los logos van sin una sola línea
-   que explique qué hace cada uno. Peso óptico parejo sobre un alto
-   fijo, con `escala` por marca porque las cajas de tinta de los
-   viewBox 24x24 son muy distintas entre sí.
+   Prueba social, no documentación: nueve marcas con su nombre al lado,
+   en el orden que fija `lib/socios.ts`.
+
+   La jerarquía es una matriz de tres por tres, no una fila que se
+   rompe. Tres escalones de tamaño por fila: lo que sostiene el proyecto
+   arriba, lo que lo alimenta en el medio, lo que lo hace andar abajo.
+   El escalón lo decide la POSICIÓN en el array (`:nth-child`), así que
+   mover una marca en `lib/socios.ts` le cambia el tamaño solo — no hay
+   un segundo sitio donde ajustar el tamaño de cada marca.
+
+   `--optico` llega desde el componente (`socio.alto`): las tiras anchas
+   pesan más que los cuadrados a la misma altura de tinta, y eso se
+   calibra en la captura, no en la cabeza.
 
    El tenue usa --lp-texto-3 (5,1:1 sobre blanco). No se baja de ahí:
    es el mínimo que sigue siendo legible y cumple AA.
    ============================================================ */
 
 .lp-socios {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
+  --glifo: 22px;
+  --nombre: 0.875rem;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, auto));
   justify-content: center;
-  gap: clamp(1.75rem, 5vw, 3.5rem) clamp(1.5rem, 4vw, 3rem);
+  justify-items: center;
+  align-items: center;
+  gap: clamp(1.35rem, 3vw, 2rem) clamp(1.75rem, 4.5vw, 3.25rem);
   margin: clamp(2.25rem, 5vw, 3.25rem) 0 0;
   padding: 0;
   list-style: none;
 }
 
+.lp-socios li:nth-child(-n + 3) {
+  --glifo: 32px;
+  --nombre: 1.1875rem;
+}
+
+.lp-socios li:nth-child(n + 4):nth-child(-n + 6) {
+  --glifo: 26px;
+  --nombre: 1rem;
+}
+
 .lp-socio {
   display: inline-flex;
   align-items: center;
-  justify-content: center;
-  height: 26px;
+  gap: 0.32em;
+  font-size: var(--nombre);
   color: var(--lp-texto-3);
   transition: color var(--transition-speed);
 }
@@ -729,30 +749,26 @@
   color: var(--lp-texto);
 }
 
-.lp-socio svg {
+.lp-socio__glifo {
   display: block;
-  height: 100%;
+  height: calc(var(--glifo) * var(--optico, 1));
   width: auto;
   fill: currentColor;
 }
 
-/* nic.ve no tiene marca vectorial oficial disponible: se compone con
-   la pila de la marca y el mismo alto de línea que la fila. */
-.lp-socio--texto {
-  font-family: var(--font-pila);
-  font-size: 20px;
+.lp-socio__nombre {
+  font-size: 1em;
   font-weight: 500;
-  line-height: 26px;
+  line-height: 1;
   letter-spacing: -0.02em;
+  white-space: nowrap;
 }
 
-.lp-socios__nota {
-  max-width: 48ch;
-  margin: clamp(2rem, 4vw, 2.75rem) auto 0;
-  font-size: var(--lp-fs-nota);
-  line-height: 1.5;
-  text-align: center;
-  color: var(--lp-texto-3);
+/* AWS, Qoder y nic.ve van sin glifo: el nombre es la marca, así que se
+   pesa un poco más fuerte para que la fila no lo lea como texto suelto. */
+.lp-socio--texto .lp-socio__nombre {
+  font-size: 1.12em;
+  font-weight: 600;
 }
 
 /* ============================================================
@@ -860,26 +876,13 @@
 }
 
 /* ============================================================
-   Notas al pie y pie
+   Pie
+   ------------------------------------------------------------
+   Sin la franja de notas que había entre el cierre y el pie: la línea
+   de las tarifas se volvió la última pregunta, y la de «división de
+   Blink» se borró del sitio. Dejar un `aside` con una sola nota encima
+   del pie era pagarle al lector un renglón que ya leyó arriba.
    ============================================================ */
-
-.lp-notas {
-  padding-block: clamp(2rem, 4vw, 2.75rem);
-  background: var(--lp-fondo);
-  color: var(--lp-texto);
-  border-top: 1px solid var(--lp-borde);
-}
-
-.lp-notas__lista {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  margin: 0;
-  padding-left: 1.35rem;
-  font-size: var(--lp-fs-nota);
-  line-height: 1.5;
-  color: var(--lp-texto-3);
-}
 
 .lp-pie {
   padding-block: clamp(2rem, 4vw, 2.75rem);
@@ -994,8 +997,30 @@
     align-items: flex-start;
   }
 
+  /* Nueve lockups con nombre en 390 px solo caben si bajan de tamaño,
+     pero la matriz de tres por tres NO se rompe: se mantienen las tres
+     columnas y se encogen los tres escalones a la vez (22 / 18 / 15 px
+     de tinta y 15 / 13 / 12 px de nombre). Pasar a dos columnas habría
+     descuadrado los escalones — el `:nth-child` que decide el tamaño ya
+     no coincidiría con la fila que se ve. La fila más ancha que puede
+     darse (GitHub · Cloudflare · Supabase) mide 279 px sobre los 358 px
+     de contenido de un iPhone de 390; el margen es de 79 px, y por eso
+     el escalón grande puede quedarse en 15 px de nombre sin partir la
+     fila. Medido con `scripts/capturas.mjs` (0 desbordes). */
   .lp-socios {
-    gap: 1.75rem 2rem;
+    --glifo: 15px;
+    --nombre: 0.75rem;
+    gap: 1.1rem 0.75rem;
+  }
+
+  .lp-socios li:nth-child(-n + 3) {
+    --glifo: 22px;
+    --nombre: 0.9375rem;
+  }
+
+  .lp-socios li:nth-child(n + 4):nth-child(-n + 6) {
+    --glifo: 18px;
+    --nombre: 0.8125rem;
   }
 }
 

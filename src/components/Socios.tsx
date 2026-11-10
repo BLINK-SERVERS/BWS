@@ -1,41 +1,45 @@
-import { ALTO_TINTA_PX, SOCIOS, type Socio } from "../lib/socios";
+import { type Socio, SOCIOS } from "../lib/socios";
 
 /* ============================================================
    Socios — la banda de aliados
    ------------------------------------------------------------
-   Prueba social, no documentación: cinco marcas y ni una línea que
-   explique qué hace cada una. El cliente no tiene que saberlo; le
-   basta ver con quién trabajamos.
+   Prueba social, no documentación: las marcas de la gente con la que
+   se trabaja, en orden de lo que sostiene el proyecto. Ni una línea que
+   explique qué hace cada una.
 
-   El truco de la fila es el ALTO DE TINTA, no el tamaño del SVG. Los
-   cuatro vectores oficiales vienen en una caja de 24x24, pero su tinta
-   real mide cosas muy distintas (medido con scripts/medir-socios.mjs):
-     · Supabase   23,39 x 24      · Cloudflare 24 x 10,85
-     · GitHub      24 x 23,41     · Zoho       24 x 10,21
-   Si los cinco se dibujaran con viewBox "0 0 24 24" y el mismo alto,
-   la nube de Cloudflare ocuparía la mitad del cuadro y se vería dos
-   veces más chica que el rayo de Supabase. Recortando el viewBox a la
-   caja de tinta, el alto que se fija en CSS es ALTO DE TINTA parejo.
+   Dos cosas cambian respecto a la banda de siempre:
 
-   `alto` es un ajuste óptico por marca (las tiras anchas pesan más que
-   los cuadros a la misma altura) y se calibra mirando la captura.
+   1. El nombre va al lado del logo, como lo trae cada marca. Antes los
+      nombres solo existían en el `aria-label`, así que en pantalla la
+      fila era un acertijo: un rayo, una nube, un pulpo. Con el nombre
+      visible, la prueba social se lee sin tener que reconocer el glifo.
+      Y como el texto ahora está a la vista, el `role="img"` con
+      `aria-label` sobra y molesta: el accesible pasaría a decir
+      «GitHub GitHub». Se deja el SVG oculto para lectores de pantalla
+      (`aria-hidden`) y el nombre se lee una sola vez.
+   2. La jerarquía la manda el ORDEN de `lib/socios.ts` y el tamaño lo
+      fija `landing.css` con `:nth-child(-n + 5)`: los cinco que sostienen
+      el proyecto se dibujan más grandes. No hay dos listas ni etiquetas
+      de «menores»: una sola fila, ordenada.
 
-   nic.ve no tiene marca vectorial oficial: simpleicons responde 404.
-   Se compone como texto-marca con la pila de la familia. Es un dato,
-   no una flojera, y va anotado en lib/socios.ts.
+   El truco de la fila sigue siendo el ALTO DE TINTA, no el tamaño del
+   SVG. Los vectores oficiales vienen en una caja de 24x24, pero su tinta
+   real mide cosas muy distintas (medido con `scripts/medir-socios.mjs`):
+     · Supabase 23,39 x 24   · Cloudflare 24 x 10,85
+     · GitHub    24 x 23,41  · Zoho       24 x 10,21
+   Recortando el viewBox a la caja de tinta, y multiplicando por `alto`
+   (ajuste óptico por marca), las nueve pesan lo que deben pesar.
 
-   Los `aria-label` son los ÚNICOS sitios del sitio donde se leen estos
-   nombres. No hay ALT escondido ni texto visible: la banda se dibuja,
-   no se explica.
+   AWS, Qoder y nic.ve no tienen vector oficial al alcance (simpleicons y
+   devicon responden 404): se componen como texto-marca con la pila de la
+   familia, que es el nombre y nada más.
    ============================================================ */
 
-function LogoSocio({ socio }: { socio: Socio }) {
-  const alto = ALTO_TINTA_PX * (socio.alto ?? 1);
-
+function Pieza({ socio }: { socio: Socio }) {
   if (socio.esTexto) {
     return (
-      <span className="lp-socio lp-socio--texto" style={{ height: `${alto}px` }}>
-        {socio.nombre}
+      <span className="lp-socio lp-socio--texto">
+        <span className="lp-socio__nombre">{socio.nombre}</span>
       </span>
     );
   }
@@ -43,16 +47,12 @@ function LogoSocio({ socio }: { socio: Socio }) {
   const { x, y, w, h } = socio.caja;
 
   return (
-    <span
-      className="lp-socio"
-      style={{ height: `${alto}px` }}
-      role="img"
-      aria-label={socio.nombre}
-    >
+    <span className="lp-socio" style={{ ["--optico" as string]: String(socio.alto ?? 1) }}>
       {/* viewBox recortado a la tinta medida: ver el comentario de arriba. */}
-      <svg viewBox={`${x} ${y} ${w} ${h}`} focusable="false" aria-hidden="true">
+      <svg className="lp-socio__glifo" viewBox={`${x} ${y} ${w} ${h}`} focusable="false" aria-hidden="true">
         <path d={socio.ruta} />
       </svg>
+      <span className="lp-socio__nombre">{socio.nombre}</span>
     </span>
   );
 }
@@ -62,7 +62,7 @@ export function Socios() {
     <ul className="lp-socios">
       {SOCIOS.map((socio) => (
         <li key={socio.nombre}>
-          <LogoSocio socio={socio} />
+          <Pieza socio={socio} />
         </li>
       ))}
     </ul>

@@ -7,13 +7,16 @@ es la única promesa que el sitio hace en voz alta.
 
 **Regla de oro del copy:** aquí no se dice `base de datos`, `hosting`,
 `servidor`, `API`, `DNS`, `CDN`, `repositorio` ni `deploy`, y no se
-nombra a Supabase, GitHub, Cloudflare, Zoho ni nic.ve. Son las
-tecnologías que usamos, no parte de lo que el cliente tiene que
-entender. Los únicos nombres de terceros que se ven son los logos de la
-banda de aliados, y salen sin una línea de explicación. La regla es
-comprobable: `npm run verificar` recorre el copy, los componentes y lo
-que se sirve desde `public/`, quita los comentarios y falla si encuentra
-una sola aparición visible.
+nombra a Supabase, GitHub, Cloudflare, Neon, AWS, Zoho, Resend, Qoder ni
+nic.ve. Son las tecnologías que usamos, no parte de lo que el cliente
+tiene que entender. Los únicos nombres de terceros que se ven son los
+logos de la banda de aliados, y salen sin una línea de explicación. La
+regla es comprobable: `npm run verificar` (`scripts/sin-tecnicismos.mjs`)
+recorre el copy, los componentes y lo que se sirve desde `public/`,
+quita los comentarios y falla si encuentra una sola aparición visible.
+Las nueve marcas viven en `src/lib/socios.ts`, que es el único archivo
+eximido del segundo grep: fuera de ese almacén, cualquier mención a un
+vendor en el copy es un fallo.
 
 ## Stack
 
@@ -61,13 +64,22 @@ comprobar.
 
 ## La marca, y por qué el lockup es mixto
 
-`src/assets/marca-blink.svg` es el wordmark aprobado, con la geometría
-intocable: ni un número de los `d=` se reinterpreta. `MarcaBWS.tsx` lo
-pinta inline (sanitizando `id` y atributos de Inkscape para no colisionar
-en el DOM) y le añade «Web Services» **como texto**, no como trazos, al
-mismo peso Medium 500 con el que `blink-pay.svg` declara su «Pay». No
-existe geometría aprobada para esas letras y en esta máquina no se puede
-generar sin SF Pro instalado.
+`src/assets/marca-blink.svg` es el maestro aprobado, con la geometría
+intocable: ni un número de los `d=` se reinterpreta. El sitio no lo usa
+tal cual: usa `src/assets/marca-blink-texto.svg`, la misma silueta
+recortada a la tinta del wordmark y **sin el isotipo**, que genera
+`scripts/generar-marca-texto.mjs`. El script extrae el grupo
+`#wordmark`, mide su caja de tinta transformando `getBBox()` por
+`getCTM()` y, antes de escribir nada, verifica que los cinco trazos
+aparezcan byte a byte en la salida — si uno cambiara, el script falla en
+vez de producir una marca nueva. El maestro queda intacto como
+referencia.
+
+`MarcaBWS.tsx` pinta ese wordmark inline (sanitizando `id` y atributos de
+Inkscape para no colisionar en el DOM) y le añade «Web Services» **como
+texto**, no como trazos, al mismo peso Medium 500 con el que
+`blink-pay.svg` declara su «Pay». No existe geometría aprobada para esas
+letras y en esta máquina no se puede generar sin SF Pro instalado.
 
 La proporción del lockup no está a ojo, está medida:
 
@@ -77,9 +89,14 @@ La proporción del lockup no está a ojo, está medida:
 - Razón 1,00 no es trasladable: «Web Services» son doce letras y a ese
   tamaño se convertiría en la protagonista. BWS fija 0,62.
 - `scripts/medir-lockup.mjs` mide la caja del wordmark (179 unidades de
-  mayúscula sobre una caja de 194) y la mayúscula real de la pila que se
-  sirve, y comprueba que el lockup completo cabe en el contenedor en los
-  tres anchos. Con `font-size: 1em` en el descriptor la razón sale 0,629.
+  mayúscula sobre una caja de tinta de 193,14) y la mayúscula real de la
+  pila que se sirve, y comprueba que el lockup completo cabe en el
+  contenedor en los tres anchos. Con `font-size: 1em` en el descriptor la
+  razón sale 0,629.
+- Al recortar la caja de 869 a 592,12 unidades de ancho el `em` del
+  wordmark baja con ella: `3,943 = 5,79 × (592,12/869) × (194/193,14)`.
+  Sin esa compensación la marca habría crecido un 47 % y el descriptor
+  habría perdido la razón 0,62.
 - El CSS dimensiona todo en `em` desde **un solo mando** (`font-size` del
   contenedor). Antes cada pieza tenía su propio `clamp()` y el descriptor
   se quedó a 0,27 de la mayúscula del wordmark en la captura de 1440.
@@ -91,20 +108,50 @@ La proporción del lockup no está a ojo, está medida:
 En pantallas de menos de 421 px el descriptor pasa a la sigla «BWS»; el
 HTML lleva los dos textos y solo cambia la visibilidad.
 
+En la barra la marca se centra a mano, no por accidente: el ancla es
+`inline-flex` con `align-items: center` (con `baseline` dentro de una caja
+de 44 px el contenido quedaba pegado arriba, que era el «muy arriba» de la
+captura) y encima lleva `padding-top: 0.225rem`, calibrado con
+`scripts/detalle.mjs` — el descriptor aporta su descendente a la altura de
+línea y la tinta queda 3,6 px por encima del eje. Con 7,2 px de padding el
+desvío pasó de −3,6 a +3,6; con 3,6 px `barra.desvioConEnlaces` y
+`desvioConBoton` salen en `0`.
+
 ## Los logos de aliados
 
-`src/lib/socios.ts` guarda los trazados oficiales de Supabase, GitHub,
-Cloudflare y Zoho vendorizados en el repo (bajados de
-`cdn.simpleicons.org`, no se pide nada a un tercero al cargar la página).
+`src/lib/socios.ts` guarda nueve marcas. Cinco con trazado oficial
+vendorizado en el repo (bajados de `cdn.simpleicons.org`, no se pide nada
+a un tercero al cargar la página): GitHub, Cloudflare, Supabase, Neon y
+Zoho Mail. Cuatro sin vector disponible —AWS, Qoder y `nic.ve` dan 404 o
+403 en simpleicons y en devicon— se componen como texto-marca: el nombre,
+que es lo único reproducible sin licencia, en la pila de la familia.
+
+**El orden del array es la jerarquía**, y la jerarquía es una matriz de
+tres por tres: `landing.css` agranda por posición (`:nth-child(-n + 3)`
+32 px de tinta, `n + 4`–`n + 6` 26 px, el resto 22 px), así que mover una
+marca en el almacén le cambia el tamaño solo. Cada nombre se pinta al
+lado de su logo, como es su marca, y la banda no explica qué hace cada
+cual: es prueba social, no documentación.
+
 Cada `viewBox` está recortado a su **caja de tinta medida** —no a la caja
 cuadrada de 24×24— con `scripts/medir-socios.mjs`, que lee este mismo
 archivo: así lo que se publica es exactamente lo que se midió. Sin el
 recorte, la nube de Cloudflare ocuparía la mitad del cuadro y se vería la
-mitad de grande que el rayo de Supabase.
+mitad de grande que el rayo de Supabase. Sobre eso cada marca trae un
+`alto` de ajuste óptico (las tiras anchas pesan más que los cuadrados a
+igual altura) calibrado mirando la captura, no la cabeza.
 
-`nic.ve` no tiene marca vectorial oficial (simpleicons responde 404), así
-que se compone como texto-marca con el mismo peso y el mismo alto de
-tinta que el resto de la fila.
+## La tarjeta de enlace
+
+`npm run og` (`scripts/og.mjs`) escribe `public/og.png`, 1200×630 exactos
+con la misma pila y el mismo wordmark del sitio. Es negra y vacía a
+propósito: la tarjeta se ve a ~280 px dentro de una burbuja de WhatsApp,
+y ahí solo se lee UNA frase. Papel `#000`, la firma arriba, el titular en
+`#f5f5f7`, la bajada en `#a1a1aa` y el dominio en `#6e6e73` — los tokens
+de la tema oscura de `landing.css`, no una paleta nueva — y nada de
+degradados, puntos de color ni listas de servicios. Se renderiza a 2× y
+se baja a 1× con el propio Chromium, que deja los trazos del wordmark más
+nítidos que renderizando directo y pesa la mitad (86 KB).
 
 ## Límites de verificación de esta máquina
 
@@ -153,7 +200,7 @@ Hecho y comprobado contra el dominio (no contra `npm run preview`):
    el `inter-latin.woff2` que referencia el CSS — todas 200. El HTML
    servido lleva la frase ancla nueva en los cinco `meta` y cero
    apariciones de la palabra vieja. Render real en 1440: 4 beneficios,
-   3 servicios, 3 pasos, 5 aliados, la promesa literal, los tres
+   3 servicios, 3 pasos, 9 aliados, la promesa literal, los tres
    enlaces de contacto, el acordeón abriéndose, 0 px de overflow y 0
    errores de consola.
 
@@ -162,6 +209,18 @@ código distinto de cero si algo de lo anterior falla — incluidas las
 cabeceras de la sección 3, que exigen el `301` de `http://` y que seguirlo
 aterrice en `200` con la verificación TLS en `0`. Si alguien vuelve a
 apagar *Enforce HTTPS*, el chequeo lo detecta solo.
+
+**Estado del último cambio de copy (2026-11-10): verificado en local, no
+publicado.** La tanda nueva —marca sin isotipo, «Hablemos» a WhatsApp,
+beneficios, servicios, proceso, promesa sin subtítulo, banda de nueve,
+FAQ con la pregunta de las tarifas y la `og.png` negra— está construida,
+capturada y comprobada contra `npm run preview`: typecheck limpio, build
+limpio, `npm run verificar` en 13 archivos, 0 violaciones de axe en 390 y
+1440, 0 px de desborde en los tres anchos y `desvioConEnlaces: 0` en la
+barra. `npm run vivo` todavía fallaría contra el dominio porque ahora
+exige esa copy y `gh-pages` sigue sirviendo la versión del 2026-11-09. El
+desfase se cierra con `npm run deploy`, que es un pedido explícito y no
+una consecuencia automática de este commit.
 
 Las dos cosas que faltaban no se podían hacer desde esta máquina; ya
 están ambas:

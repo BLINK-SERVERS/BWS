@@ -1,14 +1,19 @@
-import marcaBlink from "../assets/marca-blink.svg?raw";
+import marcaBlink from "../assets/marca-blink-texto.svg?raw";
 import { MARCA } from "../lib/contenido";
 
 /* ============================================================
-   MarcaBWS — wordmark aprobado + subword tipográfico
+   MarcaBWS — wordmark aprobado (solo texto) + subword tipográfico
    ------------------------------------------------------------
-   «Blink» es geometría aprobada y se pinta TAL CUAL. El archivo de
-   `src/assets/marca-blink.svg` es idéntico carácter por carácter al
-   `<symbol id="marca-blink">` publicado en blink.com.ve (verificado
-   comparando los ocho trazados con `re.findall` el 2026-11-09). Al
-   insertarlo en línea se le quitan los `id` — la marca aparece tres
+   «Blink» es geometría aprobada y se pinta TAL CUAL, sin el isotipo:
+   el master `src/assets/marca-blink.svg` trae dos capas (wordmark y
+   rostro), y de aquí se sirve `src/assets/marca-blink-texto.svg`, que
+   son los mismos cinco trazos del wordmark, copiados carácter por
+   carácter, con la caja recortada a su tinta. Lo genera
+   `scripts/generar-marca-texto.mjs`, que compara los `d` con el master
+   y sale con error si uno solo difiere — la silueta no se redibuja, se
+   recorta el aire. El master sigue intacto en el repo como referencia.
+
+   Al insertarlo en línea se le quitan los `id` — la marca aparece tres
    veces en la página y un `id` duplicado rompe el DOM — y la metadata
    del editor. Ningún `d` se toca.
 

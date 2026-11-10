@@ -25,7 +25,9 @@ interface Props {
   /** Ancho del contenido: 980 px por defecto, 720 px en texto corrido. */
   estrecho?: boolean;
   className?: string;
-  children: ReactNode;
+  /* Opcional desde que la promesa se quedó sin subtítulo: hay secciones
+     que son solo su titular, y meterles un `<></>` vacío sería ruido. */
+  children?: ReactNode;
 }
 
 export function Seccion({

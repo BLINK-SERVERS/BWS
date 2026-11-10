@@ -10,7 +10,6 @@ import {
   HERO,
   MARCA,
   NAV,
-  NOTAS,
   PIE,
   PROCESO,
   PROMESA,
@@ -22,22 +21,27 @@ import {
 /* ============================================================
    Landing de bws.blink.com.ve
    ------------------------------------------------------------
-   Una sola página, nueve bloques, en el orden de la referencia de
-   Apple que ya usa Pay: cinta → hero → beneficios oscuros → qué
-   hacemos → proceso → promesa oscura → banda de aliados → preguntas
-   → cierre oscuro → pie.
+   Una sola página, ocho bloques, en el orden de la referencia de
+   Apple que ya usa Pay: hero → beneficios oscuros → qué hacemos →
+   proceso → promesa oscura → banda de aliados → preguntas → cierre
+   oscuro → pie. No hay cinta de presentación encima del hero: la marca
+   ya se lee en el lockup, y decir además «división de Blink» era
+   explicarle al cliente algo que no preguntó.
 
    La regla que gobierna el documento entero: el cliente trae una idea
    y dinero; del resto nos encargamos nosotros. Ninguna pantalla de
    esta página habla de tecnología. Las ÚNICAS palabras técnicas del
-   sitio son los cinco logos de la banda de aliados, y salen sin una
-   línea de explicación.
+   sitio son los nombres de la banda de aliados, y salen como marcas,
+   sin una línea de explicación.
 
    Qué se cambió respecto a la estructura de Pay y por qué
    · El H1 es la frase ancla, no la marca. `lp-hero__titular` es el
      elemento más grande de la página y el que manda en el esquema del
      documento; la marca va delante, oculta para la vista y presente
      para el lector de pantalla.
+   · «Hablemos» no es una ancla: abre el WhatsApp. El sitio no captura
+     datos, así que llevarlo a un formulario sería un paso de más entre
+     la idea y nosotros.
    · No hay mockups de hardware ni de teléfono. Pay los necesita porque
      enseña una app; BWS vende un servicio y el hero no tiene pantalla
      que mostrar. Cerrar con aire, y no con una interfaz inventada, es
@@ -75,7 +79,12 @@ export function Landing() {
             ))}
           </nav>
 
-          <a className="lp-boton lp-boton--primario lp-nav__cta" href="#hablemos">
+          <a
+            className="lp-boton lp-boton--primario lp-nav__cta"
+            href={HERO.ctaPrimaria.url}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
             Hablemos
           </a>
         </div>
@@ -85,8 +94,6 @@ export function Landing() {
         {/* --- 1. Hero --- */}
         <section className="lp-seccion lp-hero" aria-labelledby="hero-titulo">
           <div className="lp-contenido">
-            <p className="lp-cinta">{MARCA.cinta}</p>
-
             <p className="lp-hero__marca">
               <MarcaBWS variante="hero" />
             </p>
@@ -99,8 +106,14 @@ export function Landing() {
             <p className="lp-hero__sub">{HERO.sub}</p>
 
             <p className="lp-hero__cta">
-              <a className="lp-boton lp-boton--primario" href={HERO.ctaPrimaria.ancla}>
+              <a
+                className="lp-boton lp-boton--primario"
+                href={HERO.ctaPrimaria.url}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
                 {HERO.ctaPrimaria.texto}
+                <Icono nombre="whatsapp" />
               </a>
               <a className="lp-boton lp-boton--fantasma" href={HERO.ctaSecundaria.ancla}>
                 {HERO.ctaSecundaria.texto}
@@ -169,14 +182,11 @@ export function Landing() {
           titulo={PROMESA.titulo}
           claseTitulo="lp-promesa"
           estrecho
-        >
-          <p className="lp-promesa__apoyo">{PROMESA.apoyo}</p>
-        </Seccion>
+        />
 
         {/* --- 6. Banda de aliados --- */}
         <Seccion id={SOCIOS.id} tema="clara" titulo={SOCIOS.titulo}>
           <Socios />
-          <p className="lp-socios__nota">{SOCIOS.nota}</p>
         </Seccion>
 
         {/* --- 7. Preguntas --- */}
@@ -190,7 +200,7 @@ export function Landing() {
           <p className="lp-cierre__cta">
             <a
               className="lp-boton lp-boton--primario"
-              href={CONTACTO.whatsapp}
+              href={CONTACTO.whatsappSaludo}
               target="_blank"
               rel="noopener noreferrer"
             >
@@ -209,26 +219,13 @@ export function Landing() {
         </Seccion>
       </main>
 
-      {/* --- Notas: la línea que falta cuando no hay precios a la vista --- */}
-      <aside className="lp-notas" aria-label="Aclaraciones">
-        <div className="lp-contenido">
-          <ul className="lp-notas__lista">
-            {NOTAS.piezas.map((nota) => (
-              <li key={nota}>{nota}</li>
-            ))}
-          </ul>
-        </div>
-      </aside>
-
       {/* --- 9. Pie --- */}
       <footer className="lp-pie">
         <div className="lp-contenido">
           <MarcaBWS variante="pie" />
 
           <div className="lp-pie__fila">
-            <p className="lp-pie__legal">
-              {PIE.legal} — {PIE.nota}
-            </p>
+            <p className="lp-pie__legal">{PIE.legal}</p>
             <ul className="lp-pie__enlaces">
               {PIE.enlaces.map((enlace) => (
                 <li key={enlace.texto}>

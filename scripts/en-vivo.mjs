@@ -245,6 +245,7 @@ const visto = await lienzo.evaluate(() => {
   return {
     ancla,
     oculto: h1?.querySelector(".visualmente-oculto")?.textContent?.trim() ?? null,
+    sub: texto(".lp-hero__sub"),
     wordmark: visible(".lp-marca-bws__blink svg"),
     descriptor: texto(".lp-marca-bws__sub--largo"),
     socios: document.querySelectorAll(".lp-socios .lp-socio").length,
@@ -252,7 +253,13 @@ const visto = await lienzo.evaluate(() => {
     beneficios: document.querySelectorAll(".lp-beneficio").length,
     servicios: document.querySelectorAll(".lp-pieza").length,
     promesa: texto(".lp-promesa"),
-    apoyo: texto(".lp-promesa__apoyo"),
+    /* La promesa se quedó sin subtítulo: si vuelve a aparecer un hijo
+       dentro de su sección, alguien reinsertó la línea que se borró. */
+    promesaHijos: document.querySelectorAll(".lp-promesa > *").length,
+    /* Los tres botones «Hablemos» (barra, hero y cierre) tienen que
+       salir hacia WhatsApp, no al formulario de antes. */
+    hablemos: [...document.querySelectorAll(".lp-nav__cta, .lp-hero__cta a, .lp-cierre__cta a")]
+      .map((a) => `${a.textContent.trim().slice(0, 14)} → ${a.getAttribute("href")}`),
     contacto: [...document.querySelectorAll(".lp-cierre a")].map((a) => a.getAttribute("href")),
     desborda: document.documentElement.scrollWidth - document.documentElement.clientWidth,
   };
@@ -270,26 +277,40 @@ const bandeja = await lienzo.evaluate(() => {
 
 dice("frase ancla", visto.ancla ?? "?");
 dice("prefijo oculto", visto.oculto ?? "?");
+dice("bajada del hero", visto.sub ?? "?");
 dice("lockup", `${visto.wordmark ? "wordmark pintado" : "SIN wordmark"} + «${visto.descriptor ?? "?"}»`);
 dice("piezas", `beneficios ${visto.beneficios} · servicios ${visto.servicios} · pasos ${visto.pasos} · aliados ${visto.socios}`);
 dice("promesa", visto.promesa ?? "?");
-dice("apoyo", visto.apoyo ?? "?");
+dice("botones", visto.hablemos.join("   |   "));
 dice("contacto", visto.contacto.join("  "));
 dice("acordeón", `aria-expanded=${bandeja.expandido} · respuesta ${bandeja.alto} px alta`);
 dice("overflow horizontal", `${visto.desborda} px`);
 dice("errores de consola", errores.length ? errores.join(" | ") : "0");
 await lienzo.screenshot({ path: ".capturas/vivo-1440.png", fullPage: true });
+/* El HTML ya renderizado, capturado ANTES de cerrar el navegador: las
+   frases borradas solo se comprueban sobre lo que de verdad se pintó
+   (el `index.html` servido es un envoltorio vacío). */
+const render = await lienzo.content();
 await navegador.close();
 
 if (visto.ancla !== "Solo traes dos cosas: una idea y el dinero.")
   fallos.push(`la frase ancla renderizada es «${visto.ancla}»`);
+if (visto.sub !== "Nosotros nos encargamos del resto.")
+  fallos.push(`la bajada del hero es «${visto.sub}»`);
 if (!/Blink Web Services/.test(visto.oculto ?? ""))
   fallos.push("el h1 no lleva el nombre largo de la marca");
 if (visto.beneficios !== 4 || visto.servicios !== 3 || visto.pasos !== 3)
   fallos.push(`el recuento de piezas cambió: ${visto.beneficios}/${visto.servicios}/${visto.pasos}`);
-if (visto.socios !== 5) fallos.push(`la banda de aliados tiene ${visto.socios} marcas`);
+if (visto.socios !== 9) fallos.push(`la banda de aliados tiene ${visto.socios} marcas`);
 if (!/misma tecnolog/.test(visto.promesa ?? ""))
   fallos.push("la promesa literal no está en el DOM publicado");
+if (visto.promesaHijos > 0) fallos.push("la promesa volvió a llevar subtítulo");
+const sinWhatsapp = visto.hablemos.filter((l) => !/wa\.me\/16318211938/.test(l.split("→")[1] ?? ""));
+if (sinWhatsapp.length) fallos.push(`botones que no llevan a WhatsApp: ${sinWhatsapp.join(" | ")}`);
+const prohibidas = [["división de Blink", /divisi[oó]n de Blink/i], ["Cuatro cosas", /Cuatro cosas/]];
+for (const [nombre, re] of prohibidas) {
+  if (re.test(render)) fallos.push(`el sitio publicado todavía menciona «${nombre}»`);
+}
 if (bandeja.expandido !== "true" || bandeja.alto < 20) fallos.push("el acordeón no se abrió en el dominio");
 if (visto.desborda > 0) fallos.push(`el documento desborda ${visto.desborda} px`);
 if (errores.length) fallos.push(`${errores.length} errores de consola`);

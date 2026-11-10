@@ -8,6 +8,23 @@
    los mismos `--lp-*`— para que la tarjeta del enlace no se parezca a
    una página distinta.
 
+   Por qué es negra y vacía. La primera versión era la página clonada:
+   fondo con el velo azul del hero, el lockup en azul de acento, el
+   titular, un punto de color y una lista de servicios. Diez días
+   después sigue siendo cierto que eso "es el sitio", pero una tarjeta
+   de enlace no es una página: se ve a 280 px de ancho dentro de una
+   burbuja de chat, y ahí lo que se lee es UNA frase. La referencia de
+   Apple (apple.com/iphone, apple.com/apple-pay) resuelve lo mismo hace
+   años de la misma manera: papel negro plano, producto nombrado en
+   grande, cero ornamentos. Así que la tarjeta se quedó con tres cosas
+   —la marca, la frase y el dominio— y todo lo demás salió: el degradado
+   (en negro plano no hay de qué salir), el punto azul, el subtítulo de
+   servicios y el azul del wordmark, que sobre negro pide blanco y
+   discutir con él es peor. Los tokens de tinta son los de la tema
+   oscuro de `landing.css` (#f5f5f7 / #a1a1aa / #6e6e73 sobre #000), así
+   que no hay una paleta nueva en la tarjeta: hay la misma de siempre
+   sobre el otro papel.
+
    Se renderiza a escala 2 y se recorta a 1200×630 exactos: los
    1200×630 son los que piden las guías de Open Graph y WhatsApp, y un
    PNG más grande solo pesa.
@@ -18,7 +35,7 @@ import { chromium } from "playwright-core";
 import { readFileSync, writeFileSync } from "node:fs";
 
 const RAIZ = new URL("..", import.meta.url);
-const MARCA = readFileSync(new URL("src/assets/marca-blink.svg", RAIZ), "utf8")
+const MARCA = readFileSync(new URL("src/assets/marca-blink-texto.svg", RAIZ), "utf8")
   .replace(/<\?xml[^>]*\?>/, "")
   .replace(/\sid="[^"]*"/g, "")
   .replace(/\s(?:xmlns:|inkscape:)[a-z-]+="[^"]*"/g, "");
@@ -38,36 +55,40 @@ const html = `<!doctype html>
     font-style: normal;
     font-display: block;
   }
-  :root {
-    --tinta: #1d1d1f; --tinta-2: #6e6e6e; --azul: #007AFF; --azul-hondo: #0066cc;
-  }
   * { box-sizing: border-box; }
   html, body { margin: 0; }
   body {
     width: ${ANCHO}px; height: ${ALTO}px; overflow: hidden;
-    background: radial-gradient(120% 140% at 50% -20%, #ffffff 0%, #f2f2f7 62%, #e8e8ef 100%);
+    background: #000000;
     font-family: "SF Pro Display", "SF Pro Text", Inter, -apple-system, system-ui, sans-serif;
-    color: var(--tinta);
-    display: flex; flex-direction: column; justify-content: center;
-    padding: 64px 88px;
+    color: #f5f5f7;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    text-align: center;
+    padding: 0 96px 64px;
   }
+  /* El mismo mando único del hero: wordmark en em, descriptor a 1em.
+     3,943em es la caja de tinta sin el isotipo; con el mando en 40 px
+     el lockup mide ~206 px y queda claro que es la firma, no el asunto. */
   .marca { display: flex; align-items: baseline; gap: 0.3em;
-           font-size: 46px; color: var(--azul); margin-bottom: 40px; }
-  .marca svg { width: 5.79em; height: auto; display: block; flex: none; }
+           font-size: 40px; color: #f5f5f7; margin-bottom: 52px; }
+  .marca svg { width: 3.943em; height: auto; display: block; flex: none; }
   .marca span { font-size: 1em; font-weight: 500; line-height: 1.1;
-                letter-spacing: -0.01em; color: var(--tinta-2); white-space: nowrap; }
-  h1 { margin: 0; font-size: 76px; font-weight: 700; line-height: 1.04;
-       letter-spacing: -0.03em; text-wrap: balance; max-width: 20ch; }
-  .pie { margin-top: 34px; display: flex; align-items: center; gap: 14px;
-         font-size: 25px; font-weight: 600; color: var(--azul-hondo); }
-  .punto { width: 9px; height: 9px; border-radius: 50%; background: var(--azul-hondo); }
-  .dominio { color: var(--tinta-2); font-weight: 500; }
+                letter-spacing: -0.01em; color: #86868b; white-space: nowrap; }
+  h1 { margin: 0; font-size: 80px; font-weight: 700; line-height: 1.05;
+       letter-spacing: -0.032em; text-wrap: balance; max-width: 22ch;
+       color: #f5f5f7; }
+  .sub { margin: 26px 0 0; font-size: 34px; font-weight: 500;
+         letter-spacing: -0.015em; line-height: 1.25; color: #a1a1aa; }
+  .dominio { position: absolute; bottom: 46px; left: 0; right: 0;
+             font-size: 22px; font-weight: 500; letter-spacing: 0.01em;
+             color: #6e6e73; }
 </style></head>
 <body>
   <p class="marca">${MARCA}<span>Web Services</span></p>
   <h1>Solo traes dos cosas: una idea y el dinero.</h1>
-  <p class="pie"><span class="punto"></span>bws.blink.com.ve
-     <span class="dominio">· Páginas, web apps y portafolios</span></p>
+  <p class="sub">Nosotros nos encargamos del resto.</p>
+  <p class="dominio">bws.blink.com.ve</p>
 </body></html>`;
 
 const navegador = await chromium.launch({

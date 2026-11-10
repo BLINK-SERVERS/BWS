@@ -10,11 +10,15 @@
    hacérselo demostrar. Por eso en todo el copy:
 
      · NO se dice base de datos, hosting, servidor, CDN, API, DNS,
-       repositorio, framework ni deploy.
+       repositorio, framework ni deploy. Lo que antes era «dominio, base
+       de datos y hosting» se dice como lo diría una persona: «el nombre
+       en Internet, el correo con tu marca y el sitio donde vive todo».
      · NO aparecen los nombres de las herramientas (viven solo en
        `lib/socios.ts`, como logos, sin una línea de explicación).
      · SI se dice «tu dirección en Internet», «tu correo con el nombre
        de tu empresa», «publicado», «andando».
+     · Frases cortas y afirmativas. Si una línea explica algo que el
+       cliente no preguntó, sobra: se va.
 
    Se comprueba con `npm run verificar` (`scripts/sin-tecnicismos.mjs`),
    que quita los comentarios antes de buscar —si no, esta misma hoja
@@ -30,7 +34,6 @@ export const MARCA = {
   nombre: "Blink Web Services",
   sigla: "BWS",
   sub: "Web Services",
-  cinta: "Una división de Blink.",
 };
 
 export const CONTACTO = {
@@ -39,6 +42,8 @@ export const CONTACTO = {
   telefonoMarca: "+16318211938",
   correo: "business@blink.com.ve",
   whatsapp: "https://wa.me/16318211938",
+  /** El mensaje que ya viene escrito cuando alguien toca «Hablemos». */
+  whatsappSaludo: "https://wa.me/16318211938?text=" + encodeURIComponent("Hola BWS: quiero montar una página"),
   ciudad: "Maracaibo, Venezuela",
 };
 
@@ -57,32 +62,34 @@ export const NAV = [
 
 export const HERO = {
   titulo: "Solo traes dos cosas: una idea y el dinero.",
-  /** La bajada tiene que explicar el negocio de una, porque el titular
-      solo no vende: hay que decir qué se lleva uno a cambio. */
-  sub: "Nosotros nos encargamos del resto: tu página, tu dirección en Internet y tus correos.",
-  ctaPrimaria: { texto: "Hablemos", ancla: "#hablemos" },
+  /** La bajada es una sola línea y no repite el titular: dice qué pasa
+      con todo lo que el cliente no trae. */
+  sub: "Nosotros nos encargamos del resto.",
+  /* El botón no baja a un formulario: abre la conversación. El sitio no
+     captura datos, así que el camino más corto entre la idea y nosotros
+     es el WhatsApp que ya contestamos. */
+  ctaPrimaria: { texto: "Hablemos", url: CONTACTO.whatsappSaludo },
   ctaSecundaria: { texto: "Ver qué hacemos", ancla: "#que-hacemos" },
 };
 
 export const BENEFICIOS = {
   id: "resuelves",
-  etiqueta: "Lo que resuelves con BWS",
-  titulo: "Cuatro cosas que dejas de hacer.",
+  titulo: "Cosas por las que dejas de preocuparte.",
   piezas: [
     {
-      titulo: "Todo el trámite, por nuestra cuenta.",
-      cuerpo: "Nombres, papeles y altas. No tienes que abrir ni una cuenta.",
+      titulo: "Todo el trámite.",
+      cuerpo: "El nombre en Internet, el correo con tu marca y el sitio donde vive todo. No abres ni una cuenta.",
     },
     {
-      titulo: "Publicado y andando, sin que muevas un dedo.",
-      cuerpo: "El día que decimos, tu proyecto está en Internet y la gente lo puede abrir.",
+      titulo: "Publicado el día que decimos.",
+      cuerpo: "Tu proyecto está en Internet y la gente lo puede abrir, sin que muevas un dedo.",
     },
     {
-      titulo: "Cero papeleo y cero contraseñas raras.",
+      titulo: "Cero papeleo. Cero contraseñas raras.",
       cuerpo: "Tú apruebas. Nosotros guardamos, ordenamos y respondemos por el resto.",
     },
     {
-      titulo: "Atado a la misma tecnología que sostiene a Blink.",
+      titulo: "Atado a la tecnología que sostiene a Blink.",
       cuerpo: "No es un experimento: es la forma en que ya trabajamos todos los días.",
     },
   ],
@@ -95,56 +102,54 @@ export const SERVICIOS = {
   piezas: [
     {
       icono: "pagina" as const,
-      titulo: "Páginas que venden.",
-      cuerpo: "Su negocio, bien presentado: claro desde el primer segundo y fácil de pedir por teléfono.",
+      titulo: "Páginas web",
+      cuerpo: "Su negocio, bien presentado, bonito y fácil de explorar para los usuarios.",
     },
     {
       icono: "app" as const,
-      titulo: "Web apps para tu operación.",
-      cuerpo: "Ese cuaderno donde anotas todo, convertido en algo que se usa desde el celular y desde la computadora.",
+      titulo: "Web apps",
+      cuerpo: "Para que tus usuarios no tengan que descargar nada: todo funciona en la nube, sin ocupar espacio en sus teléfonos.",
     },
     {
       icono: "portafolio" as const,
-      titulo: "Portafolios que te representan.",
-      cuerpo: "Tu trabajo, ordenado y con tu nombre, listo para mandar en un solo enlace.",
+      titulo: "Portafolios",
+      cuerpo: "Tu trabajo, tus proyectos o tu marca personal.",
     },
   ],
 };
 
 export const PROCESO = {
   id: "proceso",
-  titulo: "Cómo trabajamos",
-  bajada: "Tres pasos. Ninguno pide que sepas de tecnología.",
+  titulo: "¿Cómo trabajamos?",
+  bajada: "Es muy sencillo.",
   pasos: [
     {
-      titulo: "Cuéntanos la idea.",
+      titulo: "Cuéntanos la idea",
       cuerpo: "Un audio, un correo, un boceto en una servilleta. Como te salga.",
     },
     {
-      titulo: "Nosotros hacemos todo.",
-      cuerpo: "Tu nombre en Internet, tu correo con el nombre de tu empresa, el diseño y la publicación.",
+      titulo: "Paga y espera",
+      cuerpo: "Tu proyecto ya está en marcha: solo tienes que esperar y, tal vez, responder algunas preguntas.",
     },
     {
-      titulo: "Está en Internet.",
-      cuerpo: "Te llega el enlace y ya lo puedes compartir con quien quieras.",
+      titulo: "¿Ya está en Internet?",
+      cuerpo: "Cuando menos te lo esperas ya está listo: te entregamos tus correos corporativos, tus credenciales y todo lo que necesites.",
     },
   ],
 };
 
 export const PROMESA = {
   id: "promesa",
-  etiqueta: "La promesa",
+  /** Sin subtítulo: la promesa se lee sola y no pide que se le explique. */
   titulo: "Tu proyecto funcionará bajo la misma tecnología que hace funcionar a Blink.",
-  apoyo: "La misma seriedad con la que movemos el pasaje de miles de personas.",
 };
 
 export const SOCIOS = {
   id: "aliados",
-  titulo: "Trabajamos con los mismos de siempre.",
-  /** Nota legal breve: son marcas de terceros y BWS las usa, no las
-      representa. Una línea, en cuerpo de nota, sin explicar qué hace
-      cada una: la banda es prueba social, no documentación. */
-  nota: "Las marcas de esta fila son propiedad de cada una de ellas. BWS las usa para trabajar; no las representa.",
+  titulo: "Trabajamos con los mejores en esto.",
+  /* Sin nota legal y sin líneas de apoyo: la banda se dibuja, no se
+     explica. Los nombres solo se leen como texto de marca, al lado de
+     cada logo. */
 };
 
 export const PREGUNTAS = {
@@ -154,27 +159,27 @@ export const PREGUNTAS = {
     {
       pregunta: "¿Cuánto cuesta?",
       respuesta:
-        "Depende de lo que quieras montar. Hablemos y te lo decimos claro, en una sola cifra.",
+        "Depende de lo que quieras crear. Hablemos y te cotizamos tu proyecto; puede que nos adaptemos a tu presupuesto.",
     },
     {
       pregunta: "¿Tengo que comprar algo yo?",
       respuesta:
-        "Nada. El nombre, el correo y todo lo demás lo tramitamos nosotros.",
+        "Solo danos tus datos y el nombre de tu proyecto. Lo demás lo tramitamos nosotros.",
     },
     {
       pregunta: "¿Cuánto tarda?",
       respuesta:
-        "Los primeros bocetos llegan en días. Lo demás se acuerda contigo, con una fecha y sin sorpresas.",
+        "Las primeras demos llegan entre una y dos semanas. El proyecto final depende de la complejidad.",
     },
     {
       pregunta: "¿Tengo que saber de tecnología?",
       respuesta:
-        "No. Para eso estamos nosotros. Tú decides cómo se ve y qué hace; del resto nos ocupamos nosotros.",
+        "Nada, para eso estamos nosotros. Tú nos dices cómo se ve y qué hace; del resto nos ocupamos nosotros.",
     },
     {
-      pregunta: "¿De quién es lo que hacen?",
+      pregunta: "¿Por qué no publican tarifas?",
       respuesta:
-        "Tuyo. El contenido, los datos y las llaves van a tu nombre desde el primer día.",
+        "Porque cada proyecto se cotiza con nombres y apellidos: una sola cifra, por escrito, antes de empezar.",
     },
   ],
 };
@@ -185,18 +190,8 @@ export const CIERRE = {
   bajada: "Cuéntanos qué quieres montar. Te decimos cómo, cuándo y cuánto.",
 };
 
-export const NOTAS = {
-  /** La nota que el sitio necesita por no publicar tarifas: decir por
-      qué no están, en una línea, sin pedir disculpas ni explicar de más. */
-  piezas: [
-    "No publicamos tarifas: cada proyecto se cotiza con nombres y apellidos, en una sola cifra y por escrito.",
-    "Blink Web Services es una división de Blink y responde por lo que construye.",
-  ],
-};
-
 export const PIE = {
   legal: `© 2026 Blink · ${CONTACTO.ciudad}`,
-  nota: "Blink Web Services es una división de Blink.",
   enlaces: [
     { texto: "blink.com.ve", url: ENLACES_FABRICA.blink },
     { texto: "Blink Pay", url: ENLACES_FABRICA.pay },

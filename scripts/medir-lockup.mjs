@@ -3,9 +3,12 @@
    ------------------------------------------------------------
    Tres cosas que no se pueden inventar:
 
-   1. Qué fracción de la caja de `marca-blink.svg` es altura de
-      mayúscula. La caja (869×194) trae aire para ascendentes y
-      descendentes, así que el `height` del SVG ≠ cap del wordmark.
+   1. Qué fracción de la caja de `marca-blink-texto.svg` es altura de
+      mayúscula. Desde que la caja se recortó a la tinta del wordmark
+      (592,12×193,14, sin las 277 unidades de aire del isotipo) el
+      `height` del SVG casi ES la cap: la «B» mide 179 de 193,14. Se
+      sigue midiendo en lugar de asumirlo, porque el número manda sobre
+      el `em` del wordmark en `landing.css`.
    2. Cuánto mide realmente la mayúscula de la pila que se sirve
       (Inter, porque SF Pro no está instalada en esta máquina) para un
       `font-size` dado, y cuánto pesa «Web Services» / «BWS» en ancho.
@@ -25,12 +28,14 @@ import { chromium } from "playwright-core";
 import { readFileSync } from "node:fs";
 
 const DESTINO = process.env.CAPTURAS_URL ?? "http://127.0.0.1:4176/";
-const MARCA = new URL("../src/assets/marca-blink.svg", import.meta.url);
+const MARCA = new URL("../src/assets/marca-blink-texto.svg", import.meta.url);
 
 /* Los dos números que fija landing.css: la razón del descriptor y
-   cuántos em de mando mide el wordmark. */
+   cuántos em de mando mide el wordmark. 3,943 = 5,79 x (592,12/869) x
+   (194/193,14): el recorte de la caja sin el isotipo, compensado para
+   que la tinta renderizada no cambie de tamaño. */
 const RATIO = 0.62;
-const K_WORDMARK = 5.79;
+const K_WORDMARK = 3.943;
 const MANDO = { base: 19.2, pendiente: 0.03, min: 28, max: 55.4 };
 
 const navegador = await chromium.launch({
