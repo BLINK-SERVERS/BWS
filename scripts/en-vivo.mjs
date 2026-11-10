@@ -187,8 +187,14 @@ const css = await cuerpo(IP, `/${C}`);
    servida de SF Pro (el recorte del repo, `npm run sf-pro`) y el
    respaldo de Inter. */
 for (const nombre of ["sf-pro-latin", "inter-latin"]) {
+  /* El grupo captura DENTRO de `url(...)` y cierra antes del `)` final:
+     la primera versión llevaba `[^")]` dentro del grupo, el paréntesis
+     de la clase no cerraba el grupo y `new RegExp` reventaba en tiempo
+     de ejecución — un literal inválido se detecta al parsear el
+     fichero, uno construido desde cadena no, así que `node --check` lo
+     daba por bueno. */
   const W = (
-    css.match(new RegExp(`url\\("?([^")]*${nombre}[^")]*\\.woff2\\)"?`))?.[1] ?? ""
+    css.match(new RegExp(`url\\(\\s*["']?([^"')]*${nombre}[^"')]*\\.woff2)`))?.[1] ?? ""
   ).replace(/^\.\.\//, "/");
   if (!W) {
     fallos.push(`el CSS publicado no referencia ${nombre}.woff2`);
@@ -323,7 +329,15 @@ if (visto.socios !== 9) fallos.push(`la banda de aliados tiene ${visto.socios} m
 if (!/misma tecnolog/.test(visto.promesa ?? ""))
   fallos.push("la promesa literal no está en el DOM publicado");
 if (visto.promesaHijos > 0) fallos.push("la promesa volvió a llevar subtítulo");
-const sinWhatsapp = visto.hablemos.filter((l) => !/wa\.me\/16318211938/.test(l.split("→")[1] ?? ""));
+/* De la lista solo se juzgan los enlaces que PROMETEN la conversación:
+   los tres «Hablemos» y el botón de WhatsApp del cierre. Del mismo
+   contenedor cuelgan el «Ver qué hacemos» del hero (ancla interna) y el
+   teléfono y el correo del cierre, y exigirles `wa.me` era un falso
+   positivo del selector, no un fallo del sitio. */
+const prometeCharla = (l) => /^(Hablemos|Escribir por WhatsApp)/.test(l.split("→")[0].trim());
+const sinWhatsapp = visto.hablemos.filter(
+  (l) => prometeCharla(l) && !/wa\.me\/16318211938/.test(l.split("→")[1] ?? ""),
+);
 if (sinWhatsapp.length) fallos.push(`botones que no llevan a WhatsApp: ${sinWhatsapp.join(" | ")}`);
 const prohibidas = [["división de Blink", /divisi[oó]n de Blink/i], ["Cuatro cosas", /Cuatro cosas/]];
 for (const [nombre, re] of prohibidas) {

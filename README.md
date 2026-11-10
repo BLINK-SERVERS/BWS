@@ -261,22 +261,38 @@ cabeceras de la sección 3, que exigen el `301` de `http://` y que seguirlo
 aterrice en `200` con la verificación TLS en `0`. Si alguien vuelve a
 apagar *Enforce HTTPS*, el chequeo lo detecta solo.
 
-**Estado del último cambio (2026-11-10): verificado en local, no
-publicado.** La tanda nueva —marca sin isotipo, «Hablemos» a WhatsApp,
-beneficios, servicios, proceso, promesa sin subtítulo, banda de nueve,
-FAQ con la pregunta de las tarifas, la `og.png` negra y **SF Pro
-servida** (`src/assets/fonts/sf-pro-latin.woff2`, con el descriptor del
-lockup recalibrado a `1,027em` y el `padding-top` de la barra a
-`0,19375rem`)— está construida, capturada y comprobada contra
-`npm run preview`: typecheck limpio, build limpio, `npm run verificar` en
-13 archivos, 0 violaciones de axe en 390 y
-1440, 0 px de desborde en los tres anchos y `desvioConEnlaces: 0` en la
-barra. `npm run vivo` todavía fallaría contra el dominio porque ahora
-exige esa copy, exige que el CSS publicado apunte al woff2 de SF Pro y
-exige que el render resuelva la familia; `gh-pages` sigue sirviendo la
-versión del 2026-11-09. El
-desfase se cierra con `npm run deploy`, que es un pedido explícito y no
-una consecuencia automática de este commit.
+**Estado de la tanda del 2026-11-10: publicado y comprobado contra el
+dominio.** Lo que salió fue la marca sin isotipo, «Hablemos» a WhatsApp,
+los beneficios, servicios, proceso y FAQ nuevos, la promesa sin
+subtítulo, la banda de nueve, la `og.png` negra y **SF Pro servida**
+(`src/assets/fonts/sf-pro-latin.woff2`, con el descriptor del lockup
+recalibrado a `1,027em` y el `padding-top` de la barra a `0,19375rem`).
+En local: typecheck y build limpios, `npm run verificar` en 13 archivos,
+0 violaciones de axe en 390 y 1440, 0 px de desborde en los tres anchos y
+`desvioConEnlaces: 0` en la barra. Después, `npm run deploy` y `npm run
+vivo` sobre `bws.blink.com.ve`: las once rutas del `dist` responden `200`
+incluido el woff2 de SF Pro (55.888 bytes) y el de Inter, el `http://`
+sigue dando `301` con TLS verificado, el `og.png` publicado mide
+1200×630, y el render real en 1440 sale **en SF Pro con una sola
+descarga de fuente** (`sf-pro-latin-*.woff2`; Inter no se pide porque la
+cara servida cubre el mismo `unicode-range`), con la copy nueva, el
+acordeón abriéndose, 0 px de desborde y 0 errores de consola.
+
+Dos falsos positivos del propio `en-vivo.mjs` se corrigieron en la
+pasada: el `RegExp` construido desde cadena con `[^")]` dentro del grupo
+dejaba el grupo sin cerrar y reventaba en tiempo de ejecución —
+`node --check` no lo ve, porque un literal inválido se detecta al parsear
+y uno construido desde cadena no—, y la comprobación de WhatsApp tomaba
+todos los enlaces de los contenedores del hero y del cierre, incluyendo
+el «Ver qué hacemos» (ancla interna) y el teléfono y el correo, que no
+tienen por qué llevar a `wa.me`. Ahora solo se juzgan los que prometen la
+conversación.
+
+Un detalle del despliegue que conviene conocer: en los ~25 s que tarda
+Pages en reconstruir, el edge puede servir el HTML viejo con los `assets`
+ya sustituidos, y `npm run vivo` contesta `404` en los `index-*.js` y
+`index-*.css`. No es un despliegue roto; es la ventana de la
+reconstrucción. Se repite el chequeo y pasa.
 
 Las dos cosas que faltaban no se podían hacer desde esta máquina; ya
 están ambas:
