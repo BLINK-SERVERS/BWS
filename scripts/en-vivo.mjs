@@ -182,14 +182,22 @@ const ausentes = RUTAS.filter((r) => !respuestas.get(r).startsWith("200"));
 if (ausentes.length) fallos.push(`no responden 200: ${ausentes.join(", ")}`);
 
 const css = await cuerpo(IP, `/${C}`);
-const W = (css.match(/url\("?([^")]*inter-latin[^")]*\.woff2)"?/)?.[1] ?? "").replace(/^\.\.\//, "/");
-if (W) {
+/* Las fuentes no las referencia `index.html` sino el CSS, con rutas
+   relativas al directorio de `assets/`. Se comprueban las dos: la cara
+   servida de SF Pro (el recorte del repo, `npm run sf-pro`) y el
+   respaldo de Inter. */
+for (const nombre of ["sf-pro-latin", "inter-latin"]) {
+  const W = (
+    css.match(new RegExp(`url\\("?([^")]*${nombre}[^")]*\\.woff2\\)"?`))?.[1] ?? ""
+  ).replace(/^\.\.\//, "/");
+  if (!W) {
+    fallos.push(`el CSS publicado no referencia ${nombre}.woff2`);
+    continue;
+  }
   const ruta = W.startsWith("/") ? W : `/assets/${W}`;
   const c = await http(IP, ruta);
-  dice("/…inter-latin.woff2", `${c}  (${ruta})`);
-  if (!c.startsWith("200")) fallos.push("no responde la fuente que sirve el CSS");
-} else {
-  fallos.push("el CSS publicado no referencia la fuente propia");
+  dice(`/…${nombre}.woff2`, `${c}  (${ruta})`);
+  if (!c.startsWith("200")) fallos.push(`no responde ${nombre}.woff2`);
 }
 
 /* --- 5. lo que dice el HTML servido ---------------------------------- */
@@ -262,6 +270,15 @@ const visto = await lienzo.evaluate(() => {
       .map((a) => `${a.textContent.trim().slice(0, 14)} → ${a.getAttribute("href")}`),
     contacto: [...document.querySelectorAll(".lp-cierre a")].map((a) => a.getAttribute("href")),
     desborda: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+    /* Qué voz está usando el dominio de verdad. `fonts.check` vale true
+       tanto si la cara viene del sistema (`local()` en un dispositivo
+       Apple) como si se bajó el recorte del repo; lo que no puede pasar
+       es que la página se publique en Segoe UI o en la pila del sistema. */
+    sfPro: document.fonts.check('500 16px "SF Pro"'),
+    woff2: performance
+      .getEntriesByType("resource")
+      .map((e) => e.name.split("/").pop())
+      .filter((n) => n.endsWith(".woff2")),
   };
 });
 
@@ -285,6 +302,7 @@ dice("botones", visto.hablemos.join("   |   "));
 dice("contacto", visto.contacto.join("  "));
 dice("acordeón", `aria-expanded=${bandeja.expandido} · respuesta ${bandeja.alto} px alta`);
 dice("overflow horizontal", `${visto.desborda} px`);
+dice("tipografía", `${visto.sfPro ? "SF Pro" : "SIN SF Pro"} · descargas ${visto.woff2.join(", ") || "ninguna (local)"}`);
 dice("errores de consola", errores.length ? errores.join(" | ") : "0");
 await lienzo.screenshot({ path: ".capturas/vivo-1440.png", fullPage: true });
 /* El HTML ya renderizado, capturado ANTES de cerrar el navegador: las
@@ -312,6 +330,7 @@ for (const [nombre, re] of prohibidas) {
   if (re.test(render)) fallos.push(`el sitio publicado todavía menciona «${nombre}»`);
 }
 if (bandeja.expandido !== "true" || bandeja.alto < 20) fallos.push("el acordeón no se abrió en el dominio");
+if (!visto.sfPro) fallos.push("el dominio no está renderizando con SF Pro");
 if (visto.desborda > 0) fallos.push(`el documento desborda ${visto.desborda} px`);
 if (errores.length) fallos.push(`${errores.length} errores de consola`);
 

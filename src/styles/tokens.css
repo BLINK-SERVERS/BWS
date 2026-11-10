@@ -145,11 +145,15 @@
      UNA sola pila para toda la app: la landing, el POS y las páginas
      legales escriben siempre con la misma voz.
 
-     · SF Pro (Apple) se pide al sistema con `local()`: sale de serie en
-       Apple y se usa en Windows/Linux si el usuario la instala.
+     · SF Pro (Apple) es la primera de la pila y se resuelve de dos
+       maneras: por `local()` en cualquier equipo que la tenga instalada
+       —iPhone, iPad, Mac— y, si no, con el recorte propio que se sirve
+       desde `src/assets/fonts/` (54,6 KB; lo fabrica `npm run sf-pro`).
+       Ver `fonts.css` para la decisión de licencia.
      · Inter (SIL OFL 1.1) va justo detrás y se sirve desde la app: es
-       el respaldo para los equipos sin SF Pro, de modo que ninguna
-       parte de la interfaz se renderice con la tipografía del sistema.
+       el respaldo para los pesos y caracteres que el recorte de SF Pro
+       no cubre, de modo que ninguna parte de la interfaz se renderice
+       con la tipografía del sistema.
      · La pila del sistema queda al final, solo como último recurso.
 
      --font-display, --font-text y --font-primary apuntan a la MISMA
@@ -158,8 +162,10 @@
      familia. Separate las familias obligaba a elegir una u otra a
      mano y provocaba que un titular y su párrafo salieran con
      tipografías distintas.
-     · --font-mono → SF Mono (cifras monoespaciadas, SKU, códigos).
-     Ningún fichero de Apple se distribuye. */
+     · --font-mono → SF Mono (cifras monoespaciadas, SKU, códigos), solo
+       por `local()`: el paquete de Apple no trae la variante mono y en
+       esta landing no hay importes. Lo que se distribuye es el recorte
+       latino de la cara variable, no el binario original. */
   --font-pila: "SF Pro", "SF Pro Text", "SF Pro Display", "Inter", -apple-system,
     BlinkMacSystemFont, "Segoe UI", Roboto, system-ui, "Helvetica Neue", Arial, sans-serif;
   --font-display: var(--font-pila);

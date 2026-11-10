@@ -25,9 +25,10 @@ sin manifiesto de PWA: es una página informativa y un service worker
 solo complicaría el cacheo en la CDN.
 
 El sistema visual es el de la familia Blink, copiado de `Pay`: `fonts.css`
-(SF Pro pedido con `local()`, Inter variable como respaldo servido),
-`tokens.css` (escala de radios y tipografía), `base.css` (foco visible,
-`.visualmente-oculto`) y `landing.css` podado para BWS. El tema lo fija
+(SF Pro con `local()` delante y el recorte del repo detrás, Inter variable
+como respaldo servido), `tokens.css` (escala de radios y tipografía),
+`base.css` (foco visible, `.visualmente-oculto`) y `landing.css` podado
+para BWS. El tema lo fija
 **la sección** (`.lp-seccion--clara` / `--oscura` / `--gris` redefinen los
 `--lp-*`), no el sistema operativo, así que el sitio se ve igual en un
 iPhone con modo oscuro que en un Windows con tema claro.
@@ -44,6 +45,7 @@ npm run verificar      # el grep de tecnicismos
 npm run capturas       # 390 / 768 / 1440 a .capturas/
 npm run detalle        # lupa de bloques sueltos sobre el DOM
 npm run og             # regenera public/og.png (1200×630)
+npm run sf-pro         # fabrica el recorte servido de SF Pro
 npm run deploy         # build + gh-pages
 npm run vivo           # comprueba el dominio ya publicado
 ```
@@ -117,6 +119,50 @@ línea y la tinta queda 3,6 px por encima del eje. Con 7,2 px de padding el
 desvío pasó de −3,6 a +3,6; con 3,6 px `barra.desvioConEnlaces` y
 `desvioConBoton` salen en `0`.
 
+## La tipografía: SF Pro servida
+
+Desde el 2026-11-10 la landing usa SF Pro **en todos los equipos**, no
+solo en los que la tienen instalada. El sitio se ve igual en un iPhone
+que en un Windows porque el `src` de la familia pone `local()` **antes**
+del `url()`: quien ya la tiene no baja ni un byte, y quien no, descarga
+`src/assets/fonts/sf-pro-latin.woff2` — 54,6 KB.
+
+Es un solo fichero variable, no ocho caras:
+
+| qué | valor | por qué |
+|---|---|---|
+| eje `wght` | 400–700 | son los pesos que usa BWS (400 heredado, 500, 600, 650, 700). Con rango declarado, 650 es 650 en el eje: con caras estáticas el CSS habría saltado de 600 a un Bold prestado |
+| eje `opsz` | 17–28 | el corte óptico. `font-optical-sizing: auto` (ya estaba en `base.css`) hace que el titular de 76 px salga con geometría Display y el cuerpo de 16 px con la Text, sin declarar dos familias |
+| eje `wdth` | fijado en 100 | no hay condensados; es el eje que más pesa: con él el fichero pasa de ~250 KB a ~56 KB |
+| glifos | el mismo `unicode-range` que Inter | si un carácter está en Inter, está en SF Pro |
+| rasgos | `kern,liga,calt,ccmp,mark,mkmk` | caen las numéricas (`tnum/onum/lnum/frac/sups`): no hay ningún `font-variant-numeric` en la página y son 8 KB que nadie llama |
+
+Lo fabrica `npm run sf-pro` (`scripts/preparar-sf-pro.mjs`) a partir del
+`SF-Pro.ttf` variable de Apple, en tres pasos: recorte de glifos →
+`varLib.instancer` con los ejes → segundo recorte y woff2. El script sale
+con error si el resultado pasa de 72 KB, que es la forma de detectar que
+la receta se rompió. Necesita `fontTools` + `brotli` en un venv
+(`python3 -m venv /tmp/venv-fonts && /tmp/venv-fonts/bin/pip install
+fonttools brotli`) y la ruta del `.ttf` original, que **no** entra en el
+repo: entra el recorte, que es lo que se sirve.
+
+**Licencia.** San Francisco es material de Apple y `fonts.css` documentaba
+una decisión explícita de no distribuirla (retirada de ficheros en la
+v1.5.0). Esa decisión se revierte **aquí y solo aquí**, por autorización
+expresa del dueño del proyecto, que tiene la licencia. `Pay` y `POS`
+conservan su `local()` puro: cada sitio responde por su propia licencia,
+y cambiar BWS no cambia los otros dos.
+
+**Lo que hay que recalibrar cuando cambie la cara servida**, porque la
+métrica manda: la mayúscula de SF Pro vale 0,72 em contra los 0,75 de
+Inter, así que el descriptor del lockup pasó de `1em` a `1,027em` para
+mantener la razón 0,62 (medido: 0,620 en los tres anchos) y el
+`padding-top` de la barra de `0,225rem` a `0,19375rem` para que la tinta
+vuelva al eje (`desvioConEnlaces: 0`, `desvioConBoton: 0`). Los dos
+números los devuelven `npm run detalle` y `node scripts/medir-lockup.mjs`;
+`medir-lockup.mjs` además imprime `sfProCargada` y la lista de woff2 que
+bajó de verdad, que es la prueba de que no se está colando Inter.
+
 ## Los logos de aliados
 
 `src/lib/socios.ts` guarda nueve marcas. Cinco con trazado oficial
@@ -155,11 +201,16 @@ nítidos que renderizando directo y pesa la mitad (86 KB).
 
 ## Límites de verificación de esta máquina
 
-- **No hay SF Pro instalada.** Las capturas salen con Inter, que es el
-  respaldo declarado en `fonts.css` y comparte eje de peso y proporción,
-  así que el layout, la métrica y el contraste quedan validados. La
-  comprobación tipográfica final en SF Pro tiene que hacerse en un
-  dispositivo Apple y es un hito aparte, no un detalle olvidado.
+- **SF Pro se sirve, así que las capturas ya salen en SF Pro.** Antes
+  esta máquina no tenía la fuente instalada y todo se validaba con Inter.
+  Desde que el recorte vive en `src/assets/fonts/`, el Chromium de las
+  capturas renderiza la cara real —`medir-lockup.mjs` lo comprueba
+  reportando `sfProCargada: true` y `interCargada: false`—, y el layout,
+  la métrica y el contraste quedan validados sobre la tipografía que ve
+  el visitante. Lo que sigue sin comprobarse aquí es la ruta `local()` de
+  un dispositivo Apple: ahí no se descarga nada y se usa la del sistema,
+  que es la misma variable de Apple, así que el riesgo es bajo pero no es
+  cero.
 - **El FAQ necesita JavaScript.** Es una SPA: las respuestas se montan
   con React y `aria-expanded`, así que con JS desactivado el bloque de
   preguntas no se despliega. El resto de la página —titular, servicios,
@@ -210,15 +261,20 @@ cabeceras de la sección 3, que exigen el `301` de `http://` y que seguirlo
 aterrice en `200` con la verificación TLS en `0`. Si alguien vuelve a
 apagar *Enforce HTTPS*, el chequeo lo detecta solo.
 
-**Estado del último cambio de copy (2026-11-10): verificado en local, no
+**Estado del último cambio (2026-11-10): verificado en local, no
 publicado.** La tanda nueva —marca sin isotipo, «Hablemos» a WhatsApp,
 beneficios, servicios, proceso, promesa sin subtítulo, banda de nueve,
-FAQ con la pregunta de las tarifas y la `og.png` negra— está construida,
-capturada y comprobada contra `npm run preview`: typecheck limpio, build
-limpio, `npm run verificar` en 13 archivos, 0 violaciones de axe en 390 y
+FAQ con la pregunta de las tarifas, la `og.png` negra y **SF Pro
+servida** (`src/assets/fonts/sf-pro-latin.woff2`, con el descriptor del
+lockup recalibrado a `1,027em` y el `padding-top` de la barra a
+`0,19375rem`)— está construida, capturada y comprobada contra
+`npm run preview`: typecheck limpio, build limpio, `npm run verificar` en
+13 archivos, 0 violaciones de axe en 390 y
 1440, 0 px de desborde en los tres anchos y `desvioConEnlaces: 0` en la
 barra. `npm run vivo` todavía fallaría contra el dominio porque ahora
-exige esa copy y `gh-pages` sigue sirviendo la versión del 2026-11-09. El
+exige esa copy, exige que el CSS publicado apunte al woff2 de SF Pro y
+exige que el render resuelva la familia; `gh-pages` sigue sirviendo la
+versión del 2026-11-09. El
 desfase se cierra con `npm run deploy`, que es un pedido explícito y no
 una consecuencia automática de este commit.
 

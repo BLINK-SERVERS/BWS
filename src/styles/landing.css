@@ -307,13 +307,15 @@
      0,62, que es la razón a la que un descriptor acompaña sin discutir.
 
      Calibrado y verificado con `scripts/medir-lockup.mjs` sobre la pila
-     que de verdad se sirve en esta máquina (Inter, cap 0,75 em):
-       390 px  → mando 30,9 px · wordmark 122 px (cap 36,8) · «BWS» 69 px · lockup 200 px de 358
-       768 px  → mando 42,2 px · wordmark 167 px (cap 50,4) · largo 272 px · lockup 451 px de 728
-       1440 px → mando 55,4 px · wordmark 218 px (cap 66,1) · largo 357 px · lockup 592 px de 980
-     `font-size: 1em` en el descriptor da razón 0,629 contra el 0,62
-     pedido: 1,4 % de desvío, invisible, y mantiene el mando único. El
-     mínimo de marca (120 px de ancho) no se baja ni en móvil. */
+     que de verdad se sirve (SF Pro del repo, cap 0,72 em; Inter queda
+     sin cargar):
+       390 px  → mando 30,9 px · wordmark 122 px (cap 36,8) · «BWS» 68 px · lockup 200 px de 358
+       768 px  → mando 42,2 px · wordmark 167 px (cap 50,4) · largo 256 px · lockup 435 px de 728
+       1440 px → mando 55,4 px · wordmark 218 px (cap 66,1) · largo 335 px · lockup 571 px de 980
+     Con la cara servida, `1em` daba razón 0,604; el descriptor pide
+     1,027 em y la razón queda en 0,62 exacto (se comprueba abajo, en
+     `.lp-marca-bws__sub`). El mínimo de marca (120 px de ancho) no se
+     baja ni en móvil. */
   display: flex;
   align-items: baseline;
   /* El hueco también viene del lockup maestro: 31,5 / 582 = 0,054 del
@@ -354,9 +356,12 @@
 
 .lp-marca-bws__sub {
   /* Nada de `clamp()` propio: hereda el mando del contenedor y por eso
-     vive en la misma proporción en móvil que en escritorio. El peso 500
-     es el Medium que ya declara el subword «Pay» del lockup maestro. */
-  font-size: 1em;
+     vive en la misma proporción en móvil que en escritorio. El 1,027 em
+     no es un ajuste de gusto: es la corrección de la métrica. Con la
+     cara servida, la mayúscula de SF Pro vale 0,72 em, y `1em` habría
+     dejado el descriptor a razón 0,604 en vez de 0,62. El peso 500 es
+     el Medium que ya declara el subword «Pay» del lockup maestro. */
+  font-size: 1.027em;
   font-weight: 500;
   line-height: 1.1;
   letter-spacing: -0.01em;
@@ -415,10 +420,15 @@
      arreglar el `baseline`. El valor no se deduce, se calibra: con 7,2 px
      el desvío pasó de −3,6 a +3,6 (el padding desplaza la tinta 1:1 y no
      1:2, porque el `min-height` de la ancla sigue mandando sobre el alto
-     de la línea). Con 3,6 px —0,225 rem— la tinta cae exactamente sobre
-     el eje: `desvioConEnlaces: 0` y `desvioConBoton: 0` en la pasada del
-     2026-11-10. */
-  padding-top: 0.225rem;
+     de la línea). Con 3,6 px —0,225 rem— la tinta caía exactamente sobre
+     el eje con Inter.
+
+     Al servir SF Pro la línea base se mueve medio píxel —la cara tiene
+     1950/−494 de ascendente/descendente contra los de Inter—, así que el
+     padding se recorta a 3,1 px. Medido con `scripts/detalle.mjs` el
+     2026-11-10: `desvioConEnlaces: 0.5` y `desvioConBoton: 0.5` con
+     0,225 rem, `0` y `0` con 0,19375 rem, en 390 y en 1440. */
+  padding-top: 0.19375rem;
   color: var(--lp-texto);
   white-space: nowrap;
 }

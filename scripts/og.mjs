@@ -4,7 +4,7 @@
    La imagen que se ve cuando alguien pega el enlace en WhatsApp o en
    X no la diseña un ilustrador: la diseña el propio sitio. Se monta
    con los mismos ingredientes que la landing —el wordmark aprobado
-   inline, la pila tipográfica con Inter servida desde `src/assets`,
+   inline, la pila tipográfica con SF Pro recortado desde `src/assets`,
    los mismos `--lp-*`— para que la tarjeta del enlace no se parezca a
    una página distinta.
 
@@ -39,8 +39,10 @@ const MARCA = readFileSync(new URL("src/assets/marca-blink-texto.svg", RAIZ), "u
   .replace(/<\?xml[^>]*\?>/, "")
   .replace(/\sid="[^"]*"/g, "")
   .replace(/\s(?:xmlns:|inkscape:)[a-z-]+="[^"]*"/g, "");
-const FUENTE = readFileSync(new URL("src/assets/fonts/inter-latin.woff2", RAIZ));
+const FUENTE = readFileSync(new URL("src/assets/fonts/sf-pro-latin.woff2", RAIZ));
+const RESPALDO = readFileSync(new URL("src/assets/fonts/inter-latin.woff2", RAIZ));
 const urlFuente = `data:font/woff2;base64,${FUENTE.toString("base64")}`;
+const urlRespaldo = `data:font/woff2;base64,${RESPALDO.toString("base64")}`;
 
 const ANCHO = 1200;
 const ALTO = 630;
@@ -48,9 +50,21 @@ const ALTO = 630;
 const html = `<!doctype html>
 <html lang="es"><head><meta charset="utf-8">
 <style>
+  /* La MISMA cara que se sirve en la landing: el recorte variable de
+     SF Pro del repo, embebido como data URL para que la tarjeta no
+     dependa de que en esta máquina haya SF Pro instalada. Inter va
+     detrás, como en fonts.css, solo por si un glifo se salió del
+     recorte. */
+  @font-face {
+    font-family: "SF Pro";
+    src: url("${urlFuente}") format("woff2");
+    font-weight: 400 700;
+    font-style: normal;
+    font-display: block;
+  }
   @font-face {
     font-family: "Inter";
-    src: url("${urlFuente}") format("woff2");
+    src: url("${urlRespaldo}") format("woff2");
     font-weight: 100 900;
     font-style: normal;
     font-display: block;
@@ -60,20 +74,22 @@ const html = `<!doctype html>
   body {
     width: ${ANCHO}px; height: ${ALTO}px; overflow: hidden;
     background: #000000;
-    font-family: "SF Pro Display", "SF Pro Text", Inter, -apple-system, system-ui, sans-serif;
+    font-family: "SF Pro", Inter, -apple-system, system-ui, sans-serif;
+    font-optical-sizing: auto;
     color: #f5f5f7;
     display: flex; flex-direction: column;
     align-items: center; justify-content: center;
     text-align: center;
     padding: 0 96px 64px;
   }
-  /* El mismo mando único del hero: wordmark en em, descriptor a 1em.
-     3,943em es la caja de tinta sin el isotipo; con el mando en 40 px
-     el lockup mide ~206 px y queda claro que es la firma, no el asunto. */
+  /* El mismo mando único del hero: wordmark en 3,943em —la caja de tinta
+     sin el isotipo— y descriptor a 1,027em, que es lo que da razón 0,62
+     con la mayúscula de SF Pro. Con el mando en 40 px el lockup mide
+     ~206 px y queda claro que es la firma, no el asunto. */
   .marca { display: flex; align-items: baseline; gap: 0.3em;
            font-size: 40px; color: #f5f5f7; margin-bottom: 52px; }
   .marca svg { width: 3.943em; height: auto; display: block; flex: none; }
-  .marca span { font-size: 1em; font-weight: 500; line-height: 1.1;
+  .marca span { font-size: 1.027em; font-weight: 500; line-height: 1.1;
                 letter-spacing: -0.01em; color: #86868b; white-space: nowrap; }
   h1 { margin: 0; font-size: 80px; font-weight: 700; line-height: 1.05;
        letter-spacing: -0.032em; text-wrap: balance; max-width: 22ch;

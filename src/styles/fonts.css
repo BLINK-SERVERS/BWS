@@ -1,62 +1,82 @@
 /* ============================================================
-   Tipografía: SF Pro (Apple) con Inter como voz de respaldo.
+   Tipografía: SF Pro (Apple) servida, con Inter como red de respaldo.
 
    ------------------------------------------------------------
-   Por qué NO se sirve SF Pro
-   San Francisco es material de Apple: su licencia no permite
-   distribuirla en un sitio público. En la v1.5.0 se retiraron los
-   ficheros de `app/public/fonts/` (verificado en 404 tras el
-   despliegue) y la app pasó a usar la pila de fuentes del sistema.
+   SF Pro se sirve desde el repo
+   Desde el 2026-11-10 el fichero recortado vive en
+   `src/assets/fonts/sf-pro-latin.woff2` (54,6 KB) y lo genera
+   `npm run sf-pro` (`scripts/preparar-sf-pro.mjs`) a partir del
+   `SF-Pro.ttf` variable que Apple distribuye para desarrolladores.
+   Quien autoriza servirlo es el dueño del proyecto, que tiene la
+   licencia de Apple y da el permiso expreso para este sitio.
+
+   Esto REVIERTE la retirada de la v1.5.0 — cuando los ficheros se
+   borraron de `app/public/fonts/` y la app pasó a la pila del
+   sistema — pero SOLO en BWS. `Pay` y `POS` conservan su decisión
+   (`local()` y nada de ficheros): no se tocan, y cada sitio responde
+   por su propia licencia. Lo que sí se mantiene es la regla de la
+   v1.5.0 sobre el binario original: el `.ttf` de 21 MB NO entra en el
+   repo; entra el recorte, que es lo que se sirve.
 
    ------------------------------------------------------------
-   Cómo se fuerza SF Pro entonces
-   Con `@font-face` + `local()`: se le pide al SISTEMA la fuente y,
-   si el dispositivo la tiene instalada, se usa. Es la forma
-   legítima de "forzar" SF Pro:
+   Por qué UNA sola cara variable
+   El eje `opsz` del fichero (17–28) hace el trabajo de dos familias:
+   el navegador interpola el corte óptico con el `font-size` que ya
+   está pedido, así que el titular de 76 px sale con geometría Display
+   y el cuerpo de 16 px con la Text, sin declarlas por separado y sin
+   `font-variation-settings` a mano. Declarar ocho caras estáticas —
+   Text y Display en cuatro pesos— son 190 KB por el mismo resultado,
+   peor: sin interpolación y con el corte óptico elegido a ojo.
 
-   · iPhone, iPad y Mac  -> SF Pro viene de serie.
-   · Windows y Linux     -> SF Pro se usa si el usuario la instala
-     (gratis, developer.apple.com/fonts, el mismo enlace que da la
-     HIG). Sin instalarla, entra Inter (ver abajo).
+   `src` pone `local()` ANTES del `url()`: en iPhone, iPad y Mac —y en
+   cualquier equipo con SF Pro instalada— resuelve el sistema y no baja
+   ni un byte; el fichero solo se sirve a quien no la tiene. Por eso el
+   rango de pesos es `400 700` y no `100 900`: la cara servida interpola
+   exactamente entre esos dos valores del eje. Pedir 650 dentro del
+   rango da un Semibold real (650 en el eje), no un Bold prestado — con
+   caras estáticas el CSS habría saltado de 600 a 700.
 
-   Se declara además la variante *variable* con su eje óptico
-   (`opsz`), de modo que el navegador interpola entre los tamaños
-   ópticos Display y Text sin que haya que elegir a mano.
+   Sin `unicode-range` a propósito: la misma regla resuelve por
+   `local()` en los dispositivos Apple, y recortar el rango ahí habría
+   dejado fuera los caracteres que el sistema sí cubre. En los equipos
+   que usan el fichero, un carácter fuera del recorte cae a la siguiente
+   familia de la pila y lo recoge Inter o la tipografía del sistema.
 
    ------------------------------------------------------------
-   Por qué Inter
-   Sin un respaldo servido, un equipo sin SF Pro instalada (todo
-   Windows y Linux) renderizaba la familia del sistema: el titular
-   grande de la landing salía en Segoe UI y el resto del texto en
-   otra voz. Con una sola familia declarada, la mitad de la app
-   se veía en una tipografía y la otra mitad en otra.
+   Las reglas alias, y la cursiva
+   `SF Pro Text` y `SF Pro Display` siguen declaradas solo con
+   `local()`: son la salida para el código que las nombre en concreto y
+   para los pesos fuera de 400–700, donde la cara servida no interpola.
+   La cursiva también se queda en `local()`: en esta landing no hay ni
+   un `font-style: italic` (el uso era de los campos con formato de
+   Pay), así que servirla serían ~50 KB que nadie pide. `SF Mono`
+   igual: en el paquete de Apple no viene mono, y lo que se usa para
+   cifras cae a la pila monoespaciada del sistema.
 
-   Inter (SIL OFL 1.1) es la alternativa libre más parecida a
-   SF Pro: mismas proporciones, mismo criterio y eje `wght` de
-   100 a 900. Va DESPUÉS de SF Pro, así que quien tenga la de
-   Apple sigue viendo SF Pro.
+   ------------------------------------------------------------
+   Por qué sigue habiendo Inter
+   Inter (SIL OFL 1.1, 27 KB) es la red de seguridad: cubre los pesos
+   fuera de 400–700 y los caracteres fuera del recorte, en cualquier
+   equipo. Va DESPUÉS de SF Pro en la pila, así que nadie ve Inter
+   mientras SF Pro esté disponible — instalada o servida.
 
-   El fichero está recortado al juego de caracteres que usa BLINK
-   POS (27 KB) y con el eje de peso limitado a 400-900: la interfaz no
-   usa pesos finos y recortarlos ahorra 13 KB de datos variables. Los
-   pesos por debajo de 400 se ajustan al mínimo del eje, de modo que
-   ningún texto cambia de familia. Licencia en
-   `public/fonts/LICENSE-Inter.txt`.
-
-   Los ficheros de `app/.fonts-sf-local/` (ignorados por git) se
-   usan SOLO en desarrollo, para ver la app tal como se verá con SF
-   Pro instalada. En producción no se sirven nunca.
+   El fichero está recortado al mismo juego de caracteres que SF Pro y
+   con el eje de peso limitado a 400-900: la interfaz no usa pesos
+   finos y recortarlos ahorra 13 KB de datos variables. Los pesos por
+   debajo de 400 se ajustan al mínimo del eje, de modo que ningún texto
+   cambia de familia. Licencia en `public/fonts/LICENSE-Inter.txt`.
    ============================================================ */
 
 /* SF Pro — variable, con tamaño óptico.
    Se prueban los nombres reales de la familia en cada plataforma:
    · macOS   -> "SF Pro" (variable), ".SF NS Text" / ".SF NS Display"
    · iOS     -> "SF Pro"
-   · SF Pro descargada de Apple -> "SF Pro Text" / "SF Pro Display" */
+   · SF Pro descargada de Apple -> "SF Pro Text" / "SF Pro Display"
+   Si ninguno está, se baja al fichero recortado del repo. */
 @font-face {
   font-family: "SF Pro";
   font-style: normal;
-  font-weight: 100 900;
+  font-weight: 400 700;
   font-display: swap;
   src:
     local("SF Pro"),
@@ -64,7 +84,8 @@
     local("SF Pro Text"),
     local("SFProText-Regular"),
     local(".SF NS Text"),
-    local("SF NS Text");
+    local("SF NS Text"),
+    url("../assets/fonts/sf-pro-latin.woff2") format("woff2");
 }
 
 /* Alias de SF Pro para cuerpo y para titulares.
@@ -126,8 +147,9 @@
 }
 
 /* ------------------------------------------------------------
-   Inter — respaldo libre (SIL OFL 1.1) para los equipos que no
-   tienen SF Pro. Variable (wght 100-900) y recortada.
+   Inter — respaldo libre (SIL OFL 1.1). Cubre los pesos fuera de
+   400–700 y lo que el recorte de SF Pro no traiga. Variable
+   (wght 100-900) y recortada.
    ------------------------------------------------------------ */
 @font-face {
   font-family: "Inter";

@@ -13,6 +13,7 @@
     "capturas": "node scripts/capturas.mjs",
     "detalle": "node scripts/detalle.mjs",
     "og": "node scripts/og.mjs",
+    "sf-pro": "node scripts/preparar-sf-pro.mjs",
     "vivo": "node scripts/en-vivo.mjs",
     "deploy": "npm run build && gh-pages -d dist -t"
   },

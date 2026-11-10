@@ -9,9 +9,11 @@
       `height` del SVG casi ES la cap: la «B» mide 179 de 193,14. Se
       sigue midiendo en lugar de asumirlo, porque el número manda sobre
       el `em` del wordmark en `landing.css`.
-   2. Cuánto mide realmente la mayúscula de la pila que se sirve
-      (Inter, porque SF Pro no está instalada en esta máquina) para un
-      `font-size` dado, y cuánto pesa «Web Services» / «BWS» en ancho.
+   2. Cuánto mide realmente la mayúscula de la pila que se sirve para un
+      `font-size` dado, y cuánto pesa «Web Services» / «BWS» en ancho. La
+      pila resuelve SF Pro: primero la del sistema si está instalada,
+      si no el fichero recortado del repo (`npm run sf-pro`), y solo por
+      detrás Inter — el JSON dice cuál está cargando de verdad.
       Se saca con `measureText().actualBoundingBoxAscent`, que es el
       borde de tinta del glifo: el recuadro de un `<span>` daría la
       altura de la línea de la fuente, y con eso la razón saldría
@@ -30,12 +32,14 @@ import { readFileSync } from "node:fs";
 const DESTINO = process.env.CAPTURAS_URL ?? "http://127.0.0.1:4176/";
 const MARCA = new URL("../src/assets/marca-blink-texto.svg", import.meta.url);
 
-/* Los dos números que fija landing.css: la razón del descriptor y
-   cuántos em de mando mide el wordmark. 3,943 = 5,79 x (592,12/869) x
+/* Los tres números que fija landing.css: la razón del descriptor,
+   cuántos em de mando mide el wordmark y cuántos em pide el subword.
+   3,943 = 5,79 x (592,12/869) x
    (194/193,14): el recorte de la caja sin el isotipo, compensado para
    que la tinta renderizada no cambie de tamaño. */
 const RATIO = 0.62;
 const K_WORDMARK = 3.943;
+const K_SUBWORD = 1.027;
 const MANDO = { base: 19.2, pendiente: 0.03, min: 28, max: 55.4 };
 
 const navegador = await chromium.launch({
@@ -83,7 +87,17 @@ const datos = await pagina.evaluate(async (codigo) => {
   };
   const subword = {
     pila,
+    /* Qué cara está usando el navegador de verdad: `SF Pro` resuelve
+       por `local()` en un dispositivo Apple y por el fichero del repo en
+       cualquier otro; si Inter descargara, la pila habría fallado dos
+       veces. */
+    sfProCargada: document.fonts.check("500 100px SF Pro"),
     interCargada: document.fonts.check("500 100px Inter"),
+    woff2Descargados: performance
+      .getEntriesByType("resource")
+      .map((e) => e.name)
+      .filter((n) => n.includes(".woff2"))
+      .map((n) => n.split("/").pop()),
     largo: medir("Web Services"),
     corto: medir("BWS"),
     /* «H» suelta, para separar la métrica del glifo del espaciado del par */
@@ -94,7 +108,10 @@ const datos = await pagina.evaluate(async (codigo) => {
 
 console.log(JSON.stringify(datos, null, 2));
 
-/* --- 3. el lockup completo en los tres anchos --- */
+/* --- 3. el lockup completo en los tres anchos ---
+   Se calcula con los `em` que están escritos en el CSS, no con los que
+   la razón pediría: lo que importa es si LO QUE SE PUBLICA cabe y a qué
+   razón queda realmente. */
 const { viewBox, capSobreCaja } = datos.marca;
 const capPorEm = datos.subword.largo.capPorEm;
 
@@ -106,28 +123,32 @@ for (const { nombre, ancho } of [
   const F = Math.min(MANDO.max, Math.max(MANDO.min, MANDO.base + ancho * MANDO.pendiente));
   const anchoWordmark = K_WORDMARK * F;
   const capWordmark = capSobreCaja * anchoWordmark * (viewBox[3] / viewBox[2]);
-  const capObjetivo = RATIO * capWordmark;
-  const fontSubword = capObjetivo / capPorEm;
+  const fontSubword = K_SUBWORD * F;
+  const capSubword = capPorEm * fontSubword;
   const variante = ancho < 421 ? "corto" : "largo";
   const anchoSubword = fontSubword * datos.subword[variante].ancho;
-  const total = anchoWordmark + 0.3 * fontSubword + anchoSubword;
+  /* El `gap: 0.3em` se mide sobre el mando del contenedor, no sobre el
+     tamaño del descriptor. */
+  const total = anchoWordmark + 0.3 * F + anchoSubword;
   const disponible = Math.min(980, ancho - (ancho < 421 ? 32 : 40));
   console.log(
     `${nombre}: mando ${F.toFixed(1)}px · wordmark ${anchoWordmark.toFixed(0)}px ` +
       `(cap ${capWordmark.toFixed(1)}) · subword ${fontSubword.toFixed(1)}px ` +
-      `(cap ${capObjetivo.toFixed(1)}, ${variante} ${anchoSubword.toFixed(0)}px) ` +
+      `(cap ${capSubword.toFixed(1)}, razón ${(capSubword / capWordmark).toFixed(3)}, ` +
+      `${variante} ${anchoSubword.toFixed(0)}px) ` +
       `· lockup ${total.toFixed(0)}px de ${disponible}px ${total <= disponible ? "✓" : "✗"}`,
   );
 }
 
-/* El CSS deja el descriptor en `1em`. Esta línea dice qué razón resulta
-   de ese atajo y cuánto valdría el mando para la razón 0,62 exacta: si
-   `1em` y `0,62` no cuadran, hay que elegir entre el subword en em o en
-   un factor propio. */
+/* El CSS deja el descriptor en `1,027em`. Esta línea dice qué razón
+   resulta de ese factor con la métrica de la cara que se está sirviendo
+   y cuánto valdría el mando para la razón 0,62 exacta: si el número no
+   cuadra, la cara servida cambió (SF Pro por `local()`, el fichero del
+   repo, o Inter) y hay que volver a calibrar el `em`. */
 const F = MANDO.max;
 const capW = capSobreCaja * K_WORDMARK * F * (viewBox[3] / viewBox[2]);
 console.log(
-  `\nrazón real con «font-size: 1em» = ${(capPorEm * F / capW).toFixed(3)}  ` +
+  `\nrazón real con «font-size: ${K_SUBWORD}em» = ${((capPorEm * F * K_SUBWORD) / capW).toFixed(3)}  ` +
     `(para 0,62 el descriptor pediría ${((RATIO * capW) / capPorEm).toFixed(1)}px ` +
     `= ${(((RATIO * capW) / capPorEm) / F).toFixed(3)}em)`,
 );
