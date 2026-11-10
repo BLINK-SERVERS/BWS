@@ -14,6 +14,7 @@
     "detalle": "node scripts/detalle.mjs",
     "og": "node scripts/og.mjs",
     "sf-pro": "node scripts/preparar-sf-pro.mjs",
+    "logos": "python3 scripts/preparar-logos.py",
     "vivo": "node scripts/en-vivo.mjs",
     "deploy": "npm run build && gh-pages -d dist -t"
   },

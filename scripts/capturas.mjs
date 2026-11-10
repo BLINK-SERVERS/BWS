@@ -95,14 +95,28 @@ for (const { nombre, ancho, alto } of ANCHOS) {
       .catch(aviso(nombre, "faq"));
   }
 
-  // Desbordes horizontales: la única prueba mecánica de que nada se sale
-  // del ancho. Se mide con el acordeón abierto, el estado más alto.
+  /* Desbordes horizontales: la única prueba mecánica de que nada se
+     sale del ancho. Se mide con el acordeón abierto, el estado más alto.
+
+     Un elemento solo es culpable si NADIE lo recorta: la pista de la
+     cinta mide 2400 px a propósito y vive dentro de un
+     `overflow: hidden`, así que listarla como desborde sería un falso
+     positivo del selector. Lo que sí cuenta es `documento` contra
+     `ventana`: si el contenedor que recorta está bien puesto, el
+     `scrollWidth` del documento no se mueve. */
   const desborde = await pagina.evaluate(() => {
     const tope = document.documentElement.clientWidth;
+    const recorta = (el) => {
+      for (let a = el.parentElement; a && a !== document.body; a = a.parentElement) {
+        const o = getComputedStyle(a).overflowX;
+        if (o === "hidden" || o === "clip" || o === "auto" || o === "scroll") return true;
+      }
+      return false;
+    };
     const culpables = [];
     for (const el of document.querySelectorAll("body *")) {
       const caja = el.getBoundingClientRect();
-      if (caja.width > 0 && caja.right > tope + 1) {
+      if (caja.width > 0 && caja.right > tope + 1 && !recorta(el)) {
         const clases = (el.getAttribute("class") || el.tagName.toLowerCase()).split(" ")[0];
         culpables.push(`${el.tagName.toLowerCase()}.${clases} ${Math.round(caja.right)}px`);
       }

@@ -262,7 +262,26 @@ const visto = await lienzo.evaluate(() => {
     sub: texto(".lp-hero__sub"),
     wordmark: visible(".lp-marca-bws__blink svg"),
     descriptor: texto(".lp-marca-bws__sub--largo"),
-    socios: document.querySelectorAll(".lp-socios .lp-socio").length,
+    socios: document.querySelectorAll('.lp-cinta__fila:not([aria-hidden="true"]) > li').length,
+    /* La cinta pinta cuatro juegos por fila: uno accesible y tres
+       copias en `aria-hidden`. El recuento de los `<img>` de la cinta
+       dice si las copias están, y `logosRotos` es la única prueba de
+       que los PNG con nombre hasheado salieron del despliegue. */
+    logos: document.querySelectorAll(".lp-cinta img").length,
+    logosRotos: [...document.querySelectorAll(".lp-cinta img")]
+      .filter((i) => i.complete && i.naturalWidth === 0)
+      .map((i) => i.alt),
+    cinta: [...document.querySelectorAll(".lp-cinta__pista")].map((pista) => {
+      const juego = pista.querySelector(":scope > .lp-cinta__fila");
+      const dur = parseFloat(getComputedStyle(pista).animationDuration);
+      return {
+        escalon: pista.dataset.escalon,
+        nombre: getComputedStyle(pista).animationName,
+        juego: Math.round(juego.getBoundingClientRect().width),
+        pista: Math.round(pista.getBoundingClientRect().width),
+        pxs: Math.round(juego.getBoundingClientRect().width / dur),
+      };
+    }),
     pasos: document.querySelectorAll(".lp-paso__titulo").length,
     beneficios: document.querySelectorAll(".lp-beneficio").length,
     servicios: document.querySelectorAll(".lp-pieza").length,
@@ -302,7 +321,16 @@ dice("frase ancla", visto.ancla ?? "?");
 dice("prefijo oculto", visto.oculto ?? "?");
 dice("bajada del hero", visto.sub ?? "?");
 dice("lockup", `${visto.wordmark ? "wordmark pintado" : "SIN wordmark"} + «${visto.descriptor ?? "?"}»`);
-dice("piezas", `beneficios ${visto.beneficios} · servicios ${visto.servicios} · pasos ${visto.pasos} · aliados ${visto.socios}`);
+dice(
+  "piezas",
+  `beneficios ${visto.beneficios} · servicios ${visto.servicios} · pasos ${visto.pasos} · aliados ${visto.socios}`,
+);
+dice(
+  "cinta",
+  visto.cinta
+    .map((c) => `fila ${c.escalon}: ${c.nombre} ${c.pxs} px/s · juego ${c.juego} px · pista ${c.pista} px`)
+    .join("   |   ") + ` · ${visto.logos} lockups pintados`,
+);
 dice("promesa", visto.promesa ?? "?");
 dice("botones", visto.hablemos.join("   |   "));
 dice("contacto", visto.contacto.join("  "));
@@ -325,7 +353,15 @@ if (!/Blink Web Services/.test(visto.oculto ?? ""))
   fallos.push("el h1 no lleva el nombre largo de la marca");
 if (visto.beneficios !== 4 || visto.servicios !== 3 || visto.pasos !== 3)
   fallos.push(`el recuento de piezas cambió: ${visto.beneficios}/${visto.servicios}/${visto.pasos}`);
-if (visto.socios !== 9) fallos.push(`la banda de aliados tiene ${visto.socios} marcas`);
+if (visto.socios !== 9) fallos.push(`la cinta de aliados tiene ${visto.socios} marcas`);
+if (visto.logosRotos.length) fallos.push(`lockups que no cargan: ${visto.logosRotos.join(", ")}`);
+/* Cuatro juegos por fila y el keyframe en -25%: si la pista no mide
+   cuatro veces el juego, la costura baila en cada vuelta. */
+for (const c of visto.cinta) {
+  if (Math.abs(c.pista - c.juego * 4) > 1)
+    fallos.push(`la pista ${c.escalon} no es cuatro juegos exactos (${c.pista} vs ${c.juego * 4})`);
+  if (c.nombre !== "lp-cinta") fallos.push(`la pista ${c.escalon} no se anima (${c.nombre})`);
+}
 if (!/misma tecnolog/.test(visto.promesa ?? ""))
   fallos.push("la promesa literal no está en el DOM publicado");
 if (visto.promesaHijos > 0) fallos.push("la promesa volvió a llevar subtítulo");

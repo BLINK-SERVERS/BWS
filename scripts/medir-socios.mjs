@@ -4,14 +4,20 @@
    Mide la caja de TINTA real (getBBox) de cada path vendorizado, en
    unidades del viewBox "0 0 24 24" de simpleicons.
 
+   Desde la cinta de 2026-11-10 esto cubre SOLO las marcas compuestas —
+   hoy Resend, la única que no llegó como lockup oficial—. Las otras
+   ocho son PNG recortados a su tinta por `scripts/preparar-logos.py`,
+   que reporta su caja al exportar; para ellas este script no tiene
+   nada que medir.
+
    Lee `src/lib/socios.ts` en vez de copiar los `d` aqui: asi lo que se
    mide es EXACTAMENTE lo que se publica. Si manana se actualiza un logo
    y varia la caja, este script lo detecta solo.
 
-   Para que sirve la medida: si los cinco logos compartieran la caja
-   cuadrada de 24x24, Cloudflare — que es una tira ancha y baja — se
-   veria la mitad de grande que Supabase. Recortando el viewBox a la
-   caja de tinta y dibujando todos a la misma ALTURA, la fila pesa igual.
+   Para que sirve la medida: un viewBox cuadrado de 24x24 no es la
+   tinta; si dos marcas compartieran esa caja, una tira ancha y baja se
+   veria la mitad de grande que un cuadro. Recortando el viewBox a la
+   caja de tinta y dibujando todo a la misma ALTURA, la fila pesa igual.
 
    Salida: el objeto `caja` listo para pegar en socios.ts.
 

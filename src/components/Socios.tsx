@@ -1,70 +1,119 @@
-import { type Socio, SOCIOS } from "../lib/socios";
+import { type Marca, FILA_1, SOCIOS } from "../lib/socios";
 
 /* ============================================================
-   Socios — la banda de aliados
+   Socios — la cinta de aliados
    ------------------------------------------------------------
-   Prueba social, no documentación: las marcas de la gente con la que
-   se trabaja, en orden de lo que sostiene el proyecto. Ni una línea que
-   explique qué hace cada una.
+   Prueba social, no documentación: los lockups oficiales de la gente
+   con la que se trabaja, pasando de largo. Ni una línea que explique
+   qué hace cada una.
 
-   Dos cosas cambian respecto a la banda de siempre:
+   Es una cinta, no una matriz. Antes la banda era una rejilla de tres
+   por tres quieta; ahora son dos pistas que corren en sentido
+   contrario. Lo que se gana es que quepan las nueve marcas con su
+   lockup completo —los nueve PNG oficiales pesan mucho más que un
+   glifo de 24 px— sin que la sección se vuelva una pared de logos ni
+   tenga que agrandarse.
 
-   1. El nombre va al lado del logo, como lo trae cada marca. Antes los
-      nombres solo existían en el `aria-label`, así que en pantalla la
-      fila era un acertijo: un rayo, una nube, un pulpo. Con el nombre
-      visible, la prueba social se lee sin tener que reconocer el glifo.
-      Y como el texto ahora está a la vista, el `role="img"` con
-      `aria-label` sobra y molesta: el accesible pasaría a decir
-      «GitHub GitHub». Se deja el SVG oculto para lectores de pantalla
-      (`aria-hidden`) y el nombre se lee una sola vez.
-   2. La jerarquía la manda el ORDEN de `lib/socios.ts` y el tamaño lo
-      fija `landing.css` con `:nth-child(-n + 5)`: los cinco que sostienen
-      el proyecto se dibujan más grandes. No hay dos listas ni etiquetas
-      de «menores»: una sola fila, ordenada.
+   Cuatro cosas sostienen el truco, y las cuatro están en `landing.css`
+   o aquí, no repartidas:
 
-   El truco de la fila sigue siendo el ALTO DE TINTA, no el tamaño del
-   SVG. Los vectores oficiales vienen en una caja de 24x24, pero su tinta
-   real mide cosas muy distintas (medido con `scripts/medir-socios.mjs`):
-     · Supabase 23,39 x 24   · Cloudflare 24 x 10,85
-     · GitHub    24 x 23,41  · Zoho       24 x 10,21
-   Recortando el viewBox a la caja de tinta, y multiplicando por `alto`
-   (ajuste óptico por marca), las nueve pesan lo que deben pesar.
+   1. BUCLE SIN COSTURA. La pista son `REPLICAS` juegos idénticos en
+      fila, y el keyframe manda `translate3d(-25%, 0, 0)`: al terminar
+      el ciclo la pista está exactamente como empezó, desplazada un
+      juego. Para que eso sea verdad cada `<li>` lleva su propio margen
+      de separación (`margin-inline-end`) en vez de un `gap` del
+      contenedor — con `gap` sobraría medio espacio entre el último
+      elemento de un juego y el primero del siguiente, y el salto de
+      medio `gap` en cada vuelta se vería. Cuatro juegos de ~600 px son
+      2400 px: alcanzan para cubrir 1440 px de ventana menos un juego,
+      que es lo que necesita el truco para no dejar hueco.
 
-   AWS, Qoder y nic.ve no tienen vector oficial al alcance (simpleicons y
-   devicon responden 404): se componen como texto-marca con la pila de la
-   familia, que es el nombre y nada más.
+   2. PAUSA. Al pasar el ratón o el foco sobre la cinta, las dos pistas
+      se paran. Un logo que se mueve no se puede leer, y esta banda
+      existe para que se lea.
+
+   3. MOVIMIENTO REDUCIDO. Con `prefers-reduced-motion: reduce` no hay
+      traslación: la pista deja de animarse, se corta a un solo juego y
+      ese juego se envuelve centrado. La información es la misma; lo
+      único que cambia es que no pasa.
+
+   4. ACCESIBILIDAD. El nombre de cada marca va en el `alt` del lockup,
+      así que la cinta se lee como lo que es. Los tres juegos que son
+      copia del primero van en `aria-hidden`: sin eso, un lector de
+      pantalla diría «GitHub, GitHub, GitHub, GitHub».
    ============================================================ */
 
-function Pieza({ socio }: { socio: Socio }) {
-  if (socio.esTexto) {
+const REPLICAS = 4;
+
+function Pieza({ marca }: { marca: Marca }) {
+  const optico = { ["--optico" as string]: String(marca.alto) };
+
+  if (!marca.logo) {
+    const { x, y, w, h } = marca.caja ?? { x: 0, y: 0, w: 24, h: 24 };
+    /* Resend: glifo oficial + nombre con la pila de la familia. El
+       viewBox va recortado a la caja de tinta medida, que es lo que
+       hace que pese igual que los lockups de al lado. */
     return (
-      <span className="lp-socio lp-socio--texto">
-        <span className="lp-socio__nombre">{socio.nombre}</span>
+      <span className="lp-cinta__compuesta" style={optico}>
+        <svg
+          className="lp-cinta__glifo"
+          viewBox={`${x} ${y} ${w} ${h}`}
+          focusable="false"
+          aria-hidden="true"
+        >
+          <path d={marca.ruta} />
+        </svg>
+        <span className="lp-cinta__nombre">{marca.nombre}</span>
       </span>
     );
   }
 
-  const { x, y, w, h } = socio.caja;
-
   return (
-    <span className="lp-socio" style={{ ["--optico" as string]: String(socio.alto ?? 1) }}>
-      {/* viewBox recortado a la tinta medida: ver el comentario de arriba. */}
-      <svg className="lp-socio__glifo" viewBox={`${x} ${y} ${w} ${h}`} focusable="false" aria-hidden="true">
-        <path d={socio.ruta} />
-      </svg>
-      <span className="lp-socio__nombre">{socio.nombre}</span>
-    </span>
+    <img
+      className="lp-cinta__logo"
+      src={marca.logo}
+      alt={marca.nombre}
+      style={optico}
+      decoding="async"
+      draggable={false}
+    />
+  );
+}
+
+function Fila({
+  marcas,
+  escalon,
+  sentido,
+}: {
+  marcas: Marca[];
+  escalon: 1 | 2;
+  sentido: "izquierda" | "derecha";
+}) {
+  return (
+    <div
+      className={`lp-cinta__pista lp-cinta__pista--${sentido}`}
+      data-escalon={escalon}
+    >
+      {Array.from({ length: REPLICAS }, (_, replica) => (
+        <ul key={replica} className="lp-cinta__fila" aria-hidden={replica > 0 || undefined}>
+          {marcas.map((marca) => (
+            <li key={marca.nombre}>
+              <Pieza marca={marca} />
+            </li>
+          ))}
+        </ul>
+      ))}
+    </div>
   );
 }
 
 export function Socios() {
+  /* La partición es la jerarquía declarada en `lib/socios.ts`: arriba
+     lo que hace que el proyecto exista, abajo lo que lo hace andar. */
   return (
-    <ul className="lp-socios">
-      {SOCIOS.map((socio) => (
-        <li key={socio.nombre}>
-          <Pieza socio={socio} />
-        </li>
-      ))}
-    </ul>
+    <div className="lp-cinta">
+      <Fila marcas={SOCIOS.slice(0, FILA_1)} escalon={1} sentido="izquierda" />
+      <Fila marcas={SOCIOS.slice(FILA_1)} escalon={2} sentido="derecha" />
+    </div>
   );
 }

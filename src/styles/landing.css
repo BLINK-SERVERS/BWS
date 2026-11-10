@@ -18,8 +18,8 @@
    Qué se agregó
    · `.lp-marca-bws`: el lockup mixto (wordmark aprobado + subword
      tipográfico).
-   · `.lp-servicios__rejilla` y `.lp-socios`: la parrilla de servicios
-     y la banda de aliados.
+   · `.lp-servicios__rejilla` y `.lp-cinta`: la parrilla de servicios
+     y la cinta de aliados.
    · `.lp-pasos--tres`: el proceso en tres columnas.
 
    Todo lo demás sale de tokens.css: la pila SF Pro/Inter, los radios,
@@ -701,84 +701,160 @@
 }
 
 /* ============================================================
-   Banda de aliados
+   Cinta de aliados
    ------------------------------------------------------------
-   Prueba social, no documentación: nueve marcas con su nombre al lado,
-   en el orden que fija `lib/socios.ts`.
+   Nueve lockups oficiales a color, pasando en dos pistas que corren
+   en sentidos opuestos. Prueba social, no documentación: ni una línea
+   que explique qué hace cada marca.
 
-   La jerarquía es una matriz de tres por tres, no una fila que se
-   rompe. Tres escalones de tamaño por fila: lo que sostiene el proyecto
-   arriba, lo que lo alimenta en el medio, lo que lo hace andar abajo.
-   El escalón lo decide la POSICIÓN en el array (`:nth-child`), así que
-   mover una marca en `lib/socios.ts` le cambia el tamaño solo — no hay
-   un segundo sitio donde ajustar el tamaño de cada marca.
+   DOS FILAS, NO UNA REJILLA. La partición la manda `FILA_1` en
+   `lib/socios.ts` y el tamaño la decide la fila (`[data-escalon]`), así
+   que mover una marca de fila en esa lista le cambia el peso solo: no
+   hay un segundo sitio donde ajustar nada. `--optico` llega del
+   componente (`marca.alto`) y es el ajuste fino por marca: un lockup
+   apilado (Cloudflare, Zoho) o un disco (nic.ve) necesitan más altura
+   de tinta que una palabra horizontal para pesar igual a la vista. Se
+   calibra en la captura, no en la cabeza, y `preparar-logos.py` lo lee
+   de `lib/socios.ts` para exportar el PNG a esa altura exacta.
 
-   `--optico` llega desde el componente (`socio.alto`): las tiras anchas
-   pesan más que los cuadrados a la misma altura de tinta, y eso se
-   calibra en la captura, no en la cabeza.
+   EL BUCLE. Cada pista son cuatro juegos iguales; el keyframe desplaza
+   -25%, o sea un juego, así que al volver al origen la cinta está
+   píxel a píxel como empezó y no hay costura. Por eso la separación es
+   `margin-inline-end` de cada `<li>` y NO un `gap` de la fila: con
+   `gap` faltaria medio espacio justo en la junta y se vería el salto
+   en cada vuelta.
 
-   El tenue usa --lp-texto-3 (5,1:1 sobre blanco). No se baja de ahí:
-   es el mínimo que sigue siendo legible y cumple AA.
+   LA VELOCIDAD es lineal y parecida en las dos filas, pero no igual:
+   la fila de abajo lleva seis marcas en casi el mismo ancho que la de
+   arriba con tres, así que su juego es más corto y recorre el trayecto
+   en menos tiempo. Con la misma duración las dos irían a la misma
+   velocidad aparente y la de abajo leería como una mancha. Los números
+   —26 s arriba, 37 s abajo— salen de dividir el ancho MEDIDO del juego
+   (635,6 px y 884,3 px en 1440) entre ~24 px por segundo, que es el
+   paso al que un lockup se lee de un vistazo sin esperar la vuelta.
+   Se vuelve a medir con `scripts/detalle.mjs` si cambia el orden, el
+   `alto` de alguna marca o la separación.
+
+   LOS BORDES se desvanecen con una máscara, no con un degradado
+   encima: una máscara deja ver el blanco de la sección, un degradado
+   pintaría una franja gris que se notaría al hacer scroll.
+
+   LO QUE NO HACE LA CINTA: no enlaza a ningún sitio ajeno (cero
+   peticiones a terceros, cero visitas regaladas), no se pausa por
+   intersección ni se detiene al terminar el ciclo. Sí se pausa al
+   pasar el ratón o el foco, y con `prefers-reduced-motion: reduce` se
+   vuelve estática en el bloque de abajo.
    ============================================================ */
 
-.lp-socios {
-  --glifo: 22px;
-  --nombre: 0.875rem;
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, auto));
-  justify-content: center;
-  justify-items: center;
+.lp-cinta {
+  --glifo-1: 34px;
+  --glifo-2: 24px;
+  --separacion: clamp(2.5rem, 6vw, 4.5rem);
+  --largo: 25%;
+  --desvanecido: linear-gradient(90deg, transparent, #000 11%, #000 89%, transparent);
+
+  /* Sangrado a la ventana: la cinta no cabe en los 980 px del
+     contenido, y una banda de logos cortada por el margen parece un
+     error de maquetación. `width: 100vw` + margen negativo la saca;
+     `overflow-x: clip` de la raíz ya se encarga de que no nazca una
+     barra de scroll horizontal. */
+  width: 100vw;
+  margin-inline: calc(50% - 50vw);
+  margin-top: clamp(2.5rem, 5vw, 3.5rem);
+  overflow: hidden;
+  -webkit-mask-image: var(--desvanecido);
+  mask-image: var(--desvanecido);
+}
+
+.lp-cinta__pista {
+  display: flex;
+  width: max-content;
+  animation: lp-cinta var(--duracion, 26s) linear infinite;
+  will-change: transform;
+}
+
+.lp-cinta__pista + .lp-cinta__pista {
+  margin-top: clamp(1.15rem, 2.6vw, 1.75rem);
+}
+
+/* La segunda pista corre al revés: mismo keyframe, `reverse`, así que
+   no hay una segunda animación que mantener. */
+.lp-cinta__pista--derecha {
+  --duracion: 37s;
+  animation-direction: reverse;
+}
+
+/* Un logo que se mueve no se puede leer, y esta banda existe para que
+   se lea: el puntero y el teclado la paran. */
+.lp-cinta:hover .lp-cinta__pista,
+.lp-cinta:focus-within .lp-cinta__pista {
+  animation-play-state: paused;
+}
+
+.lp-cinta__fila {
+  display: flex;
   align-items: center;
-  gap: clamp(1.35rem, 3vw, 2rem) clamp(1.75rem, 4.5vw, 3.25rem);
-  margin: clamp(2.25rem, 5vw, 3.25rem) 0 0;
   padding: 0;
+  margin: 0;
   list-style: none;
 }
 
-.lp-socios li:nth-child(-n + 3) {
-  --glifo: 32px;
-  --nombre: 1.1875rem;
+.lp-cinta__fila > li {
+  display: flex;
+  align-items: center;
+  margin-inline-end: var(--separacion);
 }
 
-.lp-socios li:nth-child(n + 4):nth-child(-n + 6) {
-  --glifo: 26px;
-  --nombre: 1rem;
+.lp-cinta__pista[data-escalon="1"] {
+  --glifo: var(--glifo-1);
 }
 
-.lp-socio {
+.lp-cinta__pista[data-escalon="2"] {
+  --glifo: var(--glifo-2);
+}
+
+/* La altura es la de la tinta del lockup ya recortado por
+   `preparar-logos.py`: la caja del PNG ES la marca, así que no hay
+   padding interior que corregir y el alto del escalón se cumple
+   literal. */
+.lp-cinta__logo {
+  display: block;
+  height: calc(var(--glifo) * var(--optico, 1));
+  width: auto;
+}
+
+/* Resend, la única compuesta: glifo oficial + nombre en la pila de la
+   familia. Con la tinta de la sección, no con el gris del texto de
+   apoyo — al lado de ocho lockups a color, un gris pálido lee como
+   marcador de posición. */
+.lp-cinta__compuesta {
+  --tinta: calc(var(--glifo) * var(--optico, 1));
   display: inline-flex;
   align-items: center;
-  gap: 0.32em;
-  font-size: var(--nombre);
-  color: var(--lp-texto-3);
-  transition: color var(--transition-speed);
-}
-
-.lp-socio:hover,
-.lp-socio:focus-visible {
+  gap: 0.26em;
+  font-size: calc(var(--tinta) / 0.72);
+  line-height: 1;
   color: var(--lp-texto);
 }
 
-.lp-socio__glifo {
+.lp-cinta__glifo {
   display: block;
-  height: calc(var(--glifo) * var(--optico, 1));
+  height: var(--tinta);
   width: auto;
   fill: currentColor;
 }
 
-.lp-socio__nombre {
+.lp-cinta__nombre {
   font-size: 1em;
-  font-weight: 500;
-  line-height: 1;
-  letter-spacing: -0.02em;
+  font-weight: 600;
+  letter-spacing: -0.022em;
   white-space: nowrap;
 }
 
-/* AWS, Qoder y nic.ve van sin glifo: el nombre es la marca, así que se
-   pesa un poco más fuerte para que la fila no lo lea como texto suelto. */
-.lp-socio--texto .lp-socio__nombre {
-  font-size: 1.12em;
-  font-weight: 600;
+@keyframes lp-cinta {
+  to {
+    transform: translate3d(calc(-1 * var(--largo)), 0, 0);
+  }
 }
 
 /* ============================================================
@@ -1007,30 +1083,29 @@
     align-items: flex-start;
   }
 
-  /* Nueve lockups con nombre en 390 px solo caben si bajan de tamaño,
-     pero la matriz de tres por tres NO se rompe: se mantienen las tres
-     columnas y se encogen los tres escalones a la vez (22 / 18 / 15 px
-     de tinta y 15 / 13 / 12 px de nombre). Pasar a dos columnas habría
-     descuadrado los escalones — el `:nth-child` que decide el tamaño ya
-     no coincidiría con la fila que se ve. La fila más ancha que puede
-     darse (GitHub · Cloudflare · Supabase) mide 279 px sobre los 358 px
-     de contenido de un iPhone de 390; el margen es de 79 px, y por eso
-     el escalón grande puede quedarse en 15 px de nombre sin partir la
-     fila. Medido con `scripts/capturas.mjs` (0 desbordes). */
-  .lp-socios {
-    --glifo: 15px;
-    --nombre: 0.75rem;
-    gap: 1.1rem 0.75rem;
+  /* En 390 px la cinta no se corta ni pasa a rejilla: baja de peso.
+     Los dos escalones bajan a la vez (27 px y 19 px de tinta) y la
+     separación se aprieta, porque lo que se mide es el ancho del JUEGO
+     — el trayecto del bucle es un juego, así que si el juego cabe en la
+     ventana el truco se desnaturaliza. Con las nueve marcas repartidas
+     en las dos filas, el juego de arriba (GitHub · Cloudflare ·
+     Supabase) y el de abajo (seis marcas) miden lo bastante para seguir
+     cubriendo 390 px menos un juego. Las duraciones bajan en la misma
+     proporción que el ancho para que la velocidad aparente — px por
+     segundo — sea la de escritorio. Medido con `scripts/detalle.mjs`
+     y 0 desbordes en `scripts/capturas.mjs`. */
+  .lp-cinta {
+    --glifo-1: 27px;
+    --glifo-2: 19px;
+    --separacion: 1.75rem;
   }
 
-  .lp-socios li:nth-child(-n + 3) {
-    --glifo: 22px;
-    --nombre: 0.9375rem;
+  .lp-cinta__pista {
+    animation-duration: 20s;
   }
 
-  .lp-socios li:nth-child(n + 4):nth-child(-n + 6) {
-    --glifo: 18px;
-    --nombre: 0.8125rem;
+  .lp-cinta__pista--derecha {
+    animation-duration: 29s;
   }
 }
 
@@ -1073,8 +1148,8 @@
 
 /* ============================================================
    Movimiento reducido: versión estática de cada animación.
-   En BWS solo se mueven el check de los beneficios y el acordeón,
-   así que cubrirlo son dos bloques.
+   En BWS se mueven tres cosas —el check de los beneficios, el
+   acordeón y la cinta de aliados—, así que cubrirlo son tres bloques.
    ============================================================ */
 
 @media (prefers-reduced-motion: reduce) {
@@ -1084,9 +1159,47 @@
     transform: none;
   }
 
+  /* La cinta sin traslación: se corta a un solo juego y ese juego se
+     envuelve centrado dentro del contenido, que es exactamente la
+     rejilla que había antes de la cinta. La máscara de los bordes ya
+     no tiene sentido sobre contenido quieto y se quita; los tres
+     juegos que eran copia se ocultan, y con eso el DOM sigue siendo el
+     mismo que navega el ratón, solo que quieto. */
+  .lp-cinta {
+    width: auto;
+    margin-inline: 0;
+    -webkit-mask-image: none;
+    mask-image: none;
+  }
+
+  .lp-cinta__pista {
+    animation: none;
+    width: auto;
+  }
+
+  .lp-cinta__fila {
+    /* `width: 100%` es lo que le da a la fila un contenedor donde
+       centrarse: sin eso el `<ul>` mide su propio contenido, el
+       `justify-content` no tiene contra qué centrar y la banda quieta
+       sale aplastada contra el margen izquierdo. */
+    width: 100%;
+    flex-wrap: wrap;
+    justify-content: center;
+    row-gap: 1.35rem;
+  }
+
+  .lp-cinta__fila[aria-hidden="true"] {
+    display: none;
+  }
+
+  /* El margen que hace el bucle es aire muerto cuando la fila está
+     quieta y centrada: se quita del último. */
+  .lp-cinta__fila > li:last-child {
+    margin-inline-end: 0;
+  }
+
   .lp-acordeon__bandeja,
   .lp-acordeon__chevron,
-  .lp-socio,
   .lp-boton {
     transition: none;
   }

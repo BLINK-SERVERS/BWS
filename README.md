@@ -10,7 +10,7 @@ es la única promesa que el sitio hace en voz alta.
 nombra a Supabase, GitHub, Cloudflare, Neon, AWS, Zoho, Resend, Qoder ni
 nic.ve. Son las tecnologías que usamos, no parte de lo que el cliente
 tiene que entender. Los únicos nombres de terceros que se ven son los
-logos de la banda de aliados, y salen sin una línea de explicación. La
+logos de la cinta de aliados, y salen sin una línea de explicación. La
 regla es comprobable: `npm run verificar` (`scripts/sin-tecnicismos.mjs`)
 recorre el copy, los componentes y lo que se sirve desde `public/`,
 quita los comentarios y falla si encuentra una sola aparición visible.
@@ -46,6 +46,7 @@ npm run capturas       # 390 / 768 / 1440 a .capturas/
 npm run detalle        # lupa de bloques sueltos sobre el DOM
 npm run og             # regenera public/og.png (1200×630)
 npm run sf-pro         # fabrica el recorte servido de SF Pro
+npm run logos          # clavea y recorta los lockups de la cinta
 npm run deploy         # build + gh-pages
 npm run vivo           # comprueba el dominio ya publicado
 ```
@@ -163,29 +164,68 @@ números los devuelven `npm run detalle` y `node scripts/medir-lockup.mjs`;
 `medir-lockup.mjs` además imprime `sfProCargada` y la lista de woff2 que
 bajó de verdad, que es la prueba de que no se está colando Inter.
 
-## Los logos de aliados
+## La cinta de aliados
 
-`src/lib/socios.ts` guarda nueve marcas. Cinco con trazado oficial
-vendorizado en el repo (bajados de `cdn.simpleicons.org`, no se pide nada
-a un tercero al cargar la página): GitHub, Cloudflare, Supabase, Neon y
-Zoho Mail. Cuatro sin vector disponible —AWS, Qoder y `nic.ve` dan 404 o
-403 en simpleicons y en devicon— se componen como texto-marca: el nombre,
-que es lo único reproducible sin licencia, en la pila de la familia.
+El 2026-11-10 el dueño del proyecto entregó las capturas de los lockups
+oficiales a color de las marcas (ocho distintas: la de Qoder venía
+repetida, md5 en mano). Esas capturas están archivadas sin tocar en
+`src/assets/logos/origen/*.jpg` — son la procedencia de lo que se
+publica — y `npm run logos` (`scripts/preparar-logos.py`) fabrica con
+ellas los `src/assets/logos/*.png` que se sirven: 126 KB entre ocho.
 
-**El orden del array es la jerarquía**, y la jerarquía es una matriz de
-tres por tres: `landing.css` agranda por posición (`:nth-child(-n + 3)`
-32 px de tinta, `n + 4`–`n + 6` 26 px, el resto 22 px), así que mover una
-marca en el almacén le cambia el tamaño solo. Cada nombre se pinta al
-lado de su logo, como es su marca, y la banda no explica qué hace cada
-cual: es prueba social, no documentación.
+Un JPG no se puede colgar de una página: no tiene alfa y el fondo viene
+cocido en la foto (negro en cinco, blanco en dos, `#f3f5f4` en GitHub).
+El script hace cuatro cosas y nada más: mide el fondo como la mediana de
+los píxeles del borde, clava la luminancia con firma (`d = (luma − luma
+del fondo) × señal`, +1 si el fondo es oscuro y −1 si es claro) con una
+rampa `a`/`b` por marca leída del histograma de colores dominantes,
+**desmezcla** el píxel de borde (`tinta = (observado − (1−α)·fondo)/α`)
+para que el trazo no salga con un halo gris sobre el blanco de la
+sección, y recorta a la caja de tinta antes de exportar a 3× del alto
+que va a ocupar en pantalla.
 
-Cada `viewBox` está recortado a su **caja de tinta medida** —no a la caja
-cuadrada de 24×24— con `scripts/medir-socios.mjs`, que lee este mismo
-archivo: así lo que se publica es exactamente lo que se midió. Sin el
-recorte, la nube de Cloudflare ocuparía la mitad del cuadro y se vería la
-mitad de grande que el rayo de Supabase. Sobre eso cada marca trae un
-`alto` de ajuste óptico (las tiras anchas pesan más que los cuadrados a
-igual altura) calibrado mirando la captura, no la cabeza.
+Lo que no hace: no redibuja, no recolorea, no vectoriza. Las zonas
+encerradas que coinciden con el fondo (el gato blanco dentro del círculo
+de GitHub, el interior del sobre de Zoho) quedan transparentes y muestran
+el blanco de la sección, que es el color que ya tenían. Si la cinta se
+mueve alguna vez a un fondo que no sea blanco, hay que cambiar el clavado
+por un flood-fill desde el borde.
+
+**Es una cinta, no una rejilla.** Dos pistas de lockups corren en
+sentidos opuestos sobre el blanco de la sección, sangradas a la ventana y
+con las puntas desvanecidas por una `mask-image` (una máscara deja ver el
+papel; un degradado pintaría una franja gris). Cada pista son cuatro
+juegos idénticos y el keyframe desplaza `-25%`, o sea un juego exacto: la
+separación es `margin-inline-end` de cada `<li>` y no un `gap` del
+contenedor, porque con `gap` sobraría medio espacio justo en la junta y
+el bucle bailaría. `npm run detalle` mide la costura (`costura: 0`) y la
+velocidad de cada fila.
+
+**El orden del array sigue siendo la jerarquía**, pero ahora son dos
+filas, no una matriz de tres por tres: `FILA_1 = 3` parte la lista, la
+fila de arriba son las tres que hacen que el proyecto exista (34 px de
+tinta) y la de abajo las seis que lo hacen andar (24 px). Encima de eso
+cada marca trae un `alto` de ajuste óptico —un lockup apilado como
+Cloudflare o un disco como nic.ve necesitan más altura que una palabra
+para pesar igual— y **ese número lo lee también `preparar-logos.py`**:
+exportar a otra altura con otro `alto` es la forma exacta de que la cinta
+salga borrosa, así que el valor vive una sola vez, en el almacén.
+
+Se pausa al pasar el puntero o el foco (un logo que se mueve no se
+puede leer, y esta banda existe para que se lea), y con
+`prefers-reduced-motion: reduce` la traslación se apaga, los tres juegos
+de copia se ocultan y el juego que queda se envuelve centrado: la misma
+información, quieta. Los nombres van en el `alt` de cada lockup; las
+copias van en `aria-hidden` para que un lector de pantalla no diga
+«GitHub» cuatro veces.
+
+Resend es la única que sigue compuesta —su lockup no llegó entre las
+capturas—: glifo oficial de simpleicons vendorizado en el repo más el
+nombre en la pila de la familia, pintados con la tinta de la sección
+(`#1d1d1f`) y no con el gris del texto de apoyo, porque al lado de ocho
+marcas a color un gris pálido lee como marcador de posición. Su caja de
+`viewBox` la mide `scripts/medir-socios.mjs`, que desde la cinta solo
+sirve para estas marcas compuestas.
 
 ## La tarjeta de enlace
 
@@ -293,6 +333,21 @@ Pages en reconstruir, el edge puede servir el HTML viejo con los `assets`
 ya sustituidos, y `npm run vivo` contesta `404` en los `index-*.js` y
 `index-*.css`. No es un despliegue roto; es la ventana de la
 reconstrucción. Se repite el chequeo y pasa.
+
+**Estado de la cinta del 2026-11-10: verificado en local, no
+publicado.** La rejilla de nueve glifos monocromos pasó a dos pistas de
+lockups oficiales a color que corren en sentidos opuestos. En local:
+typecheck y build limpios, `npm run verificar` en 13 archivos, 0
+violaciones de axe en 390 y 1440, 0 px de desborde en los tres anchos,
+`costura: 0` y 24,4 y 24,1 px/s en las dos filas de 1440, pausa real con
+el puntero (`running` → `paused` en las dos pistas, 37 px de desplazamiento
+en 1,5 s) y la variante `prefers-reduced-motion` medida en 390 y 1440
+(animación `none`, las copias sin pintar, los nueve nombres presentes,
+sin desborde). `npm run vivo` todavía fallaría contra el dominio: ahora pide
+los nueve lockups de `.lp-cinta`, cuatro juegos por pista y que cada PNG
+hashado cargue, y nada de eso está publicado todavía — el `gh-pages` de
+hoy sigue sirviendo la rejilla. Cerrar la brecha es `npm run deploy`, que es
+un pedido explícito y no una consecuencia de este commit.
 
 Las dos cosas que faltaban no se podían hacer desde esta máquina; ya
 están ambas:
