@@ -59,6 +59,18 @@ esta máquina los MCP de navegador no arrancan, así que los scripts manejan
 CHROMIUM_PATH=/usr/bin/chromium CAPTURAS_URL=http://127.0.0.1:4176/ npm run capturas
 ```
 
+`npm run deploy` commitea en `gh-pages` con git, y en esta máquina no hay
+`user.name` ni `user.email` globales — ni se van a escribir. La identidad
+se pasa por el entorno del comando:
+
+```
+GIT_AUTHOR_NAME=BLINK GIT_AUTHOR_EMAIL=blink@local \
+GIT_COMMITTER_NAME=BLINK GIT_COMMITTER_EMAIL=blink@local npm run deploy
+```
+
+Sin eso `gh-pages` aborta con `Identidad del autor desconocido` después de
+la construcción: el `dist` queda hecho, pero nada publicado.
+
 Cada Chromium tarda decenas de segundos en levantar aquí; los scripts
 presupuestan 300 s por render y esperan `document.fonts.ready` antes de
 capturar, porque sin eso la primera salida trae la métrica de respaldo y
@@ -334,8 +346,8 @@ ya sustituidos, y `npm run vivo` contesta `404` en los `index-*.js` y
 `index-*.css`. No es un despliegue roto; es la ventana de la
 reconstrucción. Se repite el chequeo y pasa.
 
-**Estado de la cinta del 2026-11-10: verificado en local, no
-publicado.** La rejilla de nueve glifos monocromos pasó a dos pistas de
+**Estado de la cinta del 2026-11-10: publicado y comprobado contra el
+dominio.** La rejilla de nueve glifos monocromos pasó a dos pistas de
 lockups oficiales a color que corren en sentidos opuestos. En local:
 typecheck y build limpios, `npm run verificar` en 13 archivos, 0
 violaciones de axe en 390 y 1440, 0 px de desborde en los tres anchos,
@@ -343,11 +355,22 @@ violaciones de axe en 390 y 1440, 0 px de desborde en los tres anchos,
 el puntero (`running` → `paused` en las dos pistas, 37 px de desplazamiento
 en 1,5 s) y la variante `prefers-reduced-motion` medida en 390 y 1440
 (animación `none`, las copias sin pintar, los nueve nombres presentes,
-sin desborde). `npm run vivo` todavía fallaría contra el dominio: ahora pide
-los nueve lockups de `.lp-cinta`, cuatro juegos por pista y que cada PNG
-hashado cargue, y nada de eso está publicado todavía — el `gh-pages` de
-hoy sigue sirviendo la rejilla. Cerrar la brecha es `npm run deploy`, que es
-un pedido explícito y no una consecuencia de este commit.
+sin desborde). Después vino el despliegue y `npm run vivo` sobre
+`bws.blink.com.ve`: `aliados 9`, los 32 `<img>` de la cinta cargados y
+ninguno roto, `fila 1: lp-cinta 24 px/s · juego 636 px · pista 2543 px`
+y `fila 2: … 892 px · 3569 px` — la pista de cada fila es exactamente
+cuatro veces su juego, que es lo que hace que el bucle no se vea —, las
+once rutas del `dist` en `200` incluidos los ocho PNG con hash, el `301`
+de `http://` con TLS verificado en `0`, `og.png` de 1200×630, el render
+en SF Pro, 0 px de desborde y 0 errores de consola. La cinta publicada
+también se fotografió desde el dominio (`.capturas/1440-cinta-vivo.png`
+y `.capturas/390-cinta-vivo.png`, locales): los lockups a color sobre el
+blanco, 0 imágenes rotas y ni una sola petición fuera de `blink.com.ve`.
+
+El primer `npm run vivo` después del push dijo `aliados 0`: era la ventana
+de reconstrucción de arriba, el edge todavía servía `index-M7VEzz5M.js`
+con la rejilla vieja. Se repitió y pasó con el bundle nuevo
+(`index-CxKUOIDB.js`, `index-C7Hncrdl.css`).
 
 Las dos cosas que faltaban no se podían hacer desde esta máquina; ya
 están ambas:
