@@ -87,6 +87,26 @@ async function http(ip, ruta) {
   }
 }
 
+/** Pedido `http://` (puerto 80) con la IP inyectada. Devuelve el código,
+    la cabecera `Location` y la IP que contestó, para poder comprobar el
+    forzado de HTTPS sin depender de la caché del resolver de esta casa. */
+async function salto(ip, ruta) {
+  const args = ["-s", "-o", "/dev/null", "-D", "-", "-w", "%{http_code} %{remote_ip}",
+                "--resolve", `${HOST}:80:${ip}`, `http://${HOST}${ruta}`];
+  try {
+    const { stdout } = await promesa("curl", args, { timeout: 60_000 });
+    const lineas = stdout.trim().split(/\r?\n/);
+    const cola = lineas[lineas.length - 1].split(" ");
+    return {
+      code: Number(cola[0]),
+      location: lineas.find((l) => /^location:/i.test(l))?.replace(/^location:\s*/i, "").trim(),
+      ip: cola[1] ?? ip,
+    };
+  } catch {
+    return { code: 0, location: undefined, ip };
+  }
+}
+
 async function cuerpo(ip, ruta) {
   const args = ["-sk", "--resolve", `${HOST}:443:${ip}`, `https://${HOST}${ruta}`];
   try {
@@ -126,7 +146,25 @@ if (cert) {
   fallos.push("no se pudo leer el certificado");
 }
 
-/* --- 3. las rutas ---------------------------------------------------- */
+/* --- 3. el forzado --------------------------------------------------- */
+/* Con *Enforce HTTPS* apagado el edge contesta `200` por `http://` en
+   lugar de redirigir; con él encendido, `/` debe dar `301` y una sola
+   vez. Se pide con la IP inyectada para no depender de la caché local. */
+console.log(`\n=== http:// → https:// ===`);
+const red = await salto(IP, "/");
+dice("301 esperado", `${red.code} → ${red.location || "(sin Location)"}`);
+if (red.code !== 301) fallos.push(`http:// responde ${red.code}, se esperaba 301 (forzado apagado)`);
+else if (red.location !== `https://${HOST}/`) fallos.push(`el 301 lleva a ${red.location}, se esperaba https://${HOST}/`);
+const salto2 = await promesa(
+  "curl",
+  ["-s", "-o", "/dev/null", "-w", "%{http_code} %{num_redirects} %{ssl_verify_result} %{url_effective}",
+   "-L", "--resolve", `${HOST}:80:${IP}`, "--resolve", `${HOST}:443:${IP}`, `http://${HOST}/`],
+  { timeout: 60_000 },
+).then(({ stdout }) => stdout.trim()).catch(() => "error");
+dice("siguiendo el salto", salto2);
+if (!/^200 1 0 /.test(salto2)) fallos.push("seguir el 301 no aterriza en 200 con TLS verificado");
+
+/* --- 4. las rutas ---------------------------------------------------- */
 console.log("\n=== rutas del dist publicado ===");
 const pagina = await cuerpo(IP, "/");
 const A = pagina.match(/assets\/index-[A-Za-z0-9_-]+\.js/)?.[0] ?? "";
@@ -154,7 +192,7 @@ if (W) {
   fallos.push("el CSS publicado no referencia la fuente propia");
 }
 
-/* --- 4. lo que dice el HTML servido ---------------------------------- */
+/* --- 5. lo que dice el HTML servido ---------------------------------- */
 console.log("\n=== copy servido ===");
 const titulo = pagina.match(/<title>([^<]*)<\/title>/)?.[1] ?? "";
 dice("<title>", titulo);
@@ -166,7 +204,7 @@ if (/planes/.test(pagina)) fallos.push("el HTML servido todavía dice «planes»
 const og = await promesa("sh", ["-c", `curl -sk --resolve ${HOST}:443:${IP} https://${HOST}/og.png | identify -format "%wx%h" -`]).catch(() => null);
 dice("og.png", og ? `${og.stdout.trim()} px` : "sin medir");
 
-/* --- 5. render real sobre el dominio --------------------------------- */
+/* --- 6. render real sobre el dominio --------------------------------- */
 console.log("\n=== render en Chromium ===");
 const navegador = await chromium.launch({
   executablePath: process.env.CHROMIUM_PATH ?? "/usr/bin/chromium",

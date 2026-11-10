@@ -127,7 +127,8 @@ tinta que el resto de la fila.
 ## Publicar
 
 Estado a 2026-11-09, de noche. El sitio **está sirviendo** en
-`https://bws.blink.com.ve/` con certificado propio válido.
+`https://bws.blink.com.ve/` con certificado propio válido, y el `http://`
+redirige a `https://` — igual que `pay` y `pos`.
 
 Hecho y comprobado contra el dominio (no contra `npm run preview`):
 
@@ -157,9 +158,13 @@ Hecho y comprobado contra el dominio (no contra `npm run preview`):
    errores de consola.
 
 Se comprueba con `npm run vivo` (`scripts/en-vivo.mjs`), que sale con
-código distinto de cero si algo de lo anterior falla.
+código distinto de cero si algo de lo anterior falla — incluidas las
+cabeceras de la sección 3, que exigen el `301` de `http://` y que seguirlo
+aterrice en `200` con la verificación TLS en `0`. Si alguien vuelve a
+apagar *Enforce HTTPS*, el chequeo lo detecta solo.
 
-Queda una sola cosa, y no se puede hacer desde esta máquina:
+Las dos cosas que faltaban no se podían hacer desde esta máquina; ya
+están ambas:
 
 5. **El certificado propio ya está.** Se emitió el 2026-11-09 a las
    23:17:53 UTC — Let's Encrypt `YR2`, `CN = bws.blink.com.ve`, vigente
@@ -167,11 +172,18 @@ Queda una sola cosa, y no se puede hacer desde esta máquina:
    unos minutos después. Un cliente estricto (`curl` sin `-k`) responde
    `200` con `ssl_verify_result = 0`. Antes de eso el edge servía el
    comodín `*.github.io`, que no ampara el nombre, y la casilla de
-   *Enforce HTTPS* aparecía deshabilitada: sin certificado no hay
-   botón, así que el orden era forzado.
-6. **HTTPS forzado.** `Pay` y `POS` lo tienen activado; aquí sigue
-   apagado, y el token de `gh` no trae el scope `pages` — el `PATCH` a
-   `/pages` responde `404` incluso ahora que el certificado existe,
-   mientras que `POST /pages/builds` sí pasa. Se marca en
-   Settings → Pages → *Enforce HTTPS*. Mientras esté apagado, `http://`
-   responde `200` en lugar de redirigir a `https://`.
+   *Enforce HTTPS* aparecía deshabilitada: sin certificado no hay botón,
+   así que el orden era forzado — primero emitir, después marcar.
+6. **HTTPS forzado, activado.** `Pay` y `POS` ya lo tenían; aquí quedó
+   marcado a mano en Settings → Pages → *Enforce HTTPS*, porque el token
+   de `gh` no trae el scope `pages` y el `PATCH` a `/pages` responde
+   `404` incluso con el certificado existente, mientras que
+   `POST /pages/builds` sí pasa. Comprobado sobre el dominio: `http://`
+   responde `301` con `Location: https://bws.blink.com.ve/` en `/`,
+   `/404.html`, `/og.png`, `/favicon.svg` y los `assets` con hash, y
+   seguir el salto da `200` con `ssl_verify_result = 0` en un solo
+   rebote. `gh api repos/BLINK-SERVERS/BWS/pages` reporta
+   `https_enforced: true`. GitHub no envía `Strict-Transport-Security`,
+   así que el forzado es solo el `301`: una primera visita escrita sin
+   esquema depende de que el navegador pruebe `https://` antes, como
+   hacen los actuales.
