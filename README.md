@@ -285,8 +285,10 @@ sirve `bws.blink.com.ve`. Su destino es Vercel
 depender de reescrituras; el navegador habla solo con su propio origen y
 los proveedores viven en el servidor.
 
-Comparte el sistema visual por alias (`@tokens`, `@fonts`), así que el
-portal usa SF Pro para la interfaz pero **los PDF usan Liberation
+El sistema visual vive en `portal/sistema/`, una copia de `src/styles` que
+mantiene `npm run sistema`; Vercel sube solo la carpeta del portal y no
+puede leer `../src`, y una prueba unitaria falla si la copia se desvía. El
+portal usa SF Pro para la interfaz, pero **los PDF usan Liberation
 Serif/Sans/Mono** (SIL OFL 1.1, vendorizadas en `portal/render/fuentes/`).
 SF Pro es de Apple y no se incrusta en documentos que se entregan.
 
@@ -295,6 +297,7 @@ cd portal
 npm install
 npm run dev            # 5177, solo interfaz
 npm run typecheck
+npm run sistema        # sincroniza tokens y fuentes desde src/
 npm run build          # portal/dist/
 npm run pdf            # los ocho PDF de muestra en portal/tmp/pdf/
 npm run afirmaciones   # falla si un texto promete lo que no se puede probar

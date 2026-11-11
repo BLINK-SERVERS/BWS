@@ -49,6 +49,8 @@ Hash, para no depender de reescrituras en el host:
 npm install
 npm run dev            # 5177, solo interfaz; la API necesita `npm run portal`
 npm run typecheck
+npm run sistema        # copia tokens y fuentes de la landing a sistema/
+npm run sistema:verificar
 npm run build          # dist/
 npm run portal         # dist + api en 127.0.0.1:4178 contra la rama de pruebas
 npm run portal:pruebas # build + flujo completo en Chromium, axe y desborde
@@ -99,11 +101,13 @@ se niega a usarlo con `ENTORNO=produccion`.
 
 ## Arquitectura
 
-- **Interfaz:** React 19 + Vite 8 + TypeScript estricto. Tokens y tipografía
-  llegan por alias (`@tokens`, `@fonts`) desde la landing; no se duplica el
-  sistema de diseño. Los PDF usan Liberation Serif/Sans/Mono vendorizadas en
-  `render/fuentes/` (SIL OFL 1.1): SF Pro es de Apple y no se incrusta en
-  documentos entregados.
+- **Interfaz:** React 19 + Vite 8 + TypeScript estricto. El sistema visual
+  vive en `sistema/`, una copia de `../src/styles` que mantiene
+  `npm run sistema`; Vercel solo sube esta carpeta y no puede leer fuera de
+  ella. Una prueba unitaria falla si la copia se desvía, así que la landing
+  sigue siendo la fuente única. Los PDF usan Liberation Serif/Sans/Mono
+  vendorizadas en `render/fuentes/` (SIL OFL 1.1): SF Pro es de Apple y no
+  se incrusta en documentos entregados.
 - **API:** funciones en `api/`, una por ruta, con el envoltorio
   `_lib/manejador.ts`. Conexión con `@neondatabase/serverless` sobre HTTP;
   cada operación abre una transacción que fija `app.usuario_id` y
