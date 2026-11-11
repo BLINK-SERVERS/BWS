@@ -14,7 +14,13 @@
     "afirmaciones": "tsx scripts/revisar-afirmaciones.mjs",
     "pruebas": "tsx --test pruebas/*.test.ts",
     "db:migrar": "tsx scripts/db-migrar.mjs",
-    "db:pruebas": "tsx scripts/db-test.mjs"
+    "db:pruebas": "tsx scripts/db-test.mjs",
+    "api:pruebas": "tsx scripts/api-test.mjs",
+    "portal": "tsx scripts/servidor.mjs",
+    "portal:pruebas": "npm run build && tsx scripts/portal.mjs"
+  },
+  "engines": {
+    "node": ">=22"
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.0.2",

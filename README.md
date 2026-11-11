@@ -293,14 +293,23 @@ SF Pro es de Apple y no se incrusta en documentos que se entregan.
 ```
 cd portal
 npm install
-npm run dev            # 5177
+npm run dev            # 5177, solo interfaz
 npm run typecheck
 npm run build          # portal/dist/
 npm run pdf            # los ocho PDF de muestra en portal/tmp/pdf/
 npm run afirmaciones   # falla si un texto promete lo que no se puede probar
 npm run db:migrar      # aplica portal/db/migrations como dueño
 npm run db:pruebas     # RLS, solo agregar, cadena y doble firma en la rama de pruebas
+npm run api:pruebas    # registro, sesión, firma única y recuperación contra la API real
+npm run pruebas        # unitarias: validadores, canónica, scrypt, tokens y PNG
+npm run portal         # dist + api en http://127.0.0.1:4178 (base de pruebas)
+npm run portal:pruebas # flujo completo en Chromium, axe y desborde en 390 y 1440
 ```
+
+`npm run portal` sirve `dist/` y ejecuta las funciones de `api/` como lo hará
+Vercel. Por defecto usa `DATABASE_URL_PRUEBAS_APP` (`PORTAL_DB=pruebas`) y se
+niega a arrancar si esa cadena comparte host con la principal; `PORTAL_DB=main`
+solo se usa a mano. El correo sale en modo archivo a `portal/tmp/correo-portal/`.
 
 La base es un proyecto Neon separado (`bws-contratos`), nunca el de Pay ni
 el de POS. `portal/.env.local` (ignorado por git) guarda las cadenas del
@@ -345,6 +354,19 @@ objetos, no es superusuario y no toca lo inmutable. `npm run db:pruebas`
 verifica las dieciséis condiciones contra la rama `pruebas`, incluida la
 cadena desde `GENESIS`, la doble firma rechazada y el aislamiento entre dos
 clientes; las migraciones se reejecutan sin efecto.
+
+Estado de la entrega M2: el alta es en dos pasos. Primero se validan la
+cuenta y la ficha fiscal con las mismas reglas en el navegador y en la API;
+después se muestran los cinco documentos resueltos con esos datos, cada uno
+con su huella SHA-256, y el alta se niega si la huella devuelta no coincide
+con la que el servidor acaba de calcular. La sesión es opaca, de doce horas,
+en cookie `__Host-` fuera de local; la firma se captura una sola vez, con
+consentimiento previo del texto de BWS-LEG-002, y el segundo intento
+devuelve 409 tanto si llega por la interfaz como si se fuerza la petición.
+El correo de verificación y el de recuperación son de un solo uso y se
+guardan como hash. Las pruebas cierran en 34 unitarias, 18 de API y 30 de
+navegador: axe sin violaciones y cero desborde en 390 y 1440, sin peticiones
+a terceros, con el flujo completo de registro, verificación, ingreso y firma.
 
 Las variables de entorno (solo nombres, nunca valores en el repo):
 `DATABASE_URL`, `DATABASE_URL_APP`, `DATABASE_URL_PRUEBAS`,

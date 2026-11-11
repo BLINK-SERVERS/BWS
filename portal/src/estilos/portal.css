@@ -158,6 +158,575 @@ code {
   color: var(--color-text-tertiary);
 }
 
+/* ------------------------------------------------------------
+   Navegación de cuenta
+   ------------------------------------------------------------ */
+
+.po-nav {
+  display: flex;
+  align-items: center;
+  gap: 1.125rem;
+  font-size: 0.9375rem;
+}
+
+.po-nav a {
+  color: var(--color-text-secondary);
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.po-nav a:hover {
+  color: var(--color-text-primary);
+}
+
+.po-nav-destacado {
+  padding: 0.375rem 0.875rem;
+  border-radius: var(--radius-pill);
+  background: var(--color-accent-soft);
+  color: var(--color-accent-text) !important;
+}
+
+.po-nav-destacado:hover {
+  background: var(--color-accent-soft-hover);
+}
+
+.po-enlace-boton {
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-weight: 500;
+  color: var(--color-accent-text);
+  cursor: pointer;
+}
+
+.po-enlace-boton:hover {
+  color: var(--color-accent-hover);
+}
+
+/* ------------------------------------------------------------
+   Portada
+   ------------------------------------------------------------ */
+
+.po-acciones-portada {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-top: 2rem;
+}
+
+.po-pasos {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.875rem;
+  margin: 3rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.po-pasos li {
+  padding: 1.125rem 1.25rem;
+  border-radius: var(--radius-lg);
+  background: var(--color-bg-elevated);
+  border: 1px solid color-mix(in srgb, var(--color-text-primary) 8%, transparent);
+}
+
+.po-paso-numero {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: 50%;
+  background: var(--color-accent-soft);
+  color: var(--color-accent-text);
+  font-size: 0.8125rem;
+  font-weight: 700;
+}
+
+.po-pasos h2 {
+  margin: 0.75rem 0 0.25rem;
+  font-size: 1rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.po-pasos p {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: 0.9375rem;
+}
+
+/* ------------------------------------------------------------
+   Páginas internas
+   ------------------------------------------------------------ */
+
+.po-pagina {
+  flex: 1;
+  padding: 2.75rem 0 3rem;
+}
+
+.po-pagina-angosta {
+  max-width: 34rem;
+}
+
+.po-titulo-pagina {
+  margin: 0.5rem 0 0;
+  font-family: var(--font-display);
+  font-size: clamp(1.85rem, 4.6vw, 2.75rem);
+  font-weight: 700;
+  line-height: 1.08;
+  letter-spacing: -0.025em;
+  text-wrap: balance;
+}
+
+/* ------------------------------------------------------------
+   Formularios
+   ------------------------------------------------------------ */
+
+.po-formulario {
+  display: grid;
+  gap: 1.25rem;
+  margin-top: 2rem;
+}
+
+.po-grupo {
+  display: grid;
+  gap: 1rem;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.po-grupo legend {
+  padding: 0;
+  margin-bottom: 0.25rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-text-tertiary);
+}
+
+.po-fila {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+.po-campo {
+  display: grid;
+  gap: 0.375rem;
+}
+
+.po-campo label {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.po-campo input,
+.po-campo select {
+  width: 100%;
+  min-height: 44px;
+  padding: 0.625rem 0.75rem;
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  background: var(--color-bg-elevated);
+  color: var(--color-text-primary);
+  font: inherit;
+  font-size: 1rem;
+}
+
+.po-campo input:focus-visible,
+.po-campo select:focus-visible,
+.po-boton:focus-visible,
+.po-enlace-boton:focus-visible,
+.po-casilla input:focus-visible {
+  outline: 3px solid var(--color-accent-ring);
+  outline-offset: 2px;
+}
+
+.po-campo input[aria-invalid="true"] {
+  border-color: var(--color-danger-text);
+}
+
+.po-campo-ayuda {
+  margin: 0;
+  font-size: 0.8125rem;
+  color: var(--color-text-tertiary);
+}
+
+.po-campo-error {
+  margin: 0;
+  font-size: 0.875rem;
+  color: var(--color-danger-text);
+}
+
+.po-casilla {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  margin-top: 1.25rem;
+  font-size: 0.9375rem;
+  line-height: 1.5;
+}
+
+.po-casilla input {
+  flex: none;
+  width: 1.25rem;
+  height: 1.25rem;
+  margin-top: 0.125rem;
+  accent-color: var(--color-accent);
+}
+
+/* ------------------------------------------------------------
+   Botones
+   ------------------------------------------------------------ */
+
+.po-boton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  min-height: 44px;
+  padding: 0.625rem 1.25rem;
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  font: inherit;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.po-boton:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.po-boton-principal {
+  background: var(--color-action-fill);
+  color: var(--color-text-on-accent);
+}
+
+.po-boton-principal:hover:not(:disabled) {
+  background: var(--color-accent-hover);
+  color: var(--color-text-on-accent);
+}
+
+.po-boton-suave {
+  background: var(--color-bg-elevated);
+  border-color: var(--color-border);
+  color: var(--color-text-primary);
+}
+
+.po-boton-suave:hover:not(:disabled) {
+  border-color: var(--color-border-strong);
+}
+
+/* ------------------------------------------------------------
+   Tarjetas, notas y datos
+   ------------------------------------------------------------ */
+
+.po-tarjeta {
+  display: grid;
+  gap: 1rem;
+  margin-top: 2rem;
+  padding: 1.5rem;
+  border-radius: var(--radius-lg);
+  background: var(--color-bg-elevated);
+  border: 1px solid color-mix(in srgb, var(--color-text-primary) 8%, transparent);
+  box-shadow: var(--shadow-ios-card);
+}
+
+.po-tarjeta-titulo {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 1.25rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.po-datos {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
+  gap: 1rem;
+  margin: 0;
+}
+
+.po-datos dt {
+  margin-bottom: 0.25rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-text-tertiary);
+}
+
+.po-datos dd {
+  margin: 0;
+  font-size: 0.9375rem;
+}
+
+.po-etiqueta {
+  display: inline-block;
+  padding: 0.125rem 0.625rem;
+  border-radius: var(--radius-pill);
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
+.po-etiqueta-ok {
+  background: color-mix(in srgb, var(--color-success-text) 12%, transparent);
+  color: var(--color-success-text);
+}
+
+.po-etiqueta-aviso {
+  background: var(--color-warning-soft);
+  color: var(--color-warning-text);
+}
+
+.po-nota {
+  margin: 1rem 0 0;
+  padding: 0.875rem 1rem;
+  border-radius: var(--radius-md);
+  background: var(--color-bg-subtle);
+  border: 1px solid color-mix(in srgb, var(--color-text-primary) 8%, transparent);
+  font-size: 0.9375rem;
+  line-height: 1.5;
+}
+
+.po-nota p {
+  margin: 0;
+}
+
+.po-nota-aviso {
+  background: var(--color-warning-soft);
+  border-color: color-mix(in srgb, var(--color-warning-text) 24%, transparent);
+}
+
+.po-nota-ok {
+  background: color-mix(in srgb, var(--color-success-text) 10%, transparent);
+  border-color: color-mix(in srgb, var(--color-success-text) 24%, transparent);
+}
+
+.po-apagado {
+  margin: 0.75rem 0 0;
+  font-size: 0.9375rem;
+  color: var(--color-text-secondary);
+}
+
+/* ------------------------------------------------------------
+   Documentos legales
+   ------------------------------------------------------------ */
+
+.po-documentos {
+  display: grid;
+  gap: 0.75rem;
+  margin: 1.5rem 0;
+}
+
+.po-documento {
+  border: 1px solid color-mix(in srgb, var(--color-text-primary) 10%, transparent);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-elevated);
+  padding: 0 1rem;
+}
+
+.po-documento summary {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+  padding: 0.875rem 0;
+  cursor: pointer;
+  font-size: 0.9375rem;
+}
+
+.po-documento-meta {
+  font-size: 0.8125rem;
+  color: var(--color-text-tertiary);
+}
+
+.po-documento-cuerpo {
+  padding: 0.75rem 0 1.25rem;
+  border-top: 1px solid color-mix(in srgb, var(--color-text-primary) 8%, transparent);
+}
+
+.po-legal-texto {
+  font-size: 0.9375rem;
+  line-height: 1.6;
+}
+
+.po-legal-texto h3,
+.po-legal-texto h4 {
+  margin: 1.5rem 0 0.5rem;
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.po-legal-texto p {
+  margin: 0.75rem 0;
+}
+
+.po-legal-texto ul,
+.po-legal-texto ol {
+  margin: 0.75rem 0;
+  padding-left: 1.25rem;
+}
+
+.po-legal-texto li {
+  margin: 0.375rem 0;
+}
+
+.po-aviso-legal {
+  padding: 0.75rem 0.875rem;
+  border-radius: var(--radius-sm);
+  background: var(--color-warning-soft);
+  color: var(--color-warning-text);
+}
+
+.po-tabla-marco {
+  overflow-x: auto;
+  margin: 1rem 0;
+}
+
+.po-tabla-marco table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+
+.po-tabla-marco th,
+.po-tabla-marco td {
+  padding: 0.5rem 0.625rem;
+  border: 1px solid color-mix(in srgb, var(--color-text-primary) 12%, transparent);
+  text-align: left;
+  vertical-align: top;
+}
+
+.po-tabla-marco th {
+  background: var(--color-bg-subtle);
+  font-weight: 600;
+}
+
+.po-hash {
+  font-size: 0.75rem;
+  word-break: break-all;
+}
+
+.po-hash-linea {
+  margin: 1rem 0 0;
+  font-size: 0.8125rem;
+  color: var(--color-text-tertiary);
+}
+
+.po-consentimiento {
+  margin: 1.25rem 0;
+  border: 1px solid color-mix(in srgb, var(--color-text-primary) 10%, transparent);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-elevated);
+  padding: 0 1rem;
+}
+
+.po-consentimiento summary {
+  padding: 0.875rem 0;
+  cursor: pointer;
+  font-size: 0.9375rem;
+  font-weight: 600;
+}
+
+.po-consentimiento-texto {
+  padding-bottom: 1rem;
+  border-top: 1px solid color-mix(in srgb, var(--color-text-primary) 8%, transparent);
+}
+
+/* ------------------------------------------------------------
+   Lienzo de firma
+   ------------------------------------------------------------ */
+
+.po-lienzo-marco {
+  position: relative;
+  margin-top: 1.25rem;
+  border: 1px dashed var(--color-border-strong);
+  border-radius: var(--radius-md);
+  background: #fff;
+  overflow: hidden;
+}
+
+.po-lienzo {
+  display: block;
+  width: 100%;
+  touch-action: none;
+  cursor: crosshair;
+}
+
+.po-lienzo-apagado {
+  opacity: 0.6;
+}
+
+.po-lienzo-apagado .po-lienzo {
+  cursor: not-allowed;
+}
+
+.po-lienzo-velo {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+  padding: 1rem;
+  text-align: center;
+  color: #555;
+  font-size: 0.9375rem;
+  background: color-mix(in srgb, #fff 72%, transparent);
+}
+
+.po-firma-acciones {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+  margin-top: 1.25rem;
+}
+
+.po-firma-hecha {
+  display: grid;
+  gap: 1rem;
+}
+
+.po-firma-imagen {
+  display: block;
+  max-width: 100%;
+  max-height: 10rem;
+  padding: 0.75rem;
+  border-radius: var(--radius-md);
+  background: #fff;
+  border: 1px solid color-mix(in srgb, #000 8%, transparent);
+}
+
+@media (max-width: 640px) {
+  .po-pasos {
+    grid-template-columns: 1fr;
+  }
+
+  .po-fila {
+    grid-template-columns: 1fr;
+  }
+
+  .po-cabecera {
+    flex-wrap: wrap;
+    gap: 0.5rem 1rem;
+  }
+
+  .po-nav {
+    gap: 0.875rem;
+  }
+}
+
 @media (max-width: 480px) {
   .po-portada {
     padding-top: 3rem;
@@ -166,5 +735,9 @@ code {
   .po-legal {
     flex-direction: column;
     gap: 0.25rem;
+  }
+
+  .po-tarjeta {
+    padding: 1.25rem;
   }
 }

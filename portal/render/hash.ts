@@ -12,24 +12,15 @@
    ============================================================ */
 
 import { createHash } from "node:crypto";
-import type { DatosExpediente, DocumentoLegal, FirmaCapturada } from "../legal/tipos";
+import { canonica, contenidoPlantilla } from "../legal/canonica";
+import type {
+  DatosExpediente,
+  DocumentoLegal,
+  DocumentoResuelto,
+  FirmaCapturada,
+} from "../legal/tipos";
 
-/** JSON con las claves ordenadas: la misma entrada produce el mismo texto. */
-export function canonica(valor: unknown): string {
-  const ordenar = (v: unknown): unknown => {
-    if (Array.isArray(v)) return v.map(ordenar);
-    if (v && typeof v === "object") {
-      const objeto = v as Record<string, unknown>;
-      return Object.fromEntries(
-        Object.keys(objeto)
-          .sort()
-          .map((k) => [k, ordenar(objeto[k])]),
-      );
-    }
-    return v;
-  };
-  return JSON.stringify(ordenar(valor));
-}
+export { canonica } from "../legal/canonica";
 
 export function sha256Hex(datos: string | Uint8Array): string {
   return createHash("sha256").update(datos).digest("hex");
@@ -37,14 +28,20 @@ export function sha256Hex(datos: string | Uint8Array): string {
 
 /** Huella de la plantilla tal como está publicada, sin datos resueltos. */
 export function hashPlantilla(doc: DocumentoLegal): string {
+  return sha256Hex(contenidoPlantilla(doc));
+}
+
+/**
+ * Huella del consentimiento tal como se mostró: el texto resuelto, no
+ * solo la plantilla. Si cambia un dato del cliente, cambia la huella y
+ * el registro se niega a aceptar un consentimiento viejo.
+ */
+export function hashConsentimiento(doc: DocumentoResuelto): string {
   return sha256Hex(
     canonica({
       codigo: doc.codigo,
-      titulo: doc.titulo,
       version: doc.version,
       fecha: doc.fecha,
-      firma: doc.firma,
-      campos: doc.campos,
       bloques: doc.bloques,
     }),
   );
