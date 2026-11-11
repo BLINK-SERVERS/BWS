@@ -274,6 +274,64 @@ nítidos que renderizando directo y pesa la mitad (86 KB).
   `#a1a1aa` sobre negro 8,9:1. Los dígitos del proceso van sobre
   `#0066cc` (5,6:1 con blanco) y no sobre `#007AFF` (3,36:1, reprobado).
 
+## Portal de clientes
+
+`portal/` es una aplicación **independiente**: su propio `package.json`,
+`vite.config.ts`, `src/`, `api/` y `vercel.json`. No comparte build con la
+landing, no se publica en GitHub Pages y no cambia una línea de lo que
+sirve `bws.blink.com.ve`. Su destino es Vercel
+(`portal.blink.com.ve`), con Neon como base. Las rutas son de hash
+(`#/ingreso`, `#/registro`, `#/panel`, `#/proyecto`, `#/admin`) para no
+depender de reescrituras; el navegador habla solo con su propio origen y
+los proveedores viven en el servidor.
+
+Comparte el sistema visual por alias (`@tokens`, `@fonts`), así que el
+portal usa SF Pro para la interfaz pero **los PDF usan Liberation
+Serif/Sans/Mono** (SIL OFL 1.1, vendorizadas en `portal/render/fuentes/`).
+SF Pro es de Apple y no se incrusta en documentos que se entregan.
+
+```
+cd portal
+npm install
+npm run dev            # 5177
+npm run typecheck
+npm run build          # portal/dist/
+npm run pdf            # los ocho PDF de muestra en portal/tmp/pdf/
+npm run afirmaciones   # falla si un texto promete lo que no se puede probar
+```
+
+Los ocho documentos (`portal/legal/textos/`) se firman en este orden:
+registro (REG-001, LEG-002, LEG-003, PRI-005, WEB-006), proyecto
+(CON-004 con anexos A–F), entrega (LIC-007) y confidencialidad (NDA-008).
+La regla es una: no se imprime una afirmación que no se pueda demostrar.
+La firma se llama «electrónica simple, no certificada, con evidencia
+reforzada»; los PDF se declaran PDF 1.7 con sello de contenido SHA-256, no
+PDF/A; el registro es «no modificable dentro del sistema, con alteración
+detectable», no inmutable. `npm run afirmaciones` recorre los textos y
+falla si alguna de esas frases aparece sin negar o sin calificar. Lo que un
+abogado debería confirmar, y el riesgo aceptado al no tenerlo todavía,
+está en [`docs/legal/revision.md`](docs/legal/revision.md).
+
+El sello se calcula sobre un JSON canónico —código, versión, hash de la
+plantilla, campos usados, firmas y UTC—, nunca sobre los bytes del PDF:
+un archivo no puede contener el hash de sí mismo sin invalidarse. El hash
+del archivo se guarda aparte y se informa en el correo. Los documentos se
+encadenan con `sha256(hash_anterior || sello || orden)` desde `GENESIS`
+(ver `portal/render/hash.ts`).
+
+Estado de la entrega M0: `typecheck` y `build` en verde; los ocho PDF se
+generan en A4, PDF 1.7, con todas las fuentes incrustadas, sin marcadores
+`{{` residuales, con página de firmas doble y página de evidencia; dos
+pasadas idénticas producen el mismo archivo. La reproducibilidad obligó a
+incrustar las fuentes **en serie**: pdf-lib numera los objetos al
+registrarlos y con `Promise.all` el orden dependía de qué fuente
+terminara antes.
+
+Las variables de entorno (solo nombres, nunca valores en el repo):
+`DATABASE_URL`, `SESION_SECRETO`, `APP_ORIGEN`, `CORREO_MODO`,
+`CORREO_API_KEY`, `CORREO_DESDE`, `CORREO_COPIA`, `SMTP_HOST`,
+`SMTP_USER`, `SMTP_PASS`, `ADMIN_CORREO`, `ADMIN_CLAVE`, `ENTORNO`.
+
 ## Publicar
 
 Estado a 2026-11-09, de noche. El sitio **está sirviendo** en

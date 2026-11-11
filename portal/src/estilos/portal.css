@@ -1,0 +1,170 @@
+/* ============================================================
+   Portal de clientes — estilos base
+   ------------------------------------------------------------
+   Solo consume los tokens compartidos del repo principal. El
+   portal sigue la apariencia del sistema (claro/oscuro), a
+   diferencia de la landing, que fija el tema por sección.
+   ============================================================ */
+
+:root {
+  color-scheme: light dark;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  min-height: 100dvh;
+  background: var(--color-bg-primary);
+  color: var(--color-text-primary);
+  font-family: var(--font-text);
+  font-size: 17px;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+a {
+  color: var(--color-accent-text);
+  text-underline-offset: 0.18em;
+}
+
+a:hover {
+  color: var(--color-accent-hover);
+}
+
+code {
+  font-family: var(--font-mono);
+  font-size: 0.92em;
+  padding: 0.1em 0.35em;
+  border-radius: 6px;
+  background: var(--color-bg-subtle);
+}
+
+.po-marco {
+  width: min(100% - 2rem, 46rem);
+  margin: 0 auto;
+  padding: 1.5rem 0 2.5rem;
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
+}
+
+.po-cabecera {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  padding-bottom: 1.25rem;
+  border-bottom: 1px solid color-mix(in srgb, var(--color-text-primary) 12%, transparent);
+}
+
+.po-marca {
+  font-weight: 700;
+  font-size: 1.0625rem;
+  letter-spacing: -0.01em;
+  color: var(--color-text-primary);
+  text-decoration: none;
+}
+
+.po-marca span {
+  font-weight: 500;
+  color: var(--color-text-secondary);
+}
+
+.po-marca:hover {
+  color: var(--color-text-primary);
+}
+
+.po-candado {
+  font-size: 0.8125rem;
+  color: var(--color-text-tertiary);
+}
+
+.po-portada {
+  padding: 4.5rem 0 3rem;
+  flex: 1;
+}
+
+.po-sello {
+  margin: 0 0 0.75rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-text-tertiary);
+}
+
+.po-titulo {
+  margin: 0;
+  max-width: 20ch;
+  font-family: var(--font-display);
+  font-size: clamp(2rem, 6vw, 3.25rem);
+  font-weight: 700;
+  line-height: 1.06;
+  letter-spacing: -0.025em;
+  text-wrap: balance;
+}
+
+.po-entrada {
+  margin: 1.5rem 0 0;
+  max-width: 58ch;
+  color: var(--color-text-secondary);
+  font-size: 1.0625rem;
+}
+
+.po-aviso {
+  margin-top: 2.5rem;
+  padding: 1.25rem 1.375rem;
+  border-radius: var(--radius-lg);
+  background: var(--color-bg-elevated);
+  box-shadow: var(--shadow-ios-card);
+  border: 1px solid color-mix(in srgb, var(--color-text-primary) 8%, transparent);
+}
+
+.po-aviso p {
+  margin: 0.375rem 0 0;
+  color: var(--color-text-secondary);
+  font-size: 0.9375rem;
+}
+
+.po-aviso-titulo {
+  margin: 0;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.po-pie {
+  margin: 2.5rem 0 0;
+  font-size: 0.9375rem;
+}
+
+.po-legal {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid color-mix(in srgb, var(--color-text-primary) 12%, transparent);
+  font-size: 0.8125rem;
+  color: var(--color-text-tertiary);
+}
+
+@media (max-width: 480px) {
+  .po-portada {
+    padding-top: 3rem;
+  }
+
+  .po-legal {
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+}

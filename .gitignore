@@ -9,3 +9,6 @@ dist/
 
 # Archivo suelto de capturas: es un zip de `.capturas/`, que ya está ignorado.
 .capturas.zip
+
+# Portal: artefactos locales de generación y pruebas.
+portal/tmp/
