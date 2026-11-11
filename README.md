@@ -299,6 +299,7 @@ npm run build          # portal/dist/
 npm run pdf            # los ocho PDF de muestra en portal/tmp/pdf/
 npm run afirmaciones   # falla si un texto promete lo que no se puede probar
 npm run db:migrar      # aplica portal/db/migrations como dueño
+npm run admin:alta     # crea o actualiza la cuenta de administración (pide --confirmar)
 npm run db:pruebas     # RLS, solo agregar, cadena y doble firma en la rama de pruebas
 npm run api:pruebas    # registro, sesión, firma, proyecto, expediente, pagos y mora
 npm run pruebas        # unitarias: validadores, canónica, scrypt, tokens, PNG y suscripción
@@ -409,16 +410,39 @@ adjunto con su SHA-256 en la cabecera y deja un evento con actor, IP y agente
 en la misma transacción que la lectura. La suscripción nace del plan con su
 precio, día de cobro y días de gracia; un periodo admite un solo pago efectivo
 —lo impone un disparador—, y un cobro equivocado se anula con una fila nueva
-que conserva el original y el motivo. Con el vencimiento pasado el estado pasa
-a `mora` y luego a `suspendida`: el servicio y la licencia se suspenden y la
-generación del expediente se niega, pero los datos y el dominio siguen siendo
-del cliente. Reactivar devuelve la licencia a `activa`, avisa si el vencimiento
-sigue vencido y deja el estado anterior en `eventos`. Las pruebas cierran en
-67 unitarias, 46 de API, 64 de navegador y 16 de base de datos.
+que conserva el original y el motivo. Los plazos son los del contrato: `al_dia`
+hasta el vencimiento; `mora` con la gracia y diez días más; `suspendida` a los
+diez días de mora, cuando el servicio y la licencia se suspenden y la
+generación del expediente se niega; `terminada` a los treinta, sin vuelta. En
+todos los casos los datos y el dominio siguen siendo del cliente. Reactivar
+devuelve la licencia a `activa`, avisa si el vencimiento sigue vencido y deja
+el estado anterior en `eventos`. Las pruebas cierran en 67 unitarias, 46 de
+API, 64 de navegador y 16 de base de datos.
+
+Estado de la entrega M6: la entrega queda endurecida y documentada.
+`portal/vercel.json` fija la región `cle1` —la más cercana a Neon— y aplica
+CSP sin `'unsafe-inline'` (`script-src 'self'`, `style-src 'self'`,
+`frame-ancestors 'none'`), HSTS de dos años, `nosniff`, `X-Frame-Options:
+DENY`, `Referrer-Policy: same-origin` y una `Permissions-Policy` que apaga
+cámara, micrófono, geolocalización, pago y USB. El servidor local lee ese
+mismo archivo y aplica sus cabeceras, así que la prueba de navegador las
+comprueba en cada respuesta y falla si alguien mete un script o un estilo en
+línea: el lienzo de firma dejó de llevar `style` y su alto vive en el CSS.
+La revisión de afirmaciones suma cinco reglas —disponibilidad total,
+borrado definitivo, respaldo permanente, acceso inviolable y promesa de
+seguridad absoluta— y sigue en verde sobre los ocho textos. La cuenta de
+administración se crea con `npm run admin:alta`, sin registro público: sin
+`--confirmar` solo valida, nunca promueve un correo que ya sea cliente y no
+imprime la clave. La operación (procesadores, países, retención, respaldo,
+revisión de correo, incidentes) está en
+[`docs/legal/operacion.md`](docs/legal/operacion.md), y el costo, margen y
+suelo de cada plan en [`docs/legal/economia.md`](docs/legal/economia.md),
+interno y no se entrega al cliente. Las pruebas cierran en 70 unitarias, 47
+de API, 66 de navegador y 16 de base de datos.
 
 Las variables de entorno (solo nombres, nunca valores en el repo):
 `DATABASE_URL`, `DATABASE_URL_APP`, `DATABASE_URL_PRUEBAS`,
-`DATABASE_URL_PRUEBAS_APP`, `SESION_SECRETO`, `APP_ORIGEN`, `CORREO_MODO`,
+`DATABASE_URL_PRUEBAS_APP`, `APP_ORIGEN`, `CORREO_MODO`,
 `CORREO_API_KEY`, `CORREO_DESDE`, `CORREO_COPIA`, `SMTP_HOST`,
 `SMTP_USER`, `SMTP_PASS`, `ADMIN_CORREO`, `ADMIN_CLAVE`, `ENTORNO`.
 

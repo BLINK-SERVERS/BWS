@@ -15,6 +15,7 @@
     "pruebas": "tsx --test pruebas/*.test.ts",
     "db:migrar": "tsx scripts/db-migrar.mjs",
     "db:plantillas": "tsx scripts/sembrar-plantillas.mjs",
+    "admin:alta": "tsx scripts/sembrar-admin.mjs",
     "db:pruebas": "tsx scripts/db-test.mjs",
     "api:pruebas": "tsx scripts/api-test.mjs",
     "portal": "tsx scripts/servidor.mjs",

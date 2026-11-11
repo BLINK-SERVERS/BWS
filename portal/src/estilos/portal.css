@@ -665,6 +665,8 @@ code {
 .po-lienzo {
   display: block;
   width: 100%;
+  /* Debe coincidir con ALTO: el trazo se captura en píxeles CSS. */
+  height: 180px;
   touch-action: none;
   cursor: crosshair;
 }

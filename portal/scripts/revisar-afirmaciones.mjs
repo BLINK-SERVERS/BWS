@@ -60,6 +60,26 @@ const REGLAS = [
     motivo: "no se garantiza un resultado ni la ausencia de fallas",
     patron: /garantizamos\s+(el\s+resultado|la\s+seguridad|la\s+validez)|garant[íi]a\s+(total|absoluta)/i,
   },
+  {
+    id: "disponibilidad-total",
+    motivo: "no se promete disponibilidad absoluta ni ausencia de caídas",
+    patron: /99[.,]9+\s*%|disponibilidad\s+(total|absoluta|garantizada)|(servicio|sistema|portal)\s+(siempre\s+)?(en\s+l[ií]nea|disponible)\s+(siempre|24|todo\s+el\s+d[ií]a)|nunca\s+(falla|se\s+cae)/i,
+  },
+  {
+    id: "borrado-definitivo",
+    motivo: "no se promete un borrado definitivo o inmediato: se cumple el plazo y se avisa",
+    patron: /borrad[oa]s?\s+(definitiv\w+|de\s+inmediato|para\s+siempre)|eliminaci[oó]n\s+(definitiva|garantizada|inmediata)/i,
+  },
+  {
+    id: "respaldo-permanente",
+    motivo: "no se promete un respaldo permanente o indefinido",
+    patron: /respald\w+\s+(permanente|indefinido|eterno)|copias?\s+de\s+seguridad\s+(permanentes?|indefinidas?|eternas?)/i,
+  },
+  {
+    id: "acceso-inviolable",
+    motivo: "ninguna medida técnica se declara inviolable",
+    patron: /inviolab\w+|nadie\s+puede\s+(acceder|leer|modificar)|acceso\s+imposible/i,
+  },
 ];
 
 /** @param {import("../legal/tipos.ts").Bloque} bloque */

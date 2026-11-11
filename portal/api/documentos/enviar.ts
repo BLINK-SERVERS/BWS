@@ -52,7 +52,7 @@ export default manejar(["POST"], async (peticion) => {
     throw new ErrorHttp(400, "Falta el proyecto del expediente.", "proyecto");
   }
 
-  const [proyecto, documentos, actos, envios] = await enTransaccion(
+  const [proyecto, documentos, actos, envios, licencia] = await enTransaccion(
     sesion.usuarioId,
     sesion.rol,
     (txn) => [
@@ -77,6 +77,10 @@ export default manejar(["POST"], async (peticion) => {
           from envios
           where clave_idempotencia like ${`expediente/${proyectoId}/%`}
           order by utc`,
+      txn`select estado from licencias
+          where proyecto_id = ${proyectoId}
+          order by creado desc
+          limit 1`,
     ],
   );
 
@@ -121,6 +125,17 @@ export default manejar(["POST"], async (peticion) => {
       enviados: docs.length,
       mensaje_id: envios?.[0]?.mensaje_id ?? null,
     });
+  }
+
+  const estadoLicencia = String(
+    ((licencia ?? [])[0] as Record<string, unknown> | undefined)?.estado ?? "",
+  );
+  if (estadoLicencia === "suspendida" || estadoLicencia === "terminada") {
+    throw new ErrorHttp(
+      409,
+      "La licencia del proyecto no está activa. Regulariza la suscripción antes de enviar el expediente.",
+      "licencia_suspendida",
+    );
   }
 
   const contacto = String(filaProyecto.contacto || filaProyecto.razon_social);

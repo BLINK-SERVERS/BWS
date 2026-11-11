@@ -59,24 +59,40 @@ describe("fechas en UTC", () => {
   });
 });
 
-describe("corte de mora y suspensión", () => {
+describe("corte de mora, suspensión y terminación", () => {
   it("el mismo día del vencimiento sigue al día", () => {
     assert.equal(estadoPorFecha("2026-11-05", 5, "2026-11-05"), "al_dia");
     assert.equal(estadoPorFecha("2026-11-05", 5, "2026-11-04"), "al_dia");
   });
 
-  it("pasa a mora al día siguiente y hasta el último día de gracia", () => {
+  it("pasa a mora al día siguiente y durante toda la gracia", () => {
     assert.equal(estadoPorFecha("2026-11-05", 5, "2026-11-06"), "mora");
     assert.equal(estadoPorFecha("2026-11-05", 5, "2026-11-10"), "mora");
   });
 
-  it("sin gracia, el día siguiente ya suspende", () => {
-    assert.equal(estadoPorFecha("2026-11-05", 0, "2026-11-06"), "suspendida");
+  it("sigue en mora los diez días que concede el contrato", () => {
+    assert.equal(estadoPorFecha("2026-11-05", 5, "2026-11-11"), "mora");
+    assert.equal(estadoPorFecha("2026-11-05", 5, "2026-11-20"), "mora");
   });
 
-  it("suspende cuando la gracia termina", () => {
-    assert.equal(estadoPorFecha("2026-11-05", 5, "2026-11-11"), "suspendida");
-    assert.equal(estadoPorFecha("2026-03-01", 30, "2026-04-01"), "suspendida");
+  it("suspende a los diez días de mora", () => {
+    assert.equal(estadoPorFecha("2026-11-05", 5, "2026-11-21"), "suspendida");
+    assert.equal(estadoPorFecha("2026-11-05", 5, "2026-12-10"), "suspendida");
+  });
+
+  it("termina a los treinta días de mora", () => {
+    assert.equal(estadoPorFecha("2026-11-05", 5, "2026-12-11"), "terminada");
+    assert.equal(estadoPorFecha("2026-11-05", 5, "2027-01-15"), "terminada");
+  });
+
+  it("sin gracia, la mora corre desde el día siguiente", () => {
+    assert.equal(estadoPorFecha("2026-11-05", 0, "2026-11-06"), "mora");
+    assert.equal(estadoPorFecha("2026-11-05", 0, "2026-11-16"), "suspendida");
+    assert.equal(estadoPorFecha("2026-11-05", 0, "2026-12-06"), "terminada");
+  });
+
+  it("una gracia larga también corre antes de la mora", () => {
+    assert.equal(estadoPorFecha("2026-03-01", 30, "2026-04-01"), "mora");
   });
 });
 

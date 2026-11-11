@@ -909,6 +909,27 @@ probar("envío: ocho PDF, copia a Blink, idempotente y auditado", async () => {
   });
   assert.equal(deCliente.estado, 403);
 
+  const susp = await invocar(suspender, "/api/suscripciones/suspender", {
+    metodo: "POST",
+    cookie: cookieAdmin,
+    cuerpo: { suscripcion_id: suscripcionId, motivo: "Prueba de envío suspendido" },
+  });
+  assert.equal(susp.estado, 200);
+  const sinLicencia = await invocar(enviarExpediente, "/api/documentos/enviar", {
+    metodo: "POST",
+    cookie: cookieAdmin,
+    cuerpo: { proyecto_id: proyectoGuardado.id },
+  });
+  assert.equal(sinLicencia.estado, 409);
+  assert.equal(sinLicencia.cuerpo.codigo, "licencia_suspendida");
+
+  const vuelta = await invocar(reactivar, "/api/suscripciones/reactivar", {
+    metodo: "POST",
+    cookie: cookieAdmin,
+    cuerpo: { suscripcion_id: suscripcionId, motivo: "Licencia restablecida" },
+  });
+  assert.equal(vuelta.estado, 200);
+
   const r = await invocar(enviarExpediente, "/api/documentos/enviar", {
     metodo: "POST",
     cookie: cookieAdmin,
@@ -1153,7 +1174,7 @@ probar("mora: recálculo dentro de gracia y suspensión al pasar", async () => {
      from eventos`,
   );
   assert.equal(recuento.rows[0].recalculada, 2);
-  assert.equal(recuento.rows[0].reactivada, 2);
+  assert.equal(recuento.rows[0].reactivada, 3);
   pasar("mora, suspensión con licencia, aviso al reactivar y dos recálculos en eventos");
 });
 
@@ -1191,6 +1212,61 @@ probar("admin: el panel reúne clientes, expedientes, pagos y plantillas", async
   assert.match(r.cuerpo.representante.sha256, /^[0-9a-f]{64}$/);
   assert.equal(r.cuerpo.representante.png, undefined);
   pasar("401/403, avance del expediente, pago efectivo, ocho plantillas y sin PNG del representante");
+});
+
+probar("mora: a los treinta días la licencia termina y no hay vuelta", async () => {
+  await cliente.query(
+    "update suscripciones set proximo_vencimiento = current_date - 40 where id = $1",
+    [suscripcionId],
+  );
+  const r = await invocar(recalcular, "/api/suscripciones/recalcular", {
+    metodo: "POST",
+    cookie: cookieAdmin,
+    cuerpo: { suscripcion_id: suscripcionId },
+  });
+  assert.equal(r.estado, 200);
+  assert.equal(r.cuerpo.cambios[0].nuevo, "terminada");
+
+  const licencia = await cliente.query(
+    "select estado from licencias where proyecto_id = $1",
+    [proyectoGuardado.id],
+  );
+  assert.equal(licencia.rows[0].estado, "terminada");
+
+  const vista = await invocar(suscripcionCliente, "/api/cliente/suscripcion", { cookie });
+  assert.equal(vista.cuerpo.suscripcion.estado, "terminada");
+  assert.equal(vista.cuerpo.suscripcion.bloqueada, true);
+
+  const vuelta = await invocar(reactivar, "/api/suscripciones/reactivar", {
+    metodo: "POST",
+    cookie: cookieAdmin,
+    cuerpo: { suscripcion_id: suscripcionId, motivo: "Intento fuera de plazo" },
+  });
+  assert.equal(vuelta.estado, 409);
+  assert.equal(vuelta.cuerpo.codigo, "terminada");
+
+  const pago = await invocar(registrarPago, "/api/suscripciones/pago", {
+    metodo: "POST",
+    cookie: cookieAdmin,
+    cuerpo: {
+      suscripcion_id: suscripcionId,
+      periodo: "2026-12",
+      monto: 30,
+      moneda: "USD",
+      referencia: "REF-TERMINADA",
+    },
+  });
+  assert.equal(pago.estado, 409);
+  assert.equal(pago.cuerpo.codigo, "terminada");
+
+  const generar = await invocar(generarExpediente, "/api/documentos/generar", {
+    metodo: "POST",
+    cookie: cookieAdmin,
+    cuerpo: { proyecto_id: proyectoGuardado.id },
+  });
+  assert.equal(generar.estado, 403);
+  assert.equal(generar.cuerpo.codigo, "licencia_suspendida");
+  pasar("terminada a los 30 días de mora: sin pago, sin reactivación y sin generación");
 });
 
 probar("expediente: documentos y actos no se editan ni se borran", async () => {

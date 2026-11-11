@@ -75,11 +75,6 @@ export default manejar(["POST"], async (peticion) => {
 
   const proyecto = await proyectoDeExpediente(sesion, proyectoId);
 
-  const existentes = await resumenGuardado(sesion, proyectoId);
-  if (existentes.length) {
-    return json({ ok: true, reutilizado: true, documentos: existentes });
-  }
-
   const [estados] = await enTransaccion(sesion.usuarioId, sesion.rol, (txn) => [
     txn`select
           (select estado from suscripciones where proyecto_id = ${proyectoId}) as suscripcion,
@@ -98,6 +93,11 @@ export default manejar(["POST"], async (peticion) => {
       "La licencia del proyecto está suspendida. Regulariza la suscripción antes de generar el expediente.",
       "licencia_suspendida",
     );
+  }
+
+  const existentes = await resumenGuardado(sesion, proyectoId);
+  if (existentes.length) {
+    return json({ ok: true, reutilizado: true, documentos: existentes });
   }
 
   if (proyecto.vista.estado !== "enviado") {

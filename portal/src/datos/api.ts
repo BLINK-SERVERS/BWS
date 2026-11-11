@@ -185,7 +185,7 @@ export interface PagoVista {
 export interface SuscripcionCliente {
   id: string;
   estado: "al_dia" | "mora" | "suspendida" | "terminada";
-  estado_calculado: "al_dia" | "mora" | "suspendida";
+  estado_calculado: "al_dia" | "mora" | "suspendida" | "terminada";
   monto_usd: number;
   moneda: "USD" | "VES";
   dia_cobro: number;
@@ -291,7 +291,7 @@ export interface SuscripcionAdmin {
   id: string;
   proyecto_id: string;
   estado: "al_dia" | "mora" | "suspendida" | "terminada";
-  estado_calculado: "al_dia" | "mora" | "suspendida";
+  estado_calculado: "al_dia" | "mora" | "suspendida" | "terminada";
   monto_usd: number;
   moneda: "USD" | "VES";
   dia_cobro: number;

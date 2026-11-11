@@ -5,15 +5,23 @@
    `date`, no `timestamptz`, y el corte de mora no debe depender de
    la zona horaria del servidor.
 
+   Los plazos son los del contrato (BWS-CON-004 y BWS-LEG-003):
+
    · `al_dia`: hoy no pasó el vencimiento.
-   · `mora`: pasó el vencimiento, dentro de los días de gracia.
-   · `suspendida`: pasó la gracia; el servicio y la licencia se
+   · `mora`: pasó el vencimiento y corre la gracia, más diez días.
+   · `suspendida`: diez días de mora; el servicio y la licencia se
      suspenden, pero los datos y el dominio siguen siendo del
      cliente.
-   · `terminada`: cierre definitivo, solo manual.
+   · `terminada`: treinta días de mora; cierre definitivo.
    ============================================================ */
 
 export type EstadoSuscripcion = "al_dia" | "mora" | "suspendida" | "terminada";
+
+/** Días de mora que el contrato concede antes de suspender. */
+export const DIAS_MORA_SUSPENSION = 10;
+
+/** Días de mora que el contrato concede antes de terminar la licencia. */
+export const DIAS_MORA_TERMINACION = 30;
 
 const DIA = 86_400_000;
 
@@ -64,10 +72,12 @@ export function estadoPorFecha(
   vencimiento: string,
   diasGracia: number,
   hoy = hoyUTC(),
-): Exclude<EstadoSuscripcion, "terminada"> {
+): EstadoSuscripcion {
   if (hoy <= vencimiento) return "al_dia";
-  if (hoy <= sumarDias(vencimiento, diasGracia)) return "mora";
-  return "suspendida";
+  const finGracia = sumarDias(vencimiento, diasGracia);
+  if (hoy <= sumarDias(finGracia, DIAS_MORA_SUSPENSION)) return "mora";
+  if (hoy <= sumarDias(finGracia, DIAS_MORA_TERMINACION)) return "suspendida";
+  return "terminada";
 }
 
 /** Día del mes ajustado al último día disponible (por si el plan cambia). */

@@ -37,6 +37,9 @@ import { cargarEnv } from "./_env.mjs";
 const RAIZ = fileURLToPath(new URL("..", import.meta.url));
 const PUERTO = Number(process.env.PORTAL_PUERTO ?? 4188);
 const AXE = createRequire(import.meta.url).resolve("axe-core/axe.min.js");
+// Se evalúa en el contexto de la página: inyectarlo como <script> choca
+// con la CSP de vercel.json, que no permite scripts en línea.
+const AXE_FUENTE = await readFile(AXE, "utf8");
 const CORREO = join(RAIZ, "tmp", "correo-portal");
 
 const ADMIN = {
@@ -97,7 +100,7 @@ function revisarAxe() {
   return async (pagina, etiqueta, ancho) => {
     await pagina.evaluate(() => document.fonts.ready);
     if (!(await pagina.evaluate(() => Boolean(window.axe)))) {
-      await pagina.addScriptTag({ path: AXE });
+      await pagina.evaluate(AXE_FUENTE);
     }
     const infraccion = await pagina.evaluate(async () => {
       const r = await window.axe.run(document, {
@@ -228,11 +231,27 @@ async function principal() {
 
     const medir = revisarAxe();
     const ir = async (ruta) => {
-      await pagina.goto(`${origen}/#/${ruta}`, { waitUntil: "domcontentloaded" });
+      const respuesta = await pagina.goto(`${origen}/#/${ruta}`, { waitUntil: "domcontentloaded" });
       await pagina.waitForSelector("main");
+      return respuesta;
     };
 
-    await ir("");
+    const inicio = await ir("");
+    const cabeceras = inicio?.headers() ?? {};
+    const csp = cabeceras["content-security-policy"] ?? "";
+    comprobar(
+      "CSP sin scripts ni estilos en línea y frame-ancestors 'none'",
+      csp.includes("frame-ancestors 'none'") &&
+        csp.includes("script-src 'self'") &&
+        !csp.includes("'unsafe-inline'"),
+      csp,
+    );
+    comprobar(
+      "HSTS y nosniff en la respuesta de la app",
+      Boolean(cabeceras["strict-transport-security"]) &&
+        cabeceras["x-content-type-options"] === "nosniff",
+      JSON.stringify(cabeceras),
+    );
     await medir(pagina, "portada", 1440);
 
     await ir("registro");

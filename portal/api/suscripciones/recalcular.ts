@@ -2,13 +2,15 @@
    POST /api/suscripciones/recalcular
    ------------------------------------------------------------
    Revisa las suscripciones contra la fecha y escala las que se
-   quedaron atrás: al_dia → mora dentro de la gracia, y mora →
-   suspendida al pasar la gracia. Al suspender, la licencia de uso
-   también se suspende.
+   quedaron atrás con los plazos del contrato: al_dia → mora al
+   vencer, suspendida a los diez días de mora y terminada a los
+   treinta. Al suspender, la licencia de uso también se suspende; al
+   terminar, la licencia termina.
 
    Solo escala. Una suspensión no se levanta sola: pagar la levanta
-   (`pago.ts`) o la administración la reactiva a mano. Si el
-   vencimiento sigue vencido, una reactivación manual avisa.
+   (`pago.ts`) o la administración la reactiva a mano. Una
+   terminación no se levanta: el pago y la reactivación la rechazan.
+   Si el vencimiento sigue vencido, una reactivación manual avisa.
    ============================================================ */
 
 import { agenteDe, ipDe, json, leerJson, objeto, texto } from "../_lib/http";
@@ -17,7 +19,7 @@ import { enTransaccion } from "../_lib/db";
 import { manejar } from "../_lib/manejador";
 import { ErrorHttp } from "../_lib/respuestas";
 import { exigirAdmin, leerSesion } from "../_lib/sesion";
-import { fechaTexto, hoyUTC } from "../_lib/suscripcion";
+import { fechaTexto, hoyUTC, DIAS_MORA_SUSPENSION, DIAS_MORA_TERMINACION } from "../_lib/suscripcion";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -43,9 +45,10 @@ export default manejar(["POST"], async (peticion) => {
     txn`with calc as (
           select s.id, s.proyecto_id, s.estado as anterior,
                  case
-                   when s.proximo_vencimiento > ${hoy}::date then 'al_dia'
-                   when ${hoy}::date <= s.proximo_vencimiento + s.dias_gracia then 'mora'
-                   else 'suspendida'
+                   when s.proximo_vencimiento >= ${hoy}::date then 'al_dia'
+                   when ${hoy}::date <= s.proximo_vencimiento + s.dias_gracia + ${DIAS_MORA_SUSPENSION}::int then 'mora'
+                   when ${hoy}::date <= s.proximo_vencimiento + s.dias_gracia + ${DIAS_MORA_TERMINACION}::int then 'suspendida'
+                   else 'terminada'
                  end as calculado,
                  s.proximo_vencimiento
           from suscripciones s
@@ -57,15 +60,18 @@ export default manejar(["POST"], async (peticion) => {
           set estado = c.calculado, actualizada = now()
           from calc c
           where s.id = c.id
-            and (case c.calculado when 'suspendida' then 2 when 'mora' then 1 else 0 end)
-              > (case c.anterior when 'suspendida' then 2 when 'mora' then 1 else 0 end)
+            and (case c.calculado when 'terminada' then 3 when 'suspendida' then 2
+                                  when 'mora' then 1 else 0 end)
+              > (case c.anterior when 'terminada' then 3 when 'suspendida' then 2
+                                 when 'mora' then 1 else 0 end)
           returning s.id, s.proyecto_id, s.estado
         ), lic as (
           update licencias l
-          set estado = 'suspendida'
+          set estado = case when k.estado = 'terminada' then 'terminada' else 'suspendida' end
           from cambios k
-          where l.proyecto_id = k.proyecto_id and l.estado = 'activa'
-            and k.estado = 'suspendida'
+          where l.proyecto_id = k.proyecto_id
+            and ((k.estado = 'suspendida' and l.estado = 'activa')
+              or (k.estado = 'terminada' and l.estado in ('activa', 'suspendida')))
           returning 1
         ), evento as (
           insert into eventos (actor, rol, accion, entidad, entidad_id, detalle, ip, agente)

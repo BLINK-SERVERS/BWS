@@ -25,6 +25,27 @@ import { cargarEnv } from "./_env.mjs";
 const RAIZ = fileURLToPath(new URL("..", import.meta.url));
 const API = resolve(RAIZ, "api");
 const DIST = resolve(RAIZ, "dist");
+const VERCEL = JSON.parse(await readFile(resolve(RAIZ, "vercel.json"), "utf8"));
+
+/** Convierte `/(.*)` de vercel.json en una expresión regular. */
+function patronDe(fuente) {
+  const partes = fuente
+    .split("(.*)")
+    .map((parte) => parte.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
+  return new RegExp(`^${partes.join("(.*)")}$`);
+}
+
+/** Cabeceras de vercel.json que aplican a esta ruta. */
+function cabecerasDe(ruta) {
+  const cabeceras = {};
+  for (const regla of VERCEL.headers ?? []) {
+    if (!patronDe(regla.source).test(ruta)) continue;
+    for (const { key, value } of regla.headers) {
+      cabeceras[key.toLowerCase()] = value;
+    }
+  }
+  return cabeceras;
+}
 
 const TIPOS = {
   ".html": "text/html; charset=utf-8",
@@ -122,6 +143,9 @@ async function atenderApi(req, res, url) {
     ? respuesta.headers.getSetCookie()
     : [];
   if (cookies.length) cabeceras["set-cookie"] = cookies;
+  for (const [nombre, valor] of Object.entries(cabecerasDe(url.pathname))) {
+    if (!(nombre in cabeceras)) cabeceras[nombre] = valor;
+  }
   cabeceras["cache-control"] ??= "no-store";
 
   const bytes = Buffer.from(await respuesta.arrayBuffer());
@@ -156,11 +180,13 @@ async function atenderEstatico(req, res, url) {
   }
   const bytes = await readFile(archivo);
   const tipo = TIPOS[extname(archivo)] ?? "application/octet-stream";
-  res.writeHead(200, {
+  const cabeceras = {
     "content-type": tipo,
-    "cache-control": archivo.includes(`${sep}assets${sep}`) ? "public, max-age=31536000, immutable" : "no-store",
-    "x-content-type-options": "nosniff",
-  });
+    ...cabecerasDe(ruta),
+  };
+  cabeceras["cache-control"] ??=
+    archivo.includes(`${sep}assets${sep}`) ? "public, max-age=31536000, immutable" : "no-store";
+  res.writeHead(200, cabeceras);
   res.end(req.method === "HEAD" ? undefined : bytes);
 }
 

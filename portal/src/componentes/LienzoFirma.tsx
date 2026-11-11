@@ -141,7 +141,6 @@ export const LienzoFirma = forwardRef<
       <canvas
         ref={lienzo}
         className="po-lienzo"
-        style={{ height: `${ALTO}px` }}
         aria-label="Área para dibujar la firma con el ratón o el dedo"
         role="img"
         aria-disabled={!habilitado}
