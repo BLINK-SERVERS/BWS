@@ -300,8 +300,8 @@ npm run pdf            # los ocho PDF de muestra en portal/tmp/pdf/
 npm run afirmaciones   # falla si un texto promete lo que no se puede probar
 npm run db:migrar      # aplica portal/db/migrations como dueño
 npm run db:pruebas     # RLS, solo agregar, cadena y doble firma en la rama de pruebas
-npm run api:pruebas    # registro, sesión, firma única, proyecto y envío contra la API real
-npm run pruebas        # unitarias: validadores, canónica, scrypt, tokens y PNG
+npm run api:pruebas    # registro, sesión, firma, proyecto, expediente, pagos y mora
+npm run pruebas        # unitarias: validadores, canónica, scrypt, tokens, PNG y suscripción
 npm run portal         # dist + api en http://127.0.0.1:4178 (base de pruebas)
 npm run portal:pruebas # flujo completo en Chromium, axe y desborde en 390 y 1440
 ```
@@ -395,10 +395,26 @@ cadena y los dos actos, sin confiar en el PDF; alterar un byte del archivo deja
 de coincidir con el hash guardado. Generar dos veces reutiliza lo guardado y el
 proyecto pasa a `en_revision`. El sello es determinista: la fecha comercial y
 el `utc_sello` se reconstruyen desde el instante guardado —con milisegundos—,
-no desde la fecha del día de la verificación. Las pruebas cierran en 50
-unitarias, 36 de API y 16 de
-base de datos; el panel de administración y el correo del expediente llegan en
-M5.
+no desde la fecha del día de la verificación. Las pruebas de esa etapa
+cerraron en 50 unitarias, 36 de API y 16 de base de datos.
+
+Estado de la entrega M5: la administración entra con su propio rol y ve el
+resumen —clientes, proyectos y suscripciones—, captura la firma y el domicilio
+del representante, genera el expediente, lo verifica, lo descarga y lo envía.
+El envío es idempotente: la clave sale del hash de lo que se manda, así que
+un reintento responde que el correo ya había salido y no produce un segundo
+mensaje; el correo lleva los ocho PDF adjuntos, la huella de cada uno y una
+copia a la dirección de Blink. Cada descarga exige sesión, se sirve como
+adjunto con su SHA-256 en la cabecera y deja un evento con actor, IP y agente
+en la misma transacción que la lectura. La suscripción nace del plan con su
+precio, día de cobro y días de gracia; un periodo admite un solo pago efectivo
+—lo impone un disparador—, y un cobro equivocado se anula con una fila nueva
+que conserva el original y el motivo. Con el vencimiento pasado el estado pasa
+a `mora` y luego a `suspendida`: el servicio y la licencia se suspenden y la
+generación del expediente se niega, pero los datos y el dominio siguen siendo
+del cliente. Reactivar devuelve la licencia a `activa`, avisa si el vencimiento
+sigue vencido y deja el estado anterior en `eventos`. Las pruebas cierran en
+67 unitarias, 46 de API, 64 de navegador y 16 de base de datos.
 
 Las variables de entorno (solo nombres, nunca valores en el repo):
 `DATABASE_URL`, `DATABASE_URL_APP`, `DATABASE_URL_PRUEBAS`,

@@ -13,11 +13,8 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { api, FalloApi, type EstadoFirma } from "../datos/api";
+import { LienzoFirma, type LienzoFirmaHandle } from "./LienzoFirma";
 import { TextoLegal } from "./TextoLegal";
-
-type Punto = { x: number; y: number };
-
-const ALTO = 180;
 
 export function Firma({ alFirmar }: { alFirmar?: () => void }) {
   const [estado, setEstado] = useState<EstadoFirma | null>(null);
@@ -27,48 +24,7 @@ export function Firma({ alFirmar }: { alFirmar?: () => void }) {
   const [enviando, setEnviando] = useState(false);
   const [aviso, setAviso] = useState<string | null>(null);
 
-  const lienzo = useRef<HTMLCanvasElement>(null);
-  const trazos = useRef<Punto[][]>([]);
-  const dibujando = useRef(false);
-
-  const redibujar = useCallback(() => {
-    const canvas = lienzo.current;
-    if (!canvas) return;
-    const contexto = canvas.getContext("2d");
-    if (!contexto) return;
-    contexto.clearRect(0, 0, canvas.width, canvas.height);
-    contexto.strokeStyle = "#111";
-    contexto.fillStyle = "#111";
-    contexto.lineWidth = 2.2;
-    contexto.lineCap = "round";
-    contexto.lineJoin = "round";
-    for (const trazo of trazos.current) {
-      if (trazo.length === 1) {
-        contexto.beginPath();
-        contexto.arc(trazo[0].x, trazo[0].y, 1.1, 0, Math.PI * 2);
-        contexto.fill();
-        continue;
-      }
-      contexto.beginPath();
-      trazo.forEach((punto, indice) => {
-        if (indice === 0) contexto.moveTo(punto.x, punto.y);
-        else contexto.lineTo(punto.x, punto.y);
-      });
-      contexto.stroke();
-    }
-  }, []);
-
-  const ajustar = useCallback(() => {
-    const canvas = lienzo.current;
-    if (!canvas) return;
-    const densidad = Math.min(window.devicePixelRatio || 1, 3);
-    const ancho = canvas.clientWidth;
-    canvas.width = Math.round(ancho * densidad);
-    canvas.height = Math.round(ALTO * densidad);
-    const contexto = canvas.getContext("2d");
-    if (contexto) contexto.setTransform(densidad, 0, 0, densidad, 0, 0);
-    redibujar();
-  }, [redibujar]);
+  const lienzo = useRef<LienzoFirmaHandle>(null);
 
   const cargar = useCallback(async () => {
     try {
@@ -90,68 +46,23 @@ export function Firma({ alFirmar }: { alFirmar?: () => void }) {
     void cargar();
   }, [cargar]);
 
-  useEffect(() => {
-    const canvas = lienzo.current;
-    if (!estado || !estado.verificado || estado.firma || !canvas) return;
-    ajustar();
-    const observador = new ResizeObserver(() => ajustar());
-    observador.observe(canvas);
-    window.addEventListener("resize", ajustar);
-    return () => {
-      observador.disconnect();
-      window.removeEventListener("resize", ajustar);
-    };
-  }, [estado, ajustar]);
-
-  const punto = (evento: React.PointerEvent<HTMLCanvasElement>): Punto => {
-    const rect = evento.currentTarget.getBoundingClientRect();
-    return { x: evento.clientX - rect.left, y: evento.clientY - rect.top };
-  };
-
-  const bajar = (evento: React.PointerEvent<HTMLCanvasElement>) => {
-    if (!acepta) return;
-    evento.currentTarget.setPointerCapture(evento.pointerId);
-    dibujando.current = true;
-    trazos.current.push([punto(evento)]);
-    setTieneTrazo(true);
-    redibujar();
-  };
-
-  const mover = (evento: React.PointerEvent<HTMLCanvasElement>) => {
-    if (!dibujando.current || !acepta) return;
-    const trazo = trazos.current.at(-1);
-    if (!trazo) return;
-    trazo.push(punto(evento));
-    redibujar();
-  };
-
-  const subir = () => {
-    dibujando.current = false;
-  };
-
-  const deshacer = () => {
-    trazos.current.pop();
-    redibujar();
-    setTieneTrazo(trazos.current.length > 0);
-  };
-
   const borrar = () => {
-    trazos.current = [];
-    redibujar();
+    lienzo.current?.borrar();
     setTieneTrazo(false);
   };
 
   const enviar = async () => {
-    if (!estado || !lienzo.current || !acepta || !tieneTrazo) return;
+    if (!estado || !acepta || !tieneTrazo) return;
+    const png = lienzo.current?.png();
+    if (!png) return;
     setEnviando(true);
     setFallo(null);
     setAviso(null);
     try {
-      const png = lienzo.current.toDataURL("image/png");
       const respuesta = await api.firmar(png, estado.consentimiento_hash);
       setEstado({ ...estado, firma: respuesta.firma });
       setAviso("Firma registrada. No se puede reemplazar desde el portal.");
-      trazos.current = [];
+      lienzo.current?.borrar();
       setAcepta(false);
       alFirmar?.();
     } catch (error) {
@@ -260,32 +171,18 @@ export function Firma({ alFirmar }: { alFirmar?: () => void }) {
             </span>
           </label>
 
-          <div className={acepta ? "po-lienzo-marco" : "po-lienzo-marco po-lienzo-apagado"}>
-            <canvas
-              ref={lienzo}
-              className="po-lienzo"
-              style={{ height: `${ALTO}px` }}
-              aria-label="Área para dibujar la firma con el ratón o el dedo"
-              role="img"
-              aria-disabled={!acepta}
-              onPointerDown={bajar}
-              onPointerMove={mover}
-              onPointerUp={subir}
-              onPointerCancel={subir}
-              onPointerLeave={subir}
-            >
-              Tu navegador no permite dibujar aquí. La firma en papel sigue disponible.
-            </canvas>
-            {!acepta ? (
-              <p className="po-lienzo-velo">Acepta el consentimiento para dibujar.</p>
-            ) : null}
-          </div>
+          <LienzoFirma
+            ref={lienzo}
+            habilitado={acepta}
+            alCambiar={setTieneTrazo}
+            velo="Acepta el consentimiento para dibujar."
+          />
 
           <div className="po-firma-acciones">
             <button
               type="button"
               className="po-boton po-boton-suave"
-              onClick={deshacer}
+              onClick={() => lienzo.current?.deshacer()}
               disabled={!tieneTrazo}
             >
               Deshacer

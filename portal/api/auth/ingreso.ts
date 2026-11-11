@@ -64,7 +64,7 @@ export default manejar(["POST"], async (peticion) => {
   );
 
   return json(
-    { ok: true, expira: expira.toISOString() },
+    { ok: true, expira: expira.toISOString(), rol: fila.rol },
     200,
     { "set-cookie": cookieDeSesion(token, expira) },
   );

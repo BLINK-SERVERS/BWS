@@ -10,6 +10,7 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { api, type SesionPortal } from "./datos/api";
 import { useSesion } from "./datos/sesion";
+import { Admin } from "./vistas/Admin";
 import { Ingreso } from "./vistas/Ingreso";
 import { Panel } from "./vistas/Panel";
 import { Proyecto } from "./vistas/Proyecto";
@@ -102,28 +103,6 @@ function Portada({ sesion }: { sesion: SesionPortal | null | undefined }) {
   );
 }
 
-function Pendiente({ sesion }: { sesion: SesionPortal | null | undefined }) {
-  const autorizado = sesion?.usuario.rol === "admin";
-  return (
-    <section className="po-pagina po-pagina-angosta" aria-labelledby="po-titulo">
-      <p className="po-sello">Blink Web Services</p>
-      <h1 id="po-titulo" className="po-titulo-pagina">
-        {autorizado
-          ? "El panel de administración llega con la siguiente entrega."
-          : "Esta sección es solo para la administración."}
-      </h1>
-      <p className="po-entrada">
-        Aquí se revisarán expedientes, plantillas, pagos y el estado de las licencias.
-      </p>
-      <p>
-        <a href={sesion?.usuario ? "#/panel" : "#/ingreso"}>
-          {sesion?.usuario ? "Volver al panel" : "Entrar"}
-        </a>
-      </p>
-    </section>
-  );
-}
-
 export function App() {
   const ruta = usarRuta();
   const { sesion, recargar } = useSesion();
@@ -158,7 +137,7 @@ export function App() {
       contenido = <Proyecto sesion={sesion} />;
       break;
     case "/admin":
-      contenido = <Pendiente sesion={sesion} />;
+      contenido = <Admin sesion={sesion} />;
       break;
     default:
       contenido = <Portada sesion={sesion} />;
@@ -174,6 +153,7 @@ export function App() {
           {sesion?.usuario ? (
             <>
               <a href="#/panel">Panel</a>
+              {sesion.usuario.rol === "admin" ? <a href="#/admin">Admin</a> : null}
               <button type="button" className="po-enlace-boton" onClick={() => void salir()}>
                 Salir
               </button>

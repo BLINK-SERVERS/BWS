@@ -740,10 +740,10 @@ async function principal() {
         env: { ...process.env, DATABASE_URL: urlDueno },
         encoding: "utf8",
       });
-      afirmar(/10 migraciones al día/.test(salida), `salida inesperada de db-migrar: ${salida.trim().slice(-200)}`);
+      afirmar(/11 migraciones al día/.test(salida), `salida inesperada de db-migrar: ${salida.trim().slice(-200)}`);
       afirmar(!/✗/.test(salida), "db-migrar reportó un fallo al reejecutarse");
       const aplicadas = await db.query("select count(*)::int as n from migraciones");
-      afirmar(aplicadas.rows[0].n === 10, `hay ${aplicadas.rows[0].n} migraciones registradas`);
+      afirmar(aplicadas.rows[0].n === 11, `hay ${aplicadas.rows[0].n} migraciones registradas`);
     });
   } finally {
     await limpiar().catch(() => {});

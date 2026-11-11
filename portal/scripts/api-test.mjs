@@ -62,9 +62,20 @@ const { default: firma } = await import("../api/cliente/firma.ts");
 const { default: proyecto } = await import("../api/cliente/proyecto.ts");
 const { default: enviarProyecto } = await import("../api/cliente/proyecto/enviar.ts");
 const { default: representante } = await import("../api/admin/representante.ts");
+const { default: panelAdmin } = await import("../api/admin/panel.ts");
 const { default: generarExpediente } = await import("../api/documentos/generar.ts");
 const { default: firmarExpediente } = await import("../api/documentos/firmar.ts");
 const { default: verificarExpediente } = await import("../api/documentos/verificar.ts");
+const { default: descargarDocumento } = await import("../api/documentos/descargar.ts");
+const { default: enviarExpediente } = await import("../api/documentos/enviar.ts");
+const { default: documentosCliente } = await import("../api/cliente/documentos.ts");
+const { default: suscripcionCliente } = await import("../api/cliente/suscripcion.ts");
+const { default: crearSuscripcion } = await import("../api/suscripciones/crear.ts");
+const { default: registrarPago } = await import("../api/suscripciones/pago.ts");
+const { default: anularPago } = await import("../api/suscripciones/anular.ts");
+const { default: recalcular } = await import("../api/suscripciones/recalcular.ts");
+const { default: suspender } = await import("../api/suscripciones/suspender.ts");
+const { default: reactivar } = await import("../api/suscripciones/reactivar.ts");
 const { hashearClave } = await import("../api/_lib/clave.ts");
 const { hashCadena, sha256Hex } = await import("../render/hash.ts");
 const { sembrarPlantillas } = await import("./sembrar-plantillas.mjs");
@@ -124,6 +135,15 @@ async function invocar(handler, ruta, opciones) {
     cuerpo = { crudo: texto };
   }
   return { estado: respuesta.status, cuerpo, cabeceras: respuesta.headers };
+}
+
+async function invocarBinario(handler, ruta, opciones) {
+  const respuesta = await handler(pedir(ruta, opciones));
+  return {
+    estado: respuesta.status,
+    bytes: new Uint8Array(await respuesta.arrayBuffer()),
+    cabeceras: respuesta.headers,
+  };
 }
 
 function galleta(respuesta) {
@@ -601,6 +621,96 @@ probar("representante: domicilio obligatorio y captura firmada", async () => {
   pasar("400 sin domicilio, 201 con la captura y lectura de vuelta");
 });
 
+let suscripcionId = null;
+
+probar("suscripción: solo la administración, una por proyecto y con licencia", async () => {
+  const deCliente = await invocar(crearSuscripcion, "/api/suscripciones/crear", {
+    metodo: "POST",
+    cookie,
+    cuerpo: { proyecto_id: proyectoGuardado.id, dia_cobro: 15, monto_usd: 30 },
+  });
+  assert.equal(deCliente.estado, 403);
+
+  const r = await invocar(crearSuscripcion, "/api/suscripciones/crear", {
+    metodo: "POST",
+    cookie: cookieAdmin,
+    cuerpo: { proyecto_id: proyectoGuardado.id, dia_cobro: 15, monto_usd: 30 },
+  });
+  assert.equal(r.estado, 201);
+  assert.equal(r.cuerpo.suscripcion.estado, "al_dia");
+  assert.equal(r.cuerpo.suscripcion.monto_usd, 30);
+  assert.equal(r.cuerpo.suscripcion.dia_cobro, 15);
+  assert.match(r.cuerpo.suscripcion.proximo_vencimiento, /^\d{4}-\d{2}-15$/);
+  suscripcionId = r.cuerpo.suscripcion.id;
+
+  const otra = await invocar(crearSuscripcion, "/api/suscripciones/crear", {
+    metodo: "POST",
+    cookie: cookieAdmin,
+    cuerpo: { proyecto_id: proyectoGuardado.id, dia_cobro: 15 },
+  });
+  assert.equal(otra.estado, 409);
+  assert.equal(otra.cuerpo.codigo, "suscripcion_existente");
+
+  const licencia = await cliente.query(
+    "select estado, tipo from licencias where proyecto_id = $1",
+    [proyectoGuardado.id],
+  );
+  assert.equal(licencia.rows.length, 1);
+  assert.equal(licencia.rows[0].tipo, "uso");
+  assert.equal(licencia.rows[0].estado, "activa");
+  pasar("403 al cliente, 201 una sola vez y licencia de uso activa");
+});
+
+probar("suscripción: suspender bloquea la generación y reactivar la devuelve", async () => {
+  const susp = await invocar(suspender, "/api/suscripciones/suspender", {
+    metodo: "POST",
+    cookie: cookieAdmin,
+    cuerpo: { suscripcion_id: suscripcionId, motivo: "Prueba de mora" },
+  });
+  assert.equal(susp.estado, 200);
+  assert.equal(susp.cuerpo.cambiado, true);
+
+  const bloqueado = await invocar(generarExpediente, "/api/documentos/generar", {
+    metodo: "POST",
+    cookie: cookieAdmin,
+    cuerpo: { proyecto_id: proyectoGuardado.id },
+  });
+  assert.equal(bloqueado.estado, 403);
+  assert.equal(bloqueado.cuerpo.codigo, "licencia_suspendida");
+
+  const licencia = await cliente.query(
+    "select estado from licencias where proyecto_id = $1",
+    [proyectoGuardado.id],
+  );
+  assert.equal(licencia.rows[0].estado, "suspendida");
+
+  const vuelta = await invocar(reactivar, "/api/suscripciones/reactivar", {
+    metodo: "POST",
+    cookie: cookieAdmin,
+    cuerpo: { suscripcion_id: suscripcionId, motivo: "Prueba resuelta" },
+  });
+  assert.equal(vuelta.estado, 200);
+  assert.equal(vuelta.cuerpo.cambiado, true);
+  assert.equal(vuelta.cuerpo.aviso, null);
+
+  const licenciaActiva = await cliente.query(
+    "select estado from licencias where proyecto_id = $1",
+    [proyectoGuardado.id],
+  );
+  assert.equal(licenciaActiva.rows[0].estado, "activa");
+
+  const eventos = await cliente.query(
+    `select accion from eventos
+     where accion in ('suscripcion.suspendida', 'suscripcion.reactivada')
+     order by ocurrido`,
+  );
+  assert.deepEqual(
+    eventos.rows.map((f) => f.accion),
+    ["suscripcion.suspendida", "suscripcion.reactivada"],
+  );
+  pasar("generación 403 con licencia suspendida y reactivación con dos eventos");
+});
+
 probar("expediente: el cliente no genera; la administración sí", async () => {
   const deCliente = await invocar(generarExpediente, "/api/documentos/generar", {
     metodo: "POST",
@@ -719,6 +829,17 @@ probar("expediente: antes de confirmar está íntegro pero incompleto", async ()
   pasar("integro sin actos del cliente: completo en falso");
 });
 
+probar("envío: sin el acto del cliente no sale", async () => {
+  const r = await invocar(enviarExpediente, "/api/documentos/enviar", {
+    metodo: "POST",
+    cookie: cookieAdmin,
+    cuerpo: { proyecto_id: proyectoGuardado.id },
+  });
+  assert.equal(r.estado, 409);
+  assert.equal(r.cuerpo.codigo, "expediente_incompleto");
+  pasar("409 hasta que el cliente confirme");
+});
+
 probar("expediente: el cliente confirma una sola vez", async () => {
   const primera = await invocar(firmarExpediente, "/api/documentos/firmar", {
     metodo: "POST",
@@ -778,6 +899,298 @@ probar("expediente: la verificación cuadra para las dos partes", async () => {
   });
   assert.equal(sinProyecto.estado, 400);
   pasar("íntegro, completo y cadena ok; el cliente ve el mismo expediente");
+});
+
+probar("envío: ocho PDF, copia a Blink, idempotente y auditado", async () => {
+  const deCliente = await invocar(enviarExpediente, "/api/documentos/enviar", {
+    metodo: "POST",
+    cookie,
+    cuerpo: { proyecto_id: proyectoGuardado.id },
+  });
+  assert.equal(deCliente.estado, 403);
+
+  const r = await invocar(enviarExpediente, "/api/documentos/enviar", {
+    metodo: "POST",
+    cookie: cookieAdmin,
+    cuerpo: { proyecto_id: proyectoGuardado.id },
+  });
+  assert.equal(r.estado, 200);
+  assert.equal(r.cuerpo.reutilizado, false);
+  assert.equal(r.cuerpo.enviados, 8);
+  assert.equal(r.cuerpo.proveedor, "archivo");
+  assert.equal(r.cuerpo.documentos.length, 8);
+  assert.match(r.cuerpo.hash_final, /^[0-9a-f]{64}$/);
+
+  const correo = await correoMasReciente();
+  assert.match(correo.asunto, /^Expediente firmado/);
+  assert.equal(correo.para, CUENTA.correo);
+  assert.equal(correo.adjuntos.length, 8);
+  assert.ok(correo.copia.includes("business@blink.com.ve"));
+  assert.ok(correo.adjuntos.every((a) => /^BWS-[A-Z]{3}-\d{3}-v\d+\.pdf$/.test(a.nombre)));
+  assert.ok(correo.adjuntos.every((a) => a.bytes > 1000 && /^[0-9a-f]{64}$/.test(a.sha256)));
+
+  const otraVez = await invocar(enviarExpediente, "/api/documentos/enviar", {
+    metodo: "POST",
+    cookie: cookieAdmin,
+    cuerpo: { proyecto_id: proyectoGuardado.id },
+  });
+  assert.equal(otraVez.estado, 200);
+  assert.equal(otraVez.cuerpo.reutilizado, true);
+
+  const filas = await cliente.query(
+    "select count(*)::int as n from envios where clave_idempotencia like $1",
+    [`expediente/${proyectoGuardado.id}/%`],
+  );
+  assert.equal(filas.rows[0].n, 8);
+  const eventos = await cliente.query(
+    "select count(*)::int as n from eventos where accion = 'expediente.enviado'",
+  );
+  assert.equal(eventos.rows[0].n, 1);
+  pasar("403 al cliente, 8 adjuntos, copia a Blink, reintento reutilizado y un solo evento");
+});
+
+probar("descarga: autenticada, con hash y evento de auditoría", async () => {
+  const ruta = "/api/documentos/descargar?codigo=BWS-CON-004";
+  const pdf = await invocarBinario(descargarDocumento, ruta, { cookie });
+  assert.equal(pdf.estado, 200);
+  assert.equal(pdf.cabeceras.get("content-type"), "application/pdf");
+  assert.match(pdf.cabeceras.get("content-disposition") ?? "", /BWS-CON-004-v\d+\.pdf/);
+  assert.equal(pdf.cabeceras.get("cache-control"), "no-store");
+  assert.equal(pdf.cabeceras.get("x-content-type-options"), "nosniff");
+  assert.equal(String.fromCharCode(...pdf.bytes.slice(0, 4)), "%PDF");
+  assert.equal(pdf.cabeceras.get("x-bws-sha256"), sha256Hex(pdf.bytes));
+
+  const sinCodigo = await invocar(descargarDocumento, "/api/documentos/descargar", { cookie });
+  assert.equal(sinCodigo.estado, 400);
+  const inexistente = await invocar(
+    descargarDocumento,
+    "/api/documentos/descargar?codigo=BWS-XXX-999",
+    { cookie },
+  );
+  assert.equal(inexistente.estado, 404);
+
+  const adminSinProyecto = await invocar(descargarDocumento, ruta, { cookie: cookieAdmin });
+  assert.equal(adminSinProyecto.estado, 400);
+  const admin = await invocarBinario(
+    descargarDocumento,
+    `${ruta}&proyecto_id=${proyectoGuardado.id}`,
+    { cookie: cookieAdmin },
+  );
+  assert.equal(admin.estado, 200);
+
+  const auditoria = await cliente.query(
+    `select count(*)::int as n,
+            bool_and(ip is not null and agente is not null) as completa
+     from eventos where accion = 'documento.descargado'`,
+  );
+  assert.ok(auditoria.rows[0].n >= 2);
+  assert.equal(auditoria.rows[0].completa, true);
+  pasar("200 con PDF, hash en cabecera, 400/404 correctos y tres eventos con IP y agente");
+});
+
+probar("documentos del cliente: ocho, firmados y con título", async () => {
+  const r = await invocar(documentosCliente, "/api/cliente/documentos", { cookie });
+  assert.equal(r.estado, 200);
+  assert.equal(r.cuerpo.proyecto_id, proyectoGuardado.id);
+  assert.equal(r.cuerpo.proyecto.estado, "en_revision");
+  assert.equal(r.cuerpo.documentos.length, 8);
+  assert.ok(r.cuerpo.documentos.every((d) => d.firmado === true));
+  assert.ok(r.cuerpo.documentos.every((d) => d.titulo.length > 0));
+  assert.equal(r.cuerpo.documentos[0].codigo, "BWS-REG-001");
+
+  const admin = await invocar(documentosCliente, "/api/cliente/documentos", {
+    cookie: cookieAdmin,
+  });
+  assert.equal(admin.estado, 403);
+  pasar("lista propia en orden y 403 para la administración");
+});
+
+probar("suscripción: el cliente ve estado, vencimiento, licencia y pagos", async () => {
+  const r = await invocar(suscripcionCliente, "/api/cliente/suscripcion", { cookie });
+  assert.equal(r.estado, 200);
+  assert.equal(r.cuerpo.suscripcion.estado, "al_dia");
+  assert.equal(r.cuerpo.suscripcion.bloqueada, false);
+  assert.equal(r.cuerpo.suscripcion.licencia, "activa");
+  assert.equal(r.cuerpo.suscripcion.monto_usd, 30);
+  assert.equal(r.cuerpo.pagos.length, 0);
+
+  const admin = await invocar(suscripcionCliente, "/api/cliente/suscripcion", {
+    cookie: cookieAdmin,
+  });
+  assert.equal(admin.estado, 403);
+  pasar("estado al día, licencia activa y 403 para la administración");
+});
+
+probar("pagos: registro, duplicado, moneda y anulación", async () => {
+  const periodo = new Date().toISOString().slice(0, 7);
+  const base = {
+    suscripcion_id: suscripcionId,
+    periodo,
+    monto: 30,
+    moneda: "USD",
+    referencia: "REF-2026-0001",
+    fecha: new Date().toISOString().slice(0, 10),
+  };
+
+  const sinTasa = await invocar(registrarPago, "/api/suscripciones/pago", {
+    metodo: "POST",
+    cookie: cookieAdmin,
+    cuerpo: { ...base, moneda: "VES" },
+  });
+  assert.equal(sinTasa.estado, 400);
+  assert.equal(sinTasa.cuerpo.codigo, "tasa");
+
+  const r = await invocar(registrarPago, "/api/suscripciones/pago", {
+    metodo: "POST",
+    cookie: cookieAdmin,
+    cuerpo: base,
+  });
+  assert.equal(r.estado, 201);
+  assert.equal(r.cuerpo.pago.estado, "registrado");
+  assert.equal(r.cuerpo.suscripcion.estado, "al_dia");
+  assert.match(r.cuerpo.suscripcion.proximo_vencimiento, /^\d{4}-\d{2}-15$/);
+
+  const doble = await invocar(registrarPago, "/api/suscripciones/pago", {
+    metodo: "POST",
+    cookie: cookieAdmin,
+    cuerpo: { ...base, referencia: "REF-2026-0002" },
+  });
+  assert.equal(doble.estado, 409);
+  assert.equal(doble.cuerpo.codigo, "pago_duplicado");
+
+  const corto = await invocar(anularPago, "/api/suscripciones/anular", {
+    metodo: "POST",
+    cookie: cookieAdmin,
+    cuerpo: { pago_id: r.cuerpo.pago.id, motivo: "no" },
+  });
+  assert.equal(corto.estado, 400);
+
+  const anulado = await invocar(anularPago, "/api/suscripciones/anular", {
+    metodo: "POST",
+    cookie: cookieAdmin,
+    cuerpo: { pago_id: r.cuerpo.pago.id, motivo: "Referencia equivocada" },
+  });
+  assert.equal(anulado.estado, 200);
+  assert.equal(anulado.cuerpo.periodo, periodo);
+
+  const otraVez = await invocar(anularPago, "/api/suscripciones/anular", {
+    metodo: "POST",
+    cookie: cookieAdmin,
+    cuerpo: { pago_id: r.cuerpo.pago.id, motivo: "Otra vez" },
+  });
+  assert.equal(otraVez.estado, 409);
+  assert.equal(otraVez.cuerpo.codigo, "ya_anulado");
+
+  const repuesto = await invocar(registrarPago, "/api/suscripciones/pago", {
+    metodo: "POST",
+    cookie: cookieAdmin,
+    cuerpo: { ...base, referencia: "REF-2026-0003" },
+  });
+  assert.equal(repuesto.estado, 201);
+
+  const filas = await cliente.query(
+    `select count(*) filter (where estado = 'registrado')::int as registrados,
+            count(*) filter (where estado = 'anulado')::int as anulados
+     from pagos where suscripcion_id = $1`,
+    [suscripcionId],
+  );
+  assert.equal(filas.rows[0].registrados, 2);
+  assert.equal(filas.rows[0].anulados, 1);
+
+  const vista = await invocar(suscripcionCliente, "/api/cliente/suscripcion", { cookie });
+  assert.equal(vista.cuerpo.pagos.length, 1);
+  assert.equal(vista.cuerpo.pagos[0].referencia, "REF-2026-0003");
+  pasar("400 sin tasa, 201, 409 duplicado, anulación con motivo y periodo reabierto");
+});
+
+probar("mora: recálculo dentro de gracia y suspensión al pasar", async () => {
+  await cliente.query(
+    "update suscripciones set proximo_vencimiento = current_date - 3 where id = $1",
+    [suscripcionId],
+  );
+  const mora = await invocar(recalcular, "/api/suscripciones/recalcular", {
+    metodo: "POST",
+    cookie: cookieAdmin,
+    cuerpo: { suscripcion_id: suscripcionId },
+  });
+  assert.equal(mora.estado, 200);
+  assert.equal(mora.cuerpo.cambiadas, 1);
+  assert.equal(mora.cuerpo.cambios[0].nuevo, "mora");
+
+  await cliente.query(
+    "update suscripciones set proximo_vencimiento = current_date - 30 where id = $1",
+    [suscripcionId],
+  );
+  const suspensa = await invocar(recalcular, "/api/suscripciones/recalcular", {
+    metodo: "POST",
+    cookie: cookieAdmin,
+    cuerpo: { suscripcion_id: suscripcionId },
+  });
+  assert.equal(suspensa.estado, 200);
+  assert.equal(suspensa.cuerpo.cambios[0].nuevo, "suspendida");
+
+  const licencia = await cliente.query(
+    "select estado from licencias where proyecto_id = $1",
+    [proyectoGuardado.id],
+  );
+  assert.equal(licencia.rows[0].estado, "suspendida");
+
+  const vista = await invocar(suscripcionCliente, "/api/cliente/suscripcion", { cookie });
+  assert.equal(vista.cuerpo.suscripcion.bloqueada, true);
+  assert.equal(vista.cuerpo.suscripcion.estado, "suspendida");
+
+  const vuelta = await invocar(reactivar, "/api/suscripciones/reactivar", {
+    metodo: "POST",
+    cookie: cookieAdmin,
+    cuerpo: { suscripcion_id: suscripcionId, motivo: "Acuerdo de pago" },
+  });
+  assert.equal(vuelta.estado, 200);
+  assert.match(vuelta.cuerpo.aviso ?? "", /sigue vencido/);
+
+  const recuento = await cliente.query(
+    `select count(*) filter (where accion = 'suscripcion.recalculada')::int as recalculada,
+            count(*) filter (where accion = 'suscripcion.reactivada')::int as reactivada
+     from eventos`,
+  );
+  assert.equal(recuento.rows[0].recalculada, 2);
+  assert.equal(recuento.rows[0].reactivada, 2);
+  pasar("mora, suspensión con licencia, aviso al reactivar y dos recálculos en eventos");
+});
+
+probar("admin: el panel reúne clientes, expedientes, pagos y plantillas", async () => {
+  const anonima = await invocar(panelAdmin, "/api/admin/panel");
+  assert.equal(anonima.estado, 401);
+
+  const deCliente = await invocar(panelAdmin, "/api/admin/panel", { cookie });
+  assert.equal(deCliente.estado, 403);
+
+  const r = await invocar(panelAdmin, "/api/admin/panel", { cookie: cookieAdmin });
+  assert.equal(r.estado, 200);
+  assert.match(r.cuerpo.hoy, /^\d{4}-\d{2}-\d{2}$/);
+  assert.equal(r.cuerpo.clientes.length, 1);
+  assert.equal(r.cuerpo.clientes[0].tiene_firma, true);
+  assert.equal(r.cuerpo.proyectos.length, 1);
+
+  const proyectoAdmin = r.cuerpo.proyectos[0];
+  assert.equal(proyectoAdmin.documentos, 8);
+  assert.equal(proyectoAdmin.actos_representante, 8);
+  assert.equal(proyectoAdmin.actos_cliente, 8);
+  assert.equal(proyectoAdmin.envios, 8);
+
+  assert.equal(r.cuerpo.suscripciones.length, 1);
+  assert.equal(r.cuerpo.suscripciones[0].pagos, 1);
+  assert.equal(r.cuerpo.suscripciones[0].estado, "al_dia");
+  assert.equal(r.cuerpo.suscripciones[0].estado_calculado, "suspendida");
+  assert.equal(r.cuerpo.suscripciones[0].licencia, "activa");
+
+  assert.equal(r.cuerpo.pagos.length, 3);
+  assert.equal(r.cuerpo.pagos.filter((pago) => pago.estado === "anulado").length, 1);
+  assert.equal(r.cuerpo.pagos.filter((pago) => pago.vigente).length, 1);
+
+  assert.equal(r.cuerpo.plantillas.filter((p) => p.activa).length, 8);
+  assert.match(r.cuerpo.representante.sha256, /^[0-9a-f]{64}$/);
+  assert.equal(r.cuerpo.representante.png, undefined);
+  pasar("401/403, avance del expediente, pago efectivo, ocho plantillas y sin PNG del representante");
 });
 
 probar("expediente: documentos y actos no se editan ni se borran", async () => {

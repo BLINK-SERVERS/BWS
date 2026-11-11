@@ -80,6 +80,26 @@ export default manejar(["POST"], async (peticion) => {
     return json({ ok: true, reutilizado: true, documentos: existentes });
   }
 
+  const [estados] = await enTransaccion(sesion.usuarioId, sesion.rol, (txn) => [
+    txn`select
+          (select estado from suscripciones where proyecto_id = ${proyectoId}) as suscripcion,
+          (select estado from licencias
+            where proyecto_id = ${proyectoId} and tipo = 'uso'
+            order by creado desc limit 1) as licencia`,
+  ]);
+  const estado = ((estados ?? [])[0] ?? {}) as Record<string, unknown>;
+  const sinServicio = ["suspendida", "terminada"];
+  if (
+    sinServicio.includes(String(estado.suscripcion ?? "")) ||
+    sinServicio.includes(String(estado.licencia ?? ""))
+  ) {
+    throw new ErrorHttp(
+      403,
+      "La licencia del proyecto está suspendida. Regulariza la suscripción antes de generar el expediente.",
+      "licencia_suspendida",
+    );
+  }
+
   if (proyecto.vista.estado !== "enviado") {
     throw new ErrorHttp(
       409,

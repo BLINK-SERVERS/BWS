@@ -75,10 +75,10 @@ function fecha(valor: unknown): Date {
 }
 
 /** Proyecto del cliente en sesión (el más reciente) o uno concreto para la administración. */
-export async function proyectoDeExpediente(
+async function leerProyecto(
   sesion: Sesion,
   proyectoId?: string,
-): Promise<ProyectoExpediente> {
+): Promise<ProyectoExpediente | null> {
   if (proyectoId && sesion.rol !== "admin") {
     throw new ErrorHttp(403, "Solo la administración elige un proyecto ajeno.", "rol");
   }
@@ -101,9 +101,7 @@ export async function proyectoDeExpediente(
   ]);
 
   const fila = (filas ?? [])[0] as Record<string, unknown> | undefined;
-  if (!fila) {
-    throw new ErrorHttp(404, "Todavía no hay un proyecto para este expediente.", "sin_proyecto");
-  }
+  if (!fila) return null;
 
   const plan = await planExacto(
     String(fila.plan_clave),
@@ -115,6 +113,24 @@ export async function proyectoDeExpediente(
   }
 
   return { fila, vista: vistaDeProyecto(fila, plan), plan };
+}
+
+export async function proyectoDeExpediente(
+  sesion: Sesion,
+  proyectoId?: string,
+): Promise<ProyectoExpediente> {
+  const proyecto = await leerProyecto(sesion, proyectoId);
+  if (!proyecto) {
+    throw new ErrorHttp(404, "Todavía no hay un proyecto para este expediente.", "sin_proyecto");
+  }
+  return proyecto;
+}
+
+/** Igual que `proyectoDeExpediente`, pero null mientras el cliente no tenga proyecto. */
+export async function proyectoOpcionalDeExpediente(
+  sesion: Sesion,
+): Promise<ProyectoExpediente | null> {
+  return leerProyecto(sesion);
 }
 
 export async function clienteDeExpediente(

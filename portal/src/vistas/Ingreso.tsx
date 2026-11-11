@@ -28,12 +28,16 @@ export function Ingreso({
           Ya tienes la sesión abierta.
         </h1>
         <p className="po-entrada">
-          Entraste como {sesion.usuario.correo}. Puedes continuar en tu panel o cerrar la
+          Entraste como {sesion.usuario.correo}. Puedes continuar en{" "}
+          {sesion.usuario.rol === "admin" ? "la administración" : "tu panel"} o cerrar la
           sesión desde la cabecera.
         </p>
         <p>
-          <a className="po-boton po-boton-principal" href="#/panel">
-            Ir al panel
+          <a
+            className="po-boton po-boton-principal"
+            href={sesion.usuario.rol === "admin" ? "#/admin" : "#/panel"}
+          >
+            {sesion.usuario.rol === "admin" ? "Ir a la administración" : "Ir al panel"}
           </a>
         </p>
       </section>
@@ -45,9 +49,9 @@ export function Ingreso({
     setEnviando(true);
     setError(null);
     try {
-      await api.ingreso(correo.trim(), clave);
+      const respuesta = await api.ingreso(correo.trim(), clave);
       await alEntrar();
-      window.location.hash = "#/panel";
+      window.location.hash = respuesta.rol === "admin" ? "#/admin" : "#/panel";
     } catch (fallo) {
       setError(
         fallo instanceof FalloApi ? fallo.message : "No pudimos entrar. Inténtalo de nuevo.",
