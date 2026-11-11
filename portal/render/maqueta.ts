@@ -6,7 +6,10 @@
    código: la geometría vive aquí y el renderizador solo dibuja.
    ============================================================ */
 
+import { existsSync } from "node:fs";
 import { readFile } from "node:fs/promises";
+import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 import fontkit from "@pdf-lib/fontkit";
 import { rgb, type PDFDocument, type PDFFont, type RGB } from "pdf-lib";
 
@@ -34,10 +37,16 @@ export interface Fuentes {
   mono: PDFFont;
 }
 
-const RUTA_FUENTES = new URL("./fuentes/", import.meta.url);
+// En Vercel las fuentes viajan con la función (ver `includeFiles` en
+// vercel.json) y quedan en `render/fuentes` bajo el cwd, no junto al
+// módulo compilado.
+const RUTA_FUENTES = (() => {
+  const junto = fileURLToPath(new URL("./fuentes/", import.meta.url));
+  return existsSync(junto) ? junto : join(process.cwd(), "render", "fuentes");
+})();
 
 async function incrustar(pdf: PDFDocument, archivo: string, nombre: string): Promise<PDFFont> {
-  const bytes = await readFile(new URL(archivo, RUTA_FUENTES));
+  const bytes = await readFile(join(RUTA_FUENTES, archivo));
   // `subset: true` incrusta solo los glifos usados. `customName` fija el
   // prefijo del subconjunto: sin él pdf-lib añade un sufijo aleatorio y el
   // mismo expediente produciría archivos distintos en cada pasada.

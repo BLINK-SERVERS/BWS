@@ -4,6 +4,12 @@
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
   "regions": ["cle1"],
+  "functions": {
+    "api/**/*.ts": {
+      "includeFiles": "render/fuentes/**",
+      "maxDuration": 60
+    }
+  },
   "headers": [
     {
       "source": "/(.*)",
