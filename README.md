@@ -298,7 +298,15 @@ npm run typecheck
 npm run build          # portal/dist/
 npm run pdf            # los ocho PDF de muestra en portal/tmp/pdf/
 npm run afirmaciones   # falla si un texto promete lo que no se puede probar
+npm run db:migrar      # aplica portal/db/migrations como dueño
+npm run db:pruebas     # RLS, solo agregar, cadena y doble firma en la rama de pruebas
 ```
+
+La base es un proyecto Neon separado (`bws-contratos`), nunca el de Pay ni
+el de POS. `portal/.env.local` (ignorado por git) guarda las cadenas del
+dueño y del rol de aplicación, en `main` y en la rama `pruebas`; ningún
+script imprime esos valores. Las pruebas corren contra la rama `pruebas` y
+abortan si `DATABASE_URL_PRUEBAS` coincide con la base de `DATABASE_URL`.
 
 Los ocho documentos (`portal/legal/textos/`) se firman en este orden:
 registro (REG-001, LEG-002, LEG-003, PRI-005, WEB-006), proyecto
@@ -327,8 +335,20 @@ incrustar las fuentes **en serie**: pdf-lib numera los objetos al
 registrarlos y con `Promise.all` el orden dependía de qué fuente
 terminara antes.
 
+Estado de la entrega M1: el esquema tiene diecisiete tablas —más la bitácora
+de migraciones—, con triggers que abortan `UPDATE` y `DELETE` en firmas,
+actos, documentos, envíos, eventos, representantes y pagos; plantillas que
+solo se apagan; alcance congelado tras enviar un proyecto; RLS por fila con
+`app.usuario_id` y `app.rol`; y presets de `planes_infra` idénticos a
+`portal/legal/planes.ts`. El rol `bws_app` escribe filas pero no crea
+objetos, no es superusuario y no toca lo inmutable. `npm run db:pruebas`
+verifica las dieciséis condiciones contra la rama `pruebas`, incluida la
+cadena desde `GENESIS`, la doble firma rechazada y el aislamiento entre dos
+clientes; las migraciones se reejecutan sin efecto.
+
 Las variables de entorno (solo nombres, nunca valores en el repo):
-`DATABASE_URL`, `SESION_SECRETO`, `APP_ORIGEN`, `CORREO_MODO`,
+`DATABASE_URL`, `DATABASE_URL_APP`, `DATABASE_URL_PRUEBAS`,
+`DATABASE_URL_PRUEBAS_APP`, `SESION_SECRETO`, `APP_ORIGEN`, `CORREO_MODO`,
 `CORREO_API_KEY`, `CORREO_DESDE`, `CORREO_COPIA`, `SMTP_HOST`,
 `SMTP_USER`, `SMTP_PASS`, `ADMIN_CORREO`, `ADMIN_CLAVE`, `ENTORNO`.
 
