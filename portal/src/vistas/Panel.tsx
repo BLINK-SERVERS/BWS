@@ -1,14 +1,24 @@
 /* ============================================================
    Panel del cliente
    ------------------------------------------------------------
-   Lo que ya está hecho: cuenta, ficha fiscal y firma. El alta
-   del proyecto se monta en la siguiente entrega; aquí se dice
-   así, sin prometer una pantalla que todavía no existe.
+   Lo que ya está hecho: cuenta, ficha fiscal, firma y el alta
+   del proyecto con sus anexos. El expediente firmado llega con
+   la siguiente entrega; aquí no se promete una pantalla que
+   todavía no existe.
    ============================================================ */
 
-import type { ReactNode } from "react";
-import type { SesionPortal } from "../datos/api";
+import { useEffect, useState, type ReactNode } from "react";
+import { api, type ProyectoVista, type SesionPortal } from "../datos/api";
 import { Firma } from "../componentes/Firma";
+
+const ESTADOS: Record<string, string> = {
+  borrador: "Borrador",
+  enviado: "Enviado",
+  en_revision: "En revisión",
+  aprobado: "Aprobado",
+  entregado: "Entregado",
+  terminado: "Terminado",
+};
 
 function Dato({ titulo, children }: { titulo: string; children: ReactNode }) {
   return (
@@ -16,6 +26,83 @@ function Dato({ titulo, children }: { titulo: string; children: ReactNode }) {
       <dt>{titulo}</dt>
       <dd>{children}</dd>
     </div>
+  );
+}
+
+function TarjetaProyecto() {
+  const [proyecto, setProyecto] = useState<ProyectoVista | null>(null);
+  const [cargando, setCargando] = useState(true);
+
+  useEffect(() => {
+    let vigente = true;
+    api
+      .proyecto()
+      .then((respuesta) => {
+        if (vigente) setProyecto(respuesta.proyecto);
+      })
+      .catch(() => {
+        if (vigente) setProyecto(null);
+      })
+      .finally(() => {
+        if (vigente) setCargando(false);
+      });
+    return () => {
+      vigente = false;
+    };
+  }, []);
+
+  return (
+    <section className="po-tarjeta" aria-labelledby="po-proyecto-titulo">
+      <h2 className="po-tarjeta-titulo" id="po-proyecto-titulo">
+        Proyecto
+      </h2>
+      {cargando ? (
+        <p className="po-apagado" aria-live="polite">
+          Consultando tu proyecto…
+        </p>
+      ) : proyecto ? (
+        <>
+          <dl className="po-datos">
+            <Dato titulo="Nombre">{proyecto.nombre}</Dato>
+            <Dato titulo="Estado">
+              <span
+                className={
+                  proyecto.estado === "borrador"
+                    ? "po-etiqueta po-etiqueta-aviso"
+                    : "po-etiqueta po-etiqueta-ok"
+                }
+              >
+                {ESTADOS[proyecto.estado] ?? proyecto.estado}
+              </span>
+            </Dato>
+            <Dato titulo="Plan de infraestructura">
+              {proyecto.plan.nombre} ·{" "}
+              {proyecto.plan.precio_usd === 0
+                ? "sin costo mensual"
+                : `USD ${proyecto.plan.precio_usd}/mes`}
+            </Dato>
+            <Dato titulo="Dominio">{proyecto.dominio}</Dato>
+          </dl>
+          <p>
+            <a className="po-boton po-boton-suave" href="#/proyecto">
+              {proyecto.estado === "borrador" ? "Continuar el borrador" : "Ver el proyecto enviado"}
+            </a>
+          </p>
+        </>
+      ) : (
+        <>
+          <p className="po-apagado">
+            Todavía no describiste tu proyecto. El alcance, el dominio, los buzones y el
+            plan de infraestructura se convierten en el anexo A y el anexo B del contrato.
+          </p>
+          <p>
+            <a className="po-boton po-boton-principal" href="#/proyecto">
+              Describir mi proyecto
+            </a>
+          </p>
+        </>
+      )}
+    </section>
   );
 }
 
@@ -103,16 +190,7 @@ export function Panel({
 
       <Firma alFirmar={() => void recargar()} />
 
-      <section className="po-tarjeta" aria-labelledby="po-proyecto-titulo">
-        <h2 className="po-tarjeta-titulo" id="po-proyecto-titulo">
-          Proyecto
-        </h2>
-        <p className="po-apagado">
-          El alta del proyecto —alcance, dominio, buzones, plan y anexos— se habilita en la
-          siguiente entrega del portal. Cuando esté disponible, aparecerá aquí con su
-          expediente y el estado de la licencia.
-        </p>
-      </section>
+      <TarjetaProyecto />
     </section>
   );
 }

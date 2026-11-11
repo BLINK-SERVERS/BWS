@@ -58,6 +58,8 @@ const { default: verificar } = await import("../api/auth/verificar.ts");
 const { default: recuperar } = await import("../api/auth/recuperar.ts");
 const { default: restablecer } = await import("../api/auth/restablecer.ts");
 const { default: firma } = await import("../api/cliente/firma.ts");
+const { default: proyecto } = await import("../api/cliente/proyecto.ts");
+const { default: enviarProyecto } = await import("../api/cliente/proyecto/enviar.ts");
 
 const pruebas = [];
 function probar(nombre, fn) {
@@ -338,6 +340,178 @@ probar("consentimiento alterado", async () => {
   assert.equal(r.estado, 409);
   assert.equal(r.cuerpo.codigo, "consentimiento");
   pasar("409 consentimiento antes de la unicidad");
+});
+
+const PROYECTO = {
+  nombre: "Estudio Ana",
+  categoria: "Aplicación web",
+  dominio: "estudio-ana.com.ve",
+  buzones: ["contacto@estudio-ana.com.ve", "no-reply@estudio-ana.com.ve"],
+  alcance:
+    "Aplicación para agendar citas, cobrar anticipos y enviar recordatorios por correo a cada clienta.",
+  complejidad: "media",
+  plan_clave: "supabase",
+  plan_nivel: "inicial",
+};
+
+let proyectoGuardado = null;
+
+probar("proyecto sin sesión cuesta 401", async () => {
+  const r = await invocar(proyecto, "/api/cliente/proyecto");
+  assert.equal(r.estado, 401);
+  pasar("401 sin cookie");
+});
+
+probar("proyecto: catálogo de planes desde la base", async () => {
+  const r = await invocar(proyecto, "/api/cliente/proyecto", { cookie });
+  assert.equal(r.estado, 200);
+  assert.equal(r.cuerpo.proyecto, null);
+  assert.equal(r.cuerpo.planes.length, 2);
+  const niveles = r.cuerpo.planes.flatMap((p) => p.niveles);
+  assert.equal(niveles.length, 4);
+  const texto = JSON.stringify(r.cuerpo);
+  assert.ok(!texto.includes("costo_estimado"), "se filtró el costo interno");
+  assert.ok(!texto.includes("margen"), "se filtró el margen interno");
+  assert.ok(niveles.every((n) => Number.isInteger(n.version) && n.version >= 1));
+  assert.ok(niveles.every((n) => n.fecha_larga.length > 0 && n.fuente.length > 0));
+  assert.ok(r.cuerpo.categorias.includes("Aplicación web"));
+
+  const filas = await cliente.query(
+    "select clave, nivel, version, precio_usd::float8 as precio from planes_infra where estado = 'vigente'",
+  );
+  for (const fila of filas.rows) {
+    const enApi = niveles.find((n) => n.clave === fila.clave && n.nivel === fila.nivel);
+    assert.ok(enApi, `falta ${fila.clave}/${fila.nivel}`);
+    assert.equal(enApi.version, fila.version);
+    assert.equal(enApi.precio_usd, fila.precio);
+  }
+  pasar("4 niveles vigentes y precios idénticos a planes_infra");
+});
+
+probar("proyecto: seis buzones rechazados", async () => {
+  const r = await invocar(proyecto, "/api/cliente/proyecto", {
+    metodo: "POST",
+    cookie,
+    cuerpo: {
+      ...PROYECTO,
+      buzones: [
+        "no-reply@estudio-ana.com.ve",
+        "a@estudio-ana.com.ve",
+        "b@estudio-ana.com.ve",
+        "c@estudio-ana.com.ve",
+        "d@estudio-ana.com.ve",
+        "e@estudio-ana.com.ve",
+      ],
+    },
+  });
+  assert.equal(r.estado, 400);
+  assert.equal(r.cuerpo.codigo, "buzon");
+  pasar("400 buzon");
+});
+
+probar("proyecto: sin no-reply y dominio ajeno rechazados", async () => {
+  const sinNoReply = await invocar(proyecto, "/api/cliente/proyecto", {
+    metodo: "POST",
+    cookie,
+    cuerpo: { ...PROYECTO, buzones: ["contacto@estudio-ana.com.ve"] },
+  });
+  assert.equal(sinNoReply.estado, 400);
+  assert.equal(sinNoReply.cuerpo.codigo, "buzon");
+
+  const otroDominio = await invocar(proyecto, "/api/cliente/proyecto", {
+    metodo: "POST",
+    cookie,
+    cuerpo: {
+      ...PROYECTO,
+      buzones: ["no-reply@estudio-ana.com.ve", "hola@otro-dominio.com"],
+    },
+  });
+  assert.equal(otroDominio.estado, 400);
+  assert.equal(otroDominio.cuerpo.codigo, "buzon");
+  pasar("400 sin no-reply y 400 con dominio ajeno");
+});
+
+probar("proyecto: borrador guardado", async () => {
+  const r = await invocar(proyecto, "/api/cliente/proyecto", {
+    metodo: "POST",
+    cookie,
+    cuerpo: PROYECTO,
+  });
+  assert.equal(r.estado, 201);
+  assert.equal(r.cuerpo.proyecto.estado, "borrador");
+  assert.equal(r.cuerpo.proyecto.plan.clave, "supabase");
+  assert.equal(r.cuerpo.proyecto.plan.nivel, "inicial");
+  assert.equal(r.cuerpo.proyecto.plan.precio_usd, 0);
+  assert.equal(r.cuerpo.proyecto.buzones[0], "no-reply@estudio-ana.com.ve");
+  assert.equal(r.cuerpo.proyecto.buzones.length, 2);
+  proyectoGuardado = r.cuerpo.proyecto;
+  pasar("201, plan Inicial sin costo y no-reply primero");
+});
+
+probar("proyecto: cambiar preset recalcula precio y versión", async () => {
+  const r = await invocar(proyecto, "/api/cliente/proyecto", {
+    metodo: "POST",
+    cookie,
+    cuerpo: { ...PROYECTO, plan_clave: "neon-vercel", plan_nivel: "pro" },
+  });
+  assert.equal(r.estado, 201);
+  assert.equal(r.cuerpo.proyecto.id, proyectoGuardado.id, "creó otro proyecto");
+  assert.equal(r.cuerpo.proyecto.plan.clave, "neon-vercel");
+  assert.equal(r.cuerpo.proyecto.plan.nivel, "pro");
+  assert.equal(r.cuerpo.proyecto.plan.precio_usd, 30);
+  assert.ok(r.cuerpo.proyecto.plan.version >= 1);
+
+  const leido = await invocar(proyecto, "/api/cliente/proyecto", { cookie });
+  assert.equal(leido.cuerpo.proyecto.plan.clave, "neon-vercel");
+  assert.equal(leido.cuerpo.proyecto.plan.precio_usd, 30);
+  pasar("mismo proyecto, precio 30 y plan leído de vuelta");
+});
+
+probar("proyecto: enviar congela el alcance", async () => {
+  const r = await invocar(enviarProyecto, "/api/cliente/proyecto/enviar", {
+    metodo: "POST",
+    cookie,
+  });
+  assert.equal(r.estado, 200);
+  assert.equal(r.cuerpo.proyecto.estado, "enviado");
+  assert.ok(r.cuerpo.proyecto.enviado);
+  assert.equal(r.cuerpo.proyecto.alcance, PROYECTO.alcance);
+
+  const evento = await cliente.query(
+    "select accion from eventos where accion = 'proyecto.enviado'",
+  );
+  assert.equal(evento.rows.length, 1);
+  pasar("200 enviado, fecha de envío y evento de auditoría");
+});
+
+probar("proyecto: un enviado no se edita ni se duplica", async () => {
+  const otraVez = await invocar(enviarProyecto, "/api/cliente/proyecto/enviar", {
+    metodo: "POST",
+    cookie,
+  });
+  assert.equal(otraVez.estado, 409);
+  assert.equal(otraVez.cuerpo.codigo, "sin_borrador");
+
+  const cambio = await invocar(proyecto, "/api/cliente/proyecto", {
+    metodo: "POST",
+    cookie,
+    cuerpo: { ...PROYECTO, nombre: "Otro nombre", alcance: "x".repeat(60) },
+  });
+  assert.equal(cambio.estado, 409);
+  assert.equal(cambio.cuerpo.codigo, "proyecto_enviado");
+
+  const filas = await cliente.query(
+    "select nombre, alcance, estado from proyectos",
+  );
+  assert.equal(filas.rows.length, 1, "se creó un segundo proyecto");
+  assert.equal(filas.rows[0].nombre, PROYECTO.nombre);
+  assert.equal(filas.rows[0].alcance, PROYECTO.alcance);
+  assert.equal(filas.rows[0].estado, "enviado");
+
+  const leido = await invocar(proyecto, "/api/cliente/proyecto", { cookie });
+  assert.equal(leido.cuerpo.proyecto.estado, "enviado");
+  assert.equal(leido.cuerpo.proyecto.nombre, PROYECTO.nombre);
+  pasar("409 sin_borrador, 409 proyecto_enviado y una sola fila intacta");
 });
 
 probar("sesión vencida", async () => {

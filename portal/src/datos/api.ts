@@ -93,6 +93,67 @@ export interface RespuestaRegistro {
   verificacion_enviada: boolean;
 }
 
+export interface LimitePlan {
+  concepto: string;
+  valor: string;
+}
+
+export interface PlanVista {
+  clave: string;
+  nivel: string;
+  version: number;
+  nombre: string;
+  precio_usd: number;
+  limites: LimitePlan[];
+  fuente: string;
+  fecha: string;
+  fecha_larga: string;
+}
+
+export interface PresetPlan {
+  clave: string;
+  nombre: string;
+  niveles: PlanVista[];
+}
+
+export type Complejidad = "simple" | "media" | "alta";
+
+export interface ProyectoDatos {
+  nombre: string;
+  categoria: string;
+  dominio: string;
+  buzones: string[];
+  alcance: string;
+  complejidad: Complejidad;
+  plan_clave: string;
+  plan_nivel: string;
+}
+
+export interface ProyectoVista extends ProyectoDatos {
+  id: string;
+  estado: string;
+  creado: string;
+  enviado: string | null;
+  plan: PlanVista;
+}
+
+export interface Condiciones {
+  tarifa_desarrollo: string;
+  tarifa_infra_pro: string;
+  demo_plazo: string;
+  dominio_costo_eur: string;
+  licencia_duracion: string;
+  credito_meses: string;
+}
+
+export interface DatosProyecto {
+  planes: PresetPlan[];
+  proyecto: ProyectoVista | null;
+  condiciones: Condiciones;
+  categorias: string[];
+  complejidades: { valor: Complejidad; etiqueta: string }[];
+}
+
 export class FalloApi extends Error {
   constructor(
     readonly estado: number,
@@ -186,6 +247,18 @@ export const api = {
       metodo: "POST",
       cuerpo: { png, consentimiento_hash: consentimientoHash },
     });
+  },
+
+  proyecto(): Promise<DatosProyecto> {
+    return pedir("/api/cliente/proyecto");
+  },
+
+  guardarProyecto(datos: ProyectoDatos): Promise<{ ok: true; proyecto: ProyectoVista }> {
+    return pedir("/api/cliente/proyecto", { metodo: "POST", cuerpo: datos });
+  },
+
+  enviarProyecto(): Promise<{ ok: true; proyecto: ProyectoVista }> {
+    return pedir("/api/cliente/proyecto/enviar", { metodo: "POST", cuerpo: {} });
   },
 };
 

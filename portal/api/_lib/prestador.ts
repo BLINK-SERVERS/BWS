@@ -71,3 +71,16 @@ export function variablesComerciales(): Record<string, string> {
       "el proveedor de correo transaccional contratado por Blink",
   };
 }
+
+/** Condiciones que el cliente puede leer antes de enviar el proyecto. */
+export function condicionesPublicas() {
+  const v = variablesComerciales();
+  return {
+    tarifa_desarrollo: v.tarifa_desarrollo,
+    tarifa_infra_pro: v.tarifa_infra_pro,
+    demo_plazo: v.demo_plazo,
+    dominio_costo_eur: v.dominio_costo_eur,
+    licencia_duracion: v.licencia_duracion,
+    credito_meses: v.credito_meses,
+  };
+}

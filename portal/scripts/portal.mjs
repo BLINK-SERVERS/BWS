@@ -2,14 +2,17 @@
    Verificación del portal en un navegador real
    ------------------------------------------------------------
    Levanta el servidor local contra la rama `pruebas`, recorre el
-   alta completa —registro, verificación por archivo, ingreso y
-   firma única— y mide lo que el plan exige antes de publicar:
+   alta completa —registro, verificación por archivo, ingreso,
+   firma única y proyecto con plan, anexo B y envío— y mide lo
+   que el plan exige antes de publicar:
 
    · axe sin violaciones en 390 y 1440;
    · cero desborde horizontal;
    · cero peticiones a terceros;
    · la firma queda registrada una sola vez y la pantalla deja de
-     ofrecer el lienzo.
+     ofrecer el lienzo;
+   · el proyecto guardado se lee de vuelta y el enviado congela el
+     alcance sin ofrecer edición.
 
    Uso:
      npm run portal:pruebas
@@ -234,6 +237,55 @@ async function principal() {
     );
     await medir(pagina, "panel firmado", 1440);
 
+    // Alta del proyecto: plan, anexo B y congelado al enviar.
+    const dominio = `estudio-${marca}.com.ve`;
+    await ir("proyecto");
+    await pagina.getByRole("heading", { name: "Describe tu proyecto." }).waitFor();
+    await pagina.getByLabel("Nombre del proyecto").fill("App de citas");
+    await pagina.getByLabel("Categoría").selectOption("Aplicación web");
+    await pagina.getByLabel("Dominio").fill(dominio);
+    await pagina.getByRole("button", { name: "Añadir buzón" }).click();
+    await pagina.getByLabel("Buzón adicional 1").fill(`contacto@${dominio}`);
+    await pagina
+      .getByLabel("Qué incluye el proyecto")
+      .fill("Agenda de citas con recordatorios por correo, cobros anticipados y un panel para el equipo.");
+    await pagina.getByText("Plan Inicial · sin costo mensual").waitFor();
+    await pagina.locator('input[name="plan"][value="neon-vercel|pro"]').check();
+    await pagina.getByText("Plan Pro · USD 30 al mes").waitFor();
+    comprobar(
+      "cambiar de plan recalcula el anexo B",
+      (await pagina.getByText("Plan Pro · USD 30 al mes").count()) === 1,
+    );
+    await medir(pagina, "proyecto borrador", 1440);
+
+    await pagina.getByRole("button", { name: "Guardar borrador" }).click();
+    await pagina.getByText("Borrador guardado.").waitFor();
+    await pagina.reload({ waitUntil: "domcontentloaded" });
+    await pagina.getByRole("heading", { name: "Describe tu proyecto." }).waitFor();
+    comprobar(
+      "el borrador se lee de vuelta",
+      (await pagina.getByLabel("Nombre del proyecto").inputValue()) === "App de citas",
+    );
+    comprobar(
+      "el plan guardado conserva el precio",
+      (await pagina.getByText("Plan Pro · USD 30 al mes").count()) === 1,
+    );
+
+    await pagina.setViewportSize({ width: 390, height: 844 });
+    await medir(pagina, "proyecto borrador", 390);
+    await pagina.setViewportSize({ width: 1440, height: 900 });
+
+    await pagina.getByRole("button", { name: "Revisar y enviar" }).click();
+    await pagina.getByRole("button", { name: "Confirmar envío" }).waitFor();
+    await pagina.getByRole("button", { name: "Confirmar envío" }).click();
+    await pagina.getByText("Proyecto enviado. El alcance quedó congelado.").waitFor();
+    await pagina.getByRole("heading", { name: "App de citas" }).waitFor();
+    comprobar(
+      "el proyecto enviado no ofrece edición",
+      (await pagina.getByRole("button", { name: "Guardar borrador" }).count()) === 0,
+    );
+    await medir(pagina, "proyecto enviado", 1440);
+
     // 390: las mismas pantallas con la sesión abierta.
     await pagina.setViewportSize({ width: 390, height: 844 });
     for (const [ruta, etiqueta] of [
@@ -243,8 +295,12 @@ async function principal() {
       ["verificar", "verificar sin token"],
       ["recuperar", "recuperar"],
       ["panel", "panel firmado"],
+      ["proyecto", "proyecto enviado"],
     ]) {
       await ir(ruta);
+      if (ruta === "proyecto") {
+        await pagina.getByRole("heading", { name: "App de citas" }).waitFor();
+      }
       await pagina.waitForTimeout(150);
       await medir(pagina, etiqueta, 390);
     }

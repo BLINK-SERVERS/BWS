@@ -53,6 +53,22 @@ export function correoNormalizado(valor: unknown): string | null {
   return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(texto) ? texto : null;
 }
 
+/** Minúsculas, sin esquema ni ruta. Acepta `https://ejemplo.com.ve/x`. */
+export function normalizarDominio(valor: unknown): string | null {
+  const crudo = limpiar(valor).toLowerCase();
+  if (!crudo || crudo.length > 300) return null;
+  const sinEsquema = crudo.replace(/^[a-z]+:\/\//, "").split("/")[0].split("?")[0].split("#")[0];
+  const dominio = sinEsquema.replace(/\.$/, "");
+  if (dominio.length < 4 || dominio.length > 253) return null;
+  if (!/^(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,24}$/.test(dominio)) return null;
+  return dominio;
+}
+
+/** Dominio de un correo ya normalizado. */
+export function dominioDe(correo: string): string {
+  return correo.slice(correo.lastIndexOf("@") + 1);
+}
+
 export function nombreValido(valor: unknown): boolean {
   const texto = limpiar(valor);
   return texto.length >= 2 && texto.length <= 120 && /\p{L}/u.test(texto);

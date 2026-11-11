@@ -12,6 +12,7 @@ import { api, type SesionPortal } from "./datos/api";
 import { useSesion } from "./datos/sesion";
 import { Ingreso } from "./vistas/Ingreso";
 import { Panel } from "./vistas/Panel";
+import { Proyecto } from "./vistas/Proyecto";
 import { Recuperar } from "./vistas/Recuperar";
 import { Registro } from "./vistas/Registro";
 import { Verificar } from "./vistas/Verificar";
@@ -101,23 +102,18 @@ function Portada({ sesion }: { sesion: SesionPortal | null | undefined }) {
   );
 }
 
-function Pendiente({ ruta, sesion }: { ruta: string; sesion: SesionPortal | null | undefined }) {
-  const admin = ruta === "/admin";
-  const autorizado = admin && sesion?.usuario.rol === "admin";
+function Pendiente({ sesion }: { sesion: SesionPortal | null | undefined }) {
+  const autorizado = sesion?.usuario.rol === "admin";
   return (
     <section className="po-pagina po-pagina-angosta" aria-labelledby="po-titulo">
       <p className="po-sello">Blink Web Services</p>
       <h1 id="po-titulo" className="po-titulo-pagina">
-        {admin
-          ? autorizado
-            ? "El panel de administración llega con la siguiente entrega."
-            : "Esta sección es solo para la administración."
-          : "El alta del proyecto llega con la siguiente entrega."}
+        {autorizado
+          ? "El panel de administración llega con la siguiente entrega."
+          : "Esta sección es solo para la administración."}
       </h1>
       <p className="po-entrada">
-        {admin
-          ? "Aquí se revisarán expedientes, plantillas, pagos y el estado de las licencias."
-          : "El alcance, los buzones, el plan de infraestructura, el contrato y sus anexos se montan sobre la cuenta y la firma que ya existen."}
+        Aquí se revisarán expedientes, plantillas, pagos y el estado de las licencias.
       </p>
       <p>
         <a href={sesion?.usuario ? "#/panel" : "#/ingreso"}>
@@ -159,8 +155,10 @@ export function App() {
       contenido = <Recuperar />;
       break;
     case "/proyecto":
+      contenido = <Proyecto sesion={sesion} />;
+      break;
     case "/admin":
-      contenido = <Pendiente ruta={ruta} sesion={sesion} />;
+      contenido = <Pendiente sesion={sesion} />;
       break;
     default:
       contenido = <Portada sesion={sesion} />;

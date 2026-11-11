@@ -29,7 +29,7 @@ export function Campo({
   autocompletar?: string;
   ayuda?: string;
   error?: string | null;
-  modo?: "texto" | "select";
+  modo?: "texto" | "select" | "area";
   children?: ReactNode;
 }) {
   const idAyuda = `${id}-ayuda`;
@@ -51,6 +51,15 @@ export function Campo({
         >
           {children}
         </select>
+      ) : modo === "area" ? (
+        <textarea
+          id={id}
+          rows={7}
+          value={valor}
+          onChange={(evento) => alCambiar(evento.target.value)}
+          aria-describedby={descrito || undefined}
+          aria-invalid={error ? true : undefined}
+        />
       ) : (
         <input
           id={id}

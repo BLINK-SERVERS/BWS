@@ -300,7 +300,7 @@ npm run pdf            # los ocho PDF de muestra en portal/tmp/pdf/
 npm run afirmaciones   # falla si un texto promete lo que no se puede probar
 npm run db:migrar      # aplica portal/db/migrations como dueño
 npm run db:pruebas     # RLS, solo agregar, cadena y doble firma en la rama de pruebas
-npm run api:pruebas    # registro, sesión, firma única y recuperación contra la API real
+npm run api:pruebas    # registro, sesión, firma única, proyecto y envío contra la API real
 npm run pruebas        # unitarias: validadores, canónica, scrypt, tokens y PNG
 npm run portal         # dist + api en http://127.0.0.1:4178 (base de pruebas)
 npm run portal:pruebas # flujo completo en Chromium, axe y desborde en 390 y 1440
@@ -367,6 +367,20 @@ El correo de verificación y el de recuperación son de un solo uso y se
 guardan como hash. Las pruebas cierran en 34 unitarias, 18 de API y 30 de
 navegador: axe sin violaciones y cero desborde en 390 y 1440, sin peticiones
 a terceros, con el flujo completo de registro, verificación, ingreso y firma.
+
+Estado de la entrega M3: el cliente describe su proyecto —nombre, categoría,
+dominio, hasta cinco buzones y alcance— y elige el plan de infraestructura.
+Los buzones deben pertenecer al dominio elegido y `no-reply@` es obligatorio;
+seis buzones, un dominio ajeno o un alcance de menos de cuarenta caracteres
+se rechazan con el mismo criterio en el navegador y en la API. El anexo B se
+arma desde `planes_infra` (dos presets, cuatro niveles, versión, fuente y
+fecha) y cambia de precio al cambiar de plan; el costo y el margen internos
+no salen de la base. Guardar crea o actualiza un borrador; enviar exige
+correo confirmado y firma, congela el alcance con el disparador
+`bws_congelar_proyecto` y deja evento de auditoría. Un proyecto enviado no se
+edita ni se duplica: 409 en ambos casos. En esta etapa cada cliente tiene un
+solo proyecto. Las pruebas cierran en 44 unitarias, 26 de API y 42 de
+navegador, con axe sin violaciones y cero desborde en 390 y 1440.
 
 Las variables de entorno (solo nombres, nunca valores en el repo):
 `DATABASE_URL`, `DATABASE_URL_APP`, `DATABASE_URL_PRUEBAS`,
