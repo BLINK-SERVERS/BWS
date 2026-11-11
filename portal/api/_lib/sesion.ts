@@ -10,6 +10,7 @@
 import { createHash, randomBytes } from "node:crypto";
 import { db, enTransaccion } from "./db";
 import { cookiesDe, ipDe } from "./http";
+import { ErrorHttp } from "./respuestas";
 
 const HORAS = 12;
 
@@ -49,6 +50,14 @@ export async function leerSesion(peticion: Request): Promise<Sesion | null> {
     verificado: Boolean(fila.verificado),
     expira: new Date(fila.expira as string),
   };
+}
+
+export function exigirAdmin(sesion: Sesion | null): Sesion {
+  if (!sesion) throw new ErrorHttp(401, "Tu sesión venció. Vuelve a entrar.", "sesion");
+  if (sesion.rol !== "admin") {
+    throw new ErrorHttp(403, "Esta sección es de la administración.", "rol");
+  }
+  return sesion;
 }
 
 export async function crearSesion(

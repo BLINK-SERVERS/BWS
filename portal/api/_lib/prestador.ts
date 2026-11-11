@@ -55,13 +55,13 @@ export function identidadPrestador(): Prestador {
   };
 }
 
-export function variablesComerciales(): Record<string, string> {
+export function variablesComerciales(momento = new Date()): Record<string, string> {
   return {
     tarifa_desarrollo: process.env.TARIFA_DESARROLLO?.trim() || "USD 31",
     tarifa_infra_pro: process.env.TARIFA_INFRA_PRO?.trim() || "USD 30",
     demo_plazo: "siete (7) a catorce (14) días hábiles",
     dominio_costo_eur: "16,04 EUR",
-    tasa_bcv_fecha: fechaLarga(),
+    tasa_bcv_fecha: fechaLarga(momento),
     tasa_bcv_valor: "la tasa oficial del BCV de esa fecha",
     dominio_costo_bs: "un monto en bolívares calculado a esa tasa",
     licencia_duracion: "la vida del servicio contratado",

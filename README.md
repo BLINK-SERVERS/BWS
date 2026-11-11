@@ -382,6 +382,24 @@ edita ni se duplica: 409 en ambos casos. En esta etapa cada cliente tiene un
 solo proyecto. Las pruebas cierran en 44 unitarias, 26 de API y 42 de
 navegador, con axe sin violaciones y cero desborde en 390 y 1440.
 
+Estado de la entrega M4: el expediente se genera sobre un proyecto enviado y
+conserva las dos firmas. La administración captura la firma y el domicilio del
+representante legal de Blink; sin domicilio la generación se detiene. Al
+generar, los ocho documentos se resuelven con las plantillas publicadas —la
+API se niega si la versión activa no coincide con el código—, se sellan con un
+único instante UTC y se encadenan desde `GENESIS`; cada PDF lleva la firma del
+representante y la del cliente, el sello de contenido y el eslabón de cadena.
+El cliente confirma una sola vez y el segundo intento devuelve 409. La
+verificación recalcula desde la base el hash de cada archivo, el sello, la
+cadena y los dos actos, sin confiar en el PDF; alterar un byte del archivo deja
+de coincidir con el hash guardado. Generar dos veces reutiliza lo guardado y el
+proyecto pasa a `en_revision`. El sello es determinista: la fecha comercial y
+el `utc_sello` se reconstruyen desde el instante guardado —con milisegundos—,
+no desde la fecha del día de la verificación. Las pruebas cierran en 50
+unitarias, 36 de API y 16 de
+base de datos; el panel de administración y el correo del expediente llegan en
+M5.
+
 Las variables de entorno (solo nombres, nunca valores en el repo):
 `DATABASE_URL`, `DATABASE_URL_APP`, `DATABASE_URL_PRUEBAS`,
 `DATABASE_URL_PRUEBAS_APP`, `SESION_SECRETO`, `APP_ORIGEN`, `CORREO_MODO`,

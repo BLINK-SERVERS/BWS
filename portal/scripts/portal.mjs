@@ -26,6 +26,7 @@ import { fileURLToPath } from "node:url";
 import pg from "pg";
 import { chromium } from "playwright-core";
 import { crearServidor } from "./servidor.mjs";
+import { sembrarPlantillas } from "./sembrar-plantillas.mjs";
 import { cargarEnv } from "./_env.mjs";
 
 const RAIZ = fileURLToPath(new URL("..", import.meta.url));
@@ -137,6 +138,7 @@ async function principal() {
   const base = new pg.Client({ connectionString: urlDueno, application_name: "bws-portal-pruebas" });
   await base.connect();
   await base.query("truncate usuarios, limites cascade");
+  await sembrarPlantillas(base);
 
   const { origen, cerrar } = await crearServidor({ puerto: PUERTO });
   const navegador = await chromium.launch({

@@ -18,6 +18,7 @@
    ============================================================ */
 
 import assert from "node:assert/strict";
+import { execFileSync } from "node:child_process";
 import { existsSync } from "node:fs";
 import { mkdir, readdir, readFile, rm } from "node:fs/promises";
 import { join } from "node:path";
@@ -60,6 +61,26 @@ const { default: restablecer } = await import("../api/auth/restablecer.ts");
 const { default: firma } = await import("../api/cliente/firma.ts");
 const { default: proyecto } = await import("../api/cliente/proyecto.ts");
 const { default: enviarProyecto } = await import("../api/cliente/proyecto/enviar.ts");
+const { default: representante } = await import("../api/admin/representante.ts");
+const { default: generarExpediente } = await import("../api/documentos/generar.ts");
+const { default: firmarExpediente } = await import("../api/documentos/firmar.ts");
+const { default: verificarExpediente } = await import("../api/documentos/verificar.ts");
+const { hashearClave } = await import("../api/_lib/clave.ts");
+const { hashCadena, sha256Hex } = await import("../render/hash.ts");
+const { sembrarPlantillas } = await import("./sembrar-plantillas.mjs");
+
+await sembrarPlantillas(cliente);
+
+const ADMIN = {
+  correo: "admin@blink.test",
+  clave: "admin-Clave-2026",
+  nombre: "Administración Blink",
+};
+await cliente.query(
+  `insert into usuarios (correo, clave_hash, nombre, rol, correo_verificado)
+   values ($1, $2, $3, 'admin', true)`,
+  [ADMIN.correo, await hashearClave(ADMIN.clave), ADMIN.nombre],
+);
 
 const pruebas = [];
 function probar(nombre, fn) {
@@ -512,6 +533,277 @@ probar("proyecto: un enviado no se edita ni se duplica", async () => {
   assert.equal(leido.cuerpo.proyecto.estado, "enviado");
   assert.equal(leido.cuerpo.proyecto.nombre, PROYECTO.nombre);
   pasar("409 sin_borrador, 409 proyecto_enviado y una sola fila intacta");
+});
+
+const REPRESENTANTE = {
+  nombre: "José Blink",
+  documento: "V-12345678",
+  domicilio: "Av. Francisco de Miranda, Caracas, Distrito Capital, Venezuela",
+  correo: "representante@blink.com.ve",
+};
+
+let cookieAdmin = null;
+let expediente = null;
+
+probar("administración: la captura del representante exige rol admin", async () => {
+  const anonima = await invocar(representante, "/api/admin/representante");
+  assert.equal(anonima.estado, 401);
+
+  const deCliente = await invocar(representante, "/api/admin/representante", { cookie });
+  assert.equal(deCliente.estado, 403);
+  assert.equal(deCliente.cuerpo.codigo, "rol");
+
+  const alta = await invocar(representante, "/api/admin/representante", {
+    metodo: "POST",
+    cookie,
+    cuerpo: { ...REPRESENTANTE, png: `data:image/png;base64,${firmaPNG().toString("base64")}` },
+  });
+  assert.equal(alta.estado, 403);
+  pasar("401 sin sesión y 403 para el cliente");
+});
+
+probar("administración: ingreso del representante de Blink", async () => {
+  const r = await invocar(ingreso, "/api/auth/ingreso", {
+    metodo: "POST",
+    cuerpo: { correo: ADMIN.correo, clave: ADMIN.clave },
+  });
+  assert.equal(r.estado, 200);
+  cookieAdmin = galleta(r);
+  assert.ok(cookieAdmin && cookieAdmin.length >= 40);
+  pasar("200 y cookie de administración");
+});
+
+probar("representante: domicilio obligatorio y captura firmada", async () => {
+  const png = `data:image/png;base64,${firmaPNG("representante").toString("base64")}`;
+
+  const sinDomicilio = await invocar(representante, "/api/admin/representante", {
+    metodo: "POST",
+    cookie: cookieAdmin,
+    cuerpo: { ...REPRESENTANTE, domicilio: "", png },
+  });
+  assert.equal(sinDomicilio.estado, 400);
+  assert.equal(sinDomicilio.cuerpo.codigo, "domicilio");
+
+  const r = await invocar(representante, "/api/admin/representante", {
+    metodo: "POST",
+    cookie: cookieAdmin,
+    cuerpo: { ...REPRESENTANTE, png },
+  });
+  assert.equal(r.estado, 201);
+  assert.match(r.cuerpo.representante.sha256, /^[0-9a-f]{64}$/);
+
+  const leido = await invocar(representante, "/api/admin/representante", { cookie: cookieAdmin });
+  assert.equal(leido.estado, 200);
+  assert.equal(leido.cuerpo.representante.nombre, REPRESENTANTE.nombre);
+  assert.equal(leido.cuerpo.representante.documento, REPRESENTANTE.documento);
+  assert.equal(leido.cuerpo.representante.domicilio, REPRESENTANTE.domicilio);
+  assert.ok(leido.cuerpo.representante.png.startsWith("data:image/png;base64,"));
+  pasar("400 sin domicilio, 201 con la captura y lectura de vuelta");
+});
+
+probar("expediente: el cliente no genera; la administración sí", async () => {
+  const deCliente = await invocar(generarExpediente, "/api/documentos/generar", {
+    metodo: "POST",
+    cookie,
+    cuerpo: { proyecto_id: proyectoGuardado.id },
+  });
+  assert.equal(deCliente.estado, 403);
+  assert.equal(deCliente.cuerpo.codigo, "rol");
+
+  const r = await invocar(generarExpediente, "/api/documentos/generar", {
+    metodo: "POST",
+    cookie: cookieAdmin,
+    cuerpo: { proyecto_id: proyectoGuardado.id },
+  });
+  assert.equal(r.estado, 201);
+  assert.equal(r.cuerpo.reutilizado, false);
+  assert.deepEqual(
+    r.cuerpo.documentos.map((d) => d.codigo),
+    [
+      "BWS-REG-001",
+      "BWS-LEG-002",
+      "BWS-LEG-003",
+      "BWS-CON-004",
+      "BWS-PRI-005",
+      "BWS-WEB-006",
+      "BWS-LIC-007",
+      "BWS-NDA-008",
+    ],
+  );
+  let anterior = "GENESIS";
+  for (const [indice, doc] of r.cuerpo.documentos.entries()) {
+    assert.equal(doc.orden, indice + 1);
+    assert.equal(doc.hash_anterior, anterior);
+    assert.equal(doc.estado, "firmado");
+    assert.match(doc.sello, /^[0-9a-f]{64}$/);
+    assert.match(doc.hash_archivo, /^[0-9a-f]{64}$/);
+    assert.equal(doc.hash_cadena, hashCadena(anterior, doc.sello, doc.orden));
+    anterior = doc.hash_cadena;
+  }
+  expediente = r.cuerpo;
+  pasar("8 documentos sellados y encadenados desde GENESIS");
+});
+
+probar("expediente: generar dos veces reutiliza lo guardado", async () => {
+  const r = await invocar(generarExpediente, "/api/documentos/generar", {
+    metodo: "POST",
+    cookie: cookieAdmin,
+    cuerpo: { proyecto_id: proyectoGuardado.id },
+  });
+  assert.equal(r.estado, 200);
+  assert.equal(r.cuerpo.reutilizado, true);
+  assert.deepEqual(
+    r.cuerpo.documentos.map((d) => d.hash_cadena),
+    expediente.documentos.map((d) => d.hash_cadena),
+  );
+
+  const filas = await cliente.query(
+    `select
+       (select count(*)::int from documentos where proyecto_id = $1) as documentos,
+       (select count(*)::int from actos_firma a
+          join documentos d on d.id = a.documento_id
+         where d.proyecto_id = $1 and a.firmante = 'representante') as representante,
+       (select estado from proyectos where id = $1) as estado`,
+    [proyectoGuardado.id],
+  );
+  assert.equal(filas.rows[0].documentos, 8);
+  assert.equal(filas.rows[0].representante, 8);
+  assert.equal(filas.rows[0].estado, "en_revision");
+  pasar("200 reutilizado, 8 documentos, 8 actos del representante y proyecto en revisión");
+});
+
+probar("expediente: el PDF trae las dos firmas y el sello", async () => {
+  const fila = await cliente.query(
+    "select pdf, hash_archivo from documentos where proyecto_id = $1 order by orden limit 1",
+    [proyectoGuardado.id],
+  );
+  const pdf = fila.rows[0].pdf;
+  assert.equal(sha256Hex(pdf), fila.rows[0].hash_archivo);
+
+  const alterado = Buffer.from(pdf);
+  alterado[alterado.length - 1] ^= 0x01;
+  assert.notEqual(sha256Hex(alterado), fila.rows[0].hash_archivo, "alterar un byte no cambió el hash");
+
+  const texto = execFileSync("pdftotext", ["-", "-"], {
+    input: pdf,
+    encoding: "utf8",
+    maxBuffer: 20 * 1024 * 1024,
+  });
+  for (const esperado of [
+    REPRESENTANTE.nombre,
+    REPRESENTANTE.documento,
+    CUENTA.nombre,
+    "Representante legal de Blink",
+    "Cliente",
+    "Firma electrónica simple (no certificada)",
+    "Sello de contenido (SHA-256)",
+    "Hash de cadena",
+  ]) {
+    assert.ok(texto.includes(esperado), `el PDF no imprime «${esperado}»`);
+  }
+  pasar("hash idéntico, un byte alterado lo cambia y el texto trae firmas, sello y cadena");
+});
+
+probar("expediente: antes de confirmar está íntegro pero incompleto", async () => {
+  const r = await invocar(
+    verificarExpediente,
+    `/api/documentos/verificar?proyecto_id=${proyectoGuardado.id}`,
+    { cookie: cookieAdmin },
+  );
+  assert.equal(r.estado, 200);
+  assert.equal(r.cuerpo.integro, true);
+  assert.equal(r.cuerpo.completo, false);
+  assert.equal(r.cuerpo.ok, false);
+  assert.equal(r.cuerpo.cadena_ok, true);
+  assert.ok(r.cuerpo.documentos.every((d) => d.actos.representante.hecho && !d.actos.cliente.hecho));
+  pasar("integro sin actos del cliente: completo en falso");
+});
+
+probar("expediente: el cliente confirma una sola vez", async () => {
+  const primera = await invocar(firmarExpediente, "/api/documentos/firmar", {
+    metodo: "POST",
+    cookie,
+  });
+  assert.equal(primera.estado, 200);
+  assert.equal(primera.cuerpo.actos, 8);
+  assert.equal(primera.cuerpo.documentos, 8);
+
+  const segunda = await invocar(firmarExpediente, "/api/documentos/firmar", {
+    metodo: "POST",
+    cookie,
+  });
+  assert.equal(segunda.estado, 409);
+  assert.equal(segunda.cuerpo.codigo, "expediente_firmado");
+
+  const actos = await cliente.query(
+    `select count(*)::int as total,
+            count(*) filter (where firmante = 'cliente')::int as cliente
+     from actos_firma a join documentos d on d.id = a.documento_id
+     where d.proyecto_id = $1`,
+    [proyectoGuardado.id],
+  );
+  assert.equal(actos.rows[0].total, 16);
+  assert.equal(actos.rows[0].cliente, 8);
+  pasar("200 con 8 actos, 409 la segunda vez y 16 actos en total");
+});
+
+probar("expediente: la verificación cuadra para las dos partes", async () => {
+  const admin = await invocar(
+    verificarExpediente,
+    `/api/documentos/verificar?proyecto_id=${proyectoGuardado.id}`,
+    { cookie: cookieAdmin },
+  );
+  assert.equal(admin.estado, 200);
+  assert.equal(admin.cuerpo.integro, true);
+  assert.equal(admin.cuerpo.completo, true);
+  assert.equal(admin.cuerpo.cadena_ok, true);
+  assert.equal(admin.cuerpo.documentos.length, 8);
+  for (const doc of admin.cuerpo.documentos) {
+    assert.equal(doc.plantilla_ok, true, `${doc.codigo}: plantilla`);
+    assert.equal(doc.sello_ok, true, `${doc.codigo}: sello`);
+    assert.equal(doc.archivo_ok, true, `${doc.codigo}: archivo`);
+    assert.equal(doc.cadena_ok, true, `${doc.codigo}: cadena`);
+    assert.ok(doc.actos.representante.hecho, `${doc.codigo}: falta el representante`);
+    assert.ok(doc.actos.cliente.hecho, `${doc.codigo}: falta el cliente`);
+  }
+
+  const propio = await invocar(verificarExpediente, "/api/documentos/verificar", { cookie });
+  assert.equal(propio.estado, 200);
+  assert.equal(propio.cuerpo.integro, true);
+  assert.equal(propio.cuerpo.completo, true);
+  assert.equal(propio.cuerpo.proyecto_id, proyectoGuardado.id);
+
+  const sinProyecto = await invocar(verificarExpediente, "/api/documentos/verificar", {
+    cookie: cookieAdmin,
+  });
+  assert.equal(sinProyecto.estado, 400);
+  pasar("íntegro, completo y cadena ok; el cliente ve el mismo expediente");
+});
+
+probar("expediente: documentos y actos no se editan ni se borran", async () => {
+  const cambios = [
+    ["update documentos set sello = $2 where proyecto_id = $1", [proyectoGuardado.id, "0".repeat(64)]],
+    ["delete from actos_firma where documento_id in (select id from documentos where proyecto_id = $1)", [proyectoGuardado.id]],
+    ["update representantes set nombre = 'Otro' where documento is not null", []],
+  ];
+  for (const [sql, parametros] of cambios) {
+    let rechazo = null;
+    try {
+      await cliente.query(sql, parametros);
+    } catch (error) {
+      rechazo = error;
+    }
+    assert.equal(rechazo?.code, "42501", `no se rechazó: ${sql}`);
+  }
+
+  const eventos = await cliente.query(
+    "select accion from eventos where accion in ('representante.capturado','expediente.generado','expediente.firmado')",
+  );
+  const acciones = new Set(eventos.rows.map((f) => f.accion));
+  for (const esperada of ["representante.capturado", "expediente.generado", "expediente.firmado"]) {
+    assert.ok(acciones.has(esperada), `falta el evento ${esperada}`);
+  }
+  pasar("42501 en documentos, actos y representantes; los tres eventos quedaron");
 });
 
 probar("sesión vencida", async () => {
