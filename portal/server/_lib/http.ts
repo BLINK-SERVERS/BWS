@@ -33,7 +33,7 @@ export async function leerJson<T>(peticion: Request): Promise<T | null> {
 }
 
 /**
- * Primer salto de `x-forwarded-for`; en Vercel es la IP del cliente.
+ * Primer salto de `x-forwarded-for`; en Cloudflare es la IP del cliente.
  * Solo se acepta una forma de IPv4 o IPv6: la columna es `inet` y un
  * valor inventado en la cabecera no debe romper la petición.
  */

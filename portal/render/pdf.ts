@@ -21,6 +21,7 @@ import type {
   FirmaCapturada,
   LimitePlan,
 } from "../legal/tipos";
+import { lectorDeFuentes, type LectorFuentes } from "./fuentes";
 import {
   ANCHO_CONTENIDO,
   A4,
@@ -40,6 +41,8 @@ export interface OpcionesPDF {
   evidencia: Evidencia;
   /** Fecha fija para que el archivo sea reproducible en las pruebas. */
   fechaCreacion?: Date;
+  /** Lector explícito de las fuentes; si falta, se usa el configurado en la entrada. */
+  leerFuente?: LectorFuentes;
 }
 
 const TAMANO_CUERPO = 10;
@@ -58,7 +61,7 @@ interface Celda {
 export async function generarPDF(opciones: OpcionesPDF): Promise<Uint8Array> {
   const { doc, datos, firmas, evidencia } = opciones;
   const pdf = await PDFDocument.create();
-  const fuentes = await cargarFuentes(pdf);
+  const fuentes = await cargarFuentes(pdf, opciones.leerFuente ?? lectorDeFuentes());
 
   const bws = datos.variables.bws_razon_social ?? "Blink Web Services";
   const paginas: PDFPage[] = [];

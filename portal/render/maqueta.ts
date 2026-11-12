@@ -6,12 +6,9 @@
    código: la geometría vive aquí y el renderizador solo dibuja.
    ============================================================ */
 
-import { existsSync } from "node:fs";
-import { readFile } from "node:fs/promises";
-import { join } from "node:path";
-import { fileURLToPath } from "node:url";
 import fontkit from "@pdf-lib/fontkit";
 import { rgb, type PDFDocument, type PDFFont, type RGB } from "pdf-lib";
+import type { LectorFuentes } from "./fuentes";
 
 export const A4 = { ancho: 595.28, alto: 841.89 };
 export const MARGEN = { sup: 68, inf: 62, izq: 56, der: 56 };
@@ -37,16 +34,13 @@ export interface Fuentes {
   mono: PDFFont;
 }
 
-// En Vercel las fuentes viajan con la función (ver `includeFiles` en
-// vercel.json) y quedan en `render/fuentes` bajo el cwd, no junto al
-// módulo compilado.
-const RUTA_FUENTES = (() => {
-  const junto = fileURLToPath(new URL("./fuentes/", import.meta.url));
-  return existsSync(junto) ? junto : join(process.cwd(), "render", "fuentes");
-})();
-
-async function incrustar(pdf: PDFDocument, archivo: string, nombre: string): Promise<PDFFont> {
-  const bytes = await readFile(join(RUTA_FUENTES, archivo));
+async function incrustar(
+  pdf: PDFDocument,
+  leer: LectorFuentes,
+  archivo: string,
+  nombre: string,
+): Promise<PDFFont> {
+  const bytes = await leer(archivo);
   // `subset: true` incrusta solo los glifos usados. `customName` fija el
   // prefijo del subconjunto: sin él pdf-lib añade un sufijo aleatorio y el
   // mismo expediente produciría archivos distintos en cada pasada.
@@ -54,17 +48,17 @@ async function incrustar(pdf: PDFDocument, archivo: string, nombre: string): Pro
   return pdf.embedFont(bytes, { subset: true, customName: nombre });
 }
 
-export async function cargarFuentes(pdf: PDFDocument): Promise<Fuentes> {
+export async function cargarFuentes(pdf: PDFDocument, leer: LectorFuentes): Promise<Fuentes> {
   pdf.registerFontkit(fontkit);
   // En serie, no en paralelo: pdf-lib numera los objetos al registrarlos y
   // con Promise.all el orden depende de qué fuente termine antes. Eso cambia
   // los bytes del PDF entre dos pasadas idénticas. Aquí el orden es fijo.
-  const serif = await incrustar(pdf, "LiberationSerif-Regular.ttf", "BWSSER+LiberationSerif");
-  const serifBold = await incrustar(pdf, "LiberationSerif-Bold.ttf", "BWSSBD+LiberationSerif-Bold");
-  const serifItalic = await incrustar(pdf, "LiberationSerif-Italic.ttf", "BWSSIT+LiberationSerif-Italic");
-  const sans = await incrustar(pdf, "LiberationSans-Regular.ttf", "BWSSAN+LiberationSans");
-  const sansBold = await incrustar(pdf, "LiberationSans-Bold.ttf", "BWSSAB+LiberationSans-Bold");
-  const mono = await incrustar(pdf, "LiberationMono-Regular.ttf", "BWSMON+LiberationMono");
+  const serif = await incrustar(pdf, leer, "LiberationSerif-Regular.ttf", "BWSSER+LiberationSerif");
+  const serifBold = await incrustar(pdf, leer, "LiberationSerif-Bold.ttf", "BWSSBD+LiberationSerif-Bold");
+  const serifItalic = await incrustar(pdf, leer, "LiberationSerif-Italic.ttf", "BWSSIT+LiberationSerif-Italic");
+  const sans = await incrustar(pdf, leer, "LiberationSans-Regular.ttf", "BWSSAN+LiberationSans");
+  const sansBold = await incrustar(pdf, leer, "LiberationSans-Bold.ttf", "BWSSAB+LiberationSans-Bold");
+  const mono = await incrustar(pdf, leer, "LiberationMono-Regular.ttf", "BWSMON+LiberationMono");
   return { serif, serifBold, serifItalic, sans, sansBold, mono };
 }
 

@@ -3,11 +3,13 @@
 Aplicación independiente de la landing. Aquí el cliente se registra, firma
 sus documentos, describe su proyecto, elige plan, revisa y firma el
 expediente; la administración lo genera, lo verifica, lo descarga y lo
-envía. Se publica en Vercel (`portal.blink.com.ve`) contra una base Neon
-propia (`bws-contratos`), nunca la de Pay ni la de POS.
+envía. Se publica como Worker de Cloudflare (`portal.blink.com.ve`) con sus
+assets estáticos, contra una base Neon propia (`bws-contratos`), nunca la de
+Pay ni la de POS.
 
 La landing de `bws.blink.com.ve` no cambia una línea: este directorio tiene
-su propio `package.json`, `vite.config.ts`, `vercel.json`, `src/` y `api/`.
+su propio `package.json`, `vite.config.ts`, `wrangler.jsonc`, `worker.ts`,
+`src/`, `server/` y `api/`.
 
 ## Reglas que mandan el diseño
 
@@ -52,8 +54,11 @@ npm run typecheck
 npm run sistema        # copia tokens y fuentes de la landing a sistema/
 npm run sistema:verificar
 npm run build          # dist/
-npm run portal         # dist + api en 127.0.0.1:4178 contra la rama de pruebas
+npm run portal         # dist + API en 127.0.0.1:4178 contra la rama de pruebas
 npm run portal:pruebas # build + flujo completo en Chromium, axe y desborde
+npm run worker:dev     # build + Worker y assets en workerd (wrangler dev)
+npm run worker:seco    # empaqueta el Worker sin desplegar
+npm run desplegar      # build + wrangler deploy
 npm run pruebas        # unitarias: validadores, canónica, scrypt, tokens, PNG y suscripción
 npm run api:pruebas    # API de punta a punta contra la rama de pruebas
 npm run db:pruebas     # RLS, solo agregar, cadena, doble firma y pagos
@@ -65,11 +70,11 @@ npm run pdf:verificar  # dos pasadas idénticas y fuentes incrustadas
 npm run afirmaciones   # revisa los textos legales
 ```
 
-`npm run portal` ejecuta las funciones de `api/` con el mismo contrato que
-Vercel (`Request` → `Response`) y aplica las cabeceras de `vercel.json`. Se
-niega a arrancar si `DATABASE_URL_PRUEBAS_APP` comparte host con
-`DATABASE_URL`. Con `PORTAL_DB=main` usa la base principal, y eso solo se
-hace a mano.
+`npm run portal` despacha las rutas de `server/` desde `api/[...ruta].ts`
+con el mismo contrato que el Worker (`Request` → `Response`) y aplica las
+cabeceras de `public/_headers`. Se niega a arrancar si
+`DATABASE_URL_PRUEBAS_APP` comparte host con `DATABASE_URL`. Con
+`PORTAL_DB=main` usa la base principal, y eso solo se hace a mano.
 
 `npm run admin:alta` no escribe sin `--confirmar`
 (`npm run admin:alta -- --confirmar`). Toma `ADMIN_CORREO`, `ADMIN_CLAVE` y
@@ -79,7 +84,10 @@ No hay registro público de administradores.
 
 ## Variables de entorno
 
-Solo nombres; los valores viven en `.env.local` (ignorado) o en Vercel.
+Solo nombres; los valores viven en `.env.local` (ignorado) o en Cloudflare
+(secretos con `wrangler secret put`, el resto como variables del Worker).
+`nodejs_compat` hace que los manejadores las lean de `process.env` sin
+cambios.
 
 | nombre | para qué |
 |---|---|
@@ -103,12 +111,16 @@ se niega a usarlo con `ENTORNO=produccion`.
 
 - **Interfaz:** React 19 + Vite 8 + TypeScript estricto. El sistema visual
   vive en `sistema/`, una copia de `../src/styles` que mantiene
-  `npm run sistema`; Vercel solo sube esta carpeta y no puede leer fuera de
-  ella. Una prueba unitaria falla si la copia se desvía, así que la landing
-  sigue siendo la fuente única. Los PDF usan Liberation Serif/Sans/Mono
-  vendorizadas en `render/fuentes/` (SIL OFL 1.1): SF Pro es de Apple y no
-  se incrusta en documentos entregados.
-- **API:** funciones en `api/`, una por ruta, con el envoltorio
+  `npm run sistema`; el portal se publica solo y no puede leer fuera de su
+  carpeta. Una prueba unitaria falla si la copia se desvía, así que la
+  landing sigue siendo la fuente única. Los PDF usan Liberation
+  Serif/Sans/Mono vendorizadas en `render/fuentes/` (SIL OFL 1.1): SF Pro es
+  de Apple y no se incrusta en documentos entregados. El motor recibe un
+  lector de fuentes: Node las lee del disco (`fuentes-nodo.ts`) y el Worker
+  las lleva empaquetadas (`fuentes-worker.ts`), con salida byte por byte
+  idéntica en ambos.
+- **API:** una sola entrada `api/[...ruta].ts` despacha las rutas de
+  `server/`; el Worker la invoca únicamente para `/api/*`, con el envoltorio
   `_lib/manejador.ts`. Conexión con `@neondatabase/serverless` sobre HTTP;
   cada operación abre una transacción que fija `app.usuario_id` y
   `app.rol` para que RLS decida. No hay transacciones interactivas.
@@ -135,13 +147,15 @@ se niega a usarlo con `ENTORNO=produccion`.
 
 ## Seguridad
 
-`vercel.json` aplica CSP sin contenido en línea (`script-src 'self'`,
-`style-src 'self'`), `frame-ancestors 'none'`, HSTS de dos años, `nosniff`,
-`X-Frame-Options: DENY`, `Referrer-Policy: same-origin`, `Permissions-Policy`
-sin cámara ni micrófono, y `Cache-Control: no-store` en la API. El servidor
-local lee el mismo archivo, de modo que `npm run portal:pruebas` comprueba
-las cabeceras reales. Por eso el lienzo de firma no usa `style` en línea:
-su alto está en `estilos/portal.css`.
+`public/_headers` aplica a los assets la CSP sin contenido en línea
+(`script-src 'self'`, `style-src 'self'`), `frame-ancestors 'none'`, HSTS de
+dos años, `nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy: same-origin`,
+`Permissions-Policy` sin cámara ni micrófono, y caché inmutable a
+`/assets/*`. `worker.ts` fija esas mismas cabeceras, más
+`Cache-Control: no-store`, a las respuestas de la API, porque `_headers` no
+se aplica a lo que genera código. El servidor local lee `public/_headers`, de
+modo que `npm run portal:pruebas` comprueba las cabeceras reales. Por eso el
+lienzo de firma no usa `style` en línea: su alto está en `estilos/portal.css`.
 
 Riesgos y deberes operativos —procesadores, países, retención, respaldo,
 SPF/DKIM/DMARC, respuesta a incidentes— están en
@@ -168,8 +182,15 @@ cadenas comparten host.
 
 ## Publicar
 
-El proyecto de Vercel apunta a esta carpeta, construye `dist/` y publica
-`api/` como funciones en la región `cle1`. Antes del primer arranque hay que
-aplicar las migraciones como dueño, publicar las plantillas, crear la cuenta
-de administración y cargar las variables de entorno en Vercel. `vercel.json`
-ya trae las cabeceras y la región; no se configura a mano en el panel.
+`npm run desplegar` construye `dist/` y publica el Worker con Wrangler
+(`wrangler login` una vez, o `CLOUDFLARE_API_TOKEN`). `wrangler.jsonc` sirve
+`dist/` como assets con respaldo `index.html`, manda `/api/*` al Worker y
+declara las fuentes TTF como módulos `Data`. Antes del primer arranque hay
+que aplicar las migraciones como dueño, publicar las plantillas, crear la
+cuenta de administración y cargar los secretos `DATABASE_URL_APP` y
+`CORREO_API_KEY` más las variables `ENTORNO=produccion`, `APP_ORIGEN`,
+`CORREO_MODO=resend`, `CORREO_DESDE` y `CORREO_COPIA`. El plan Workers Paid
+es necesario para generar los PDF: el gratuito limita la CPU a 10 ms.
+`wrangler.jsonc` fija `limits.cpu_ms` en 60 s, por encima de los 30 s por
+omisión, porque los ocho documentos con fuentes incrustadas consumen unos 12 s
+de CPU.

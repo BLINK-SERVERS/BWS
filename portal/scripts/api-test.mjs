@@ -1,8 +1,8 @@
 /* ============================================================
    Pruebas de la API contra la rama `pruebas`
    ------------------------------------------------------------
-   Llama a las funciones reales (misma entrada que recibe Vercel)
-   con un `Request` web y comprueba el flujo completo del alta:
+   Llama a las funciones reales (la misma entrada que despacha el
+   Worker) con un `Request` web y comprueba el flujo completo del alta:
 
    · consentimiento resuelto y huellas estables;
    · registro, correo duplicado y documento duplicado;
@@ -43,6 +43,10 @@ process.env.APP_ORIGEN = ORIGEN;
 process.env.CORREO_MODO = "archivo";
 process.env.CORREO_ARCHIVO_DIR = CORREO_DIR.pathname;
 
+const { configurarFuentes } = await import("../render/fuentes.ts");
+const { lectorNodo } = await import("../render/fuentes-nodo.ts");
+configurarFuentes(lectorNodo);
+
 await rm(CORREO_DIR, { recursive: true, force: true });
 await mkdir(CORREO_DIR, { recursive: true });
 
@@ -50,33 +54,33 @@ const cliente = new pg.Client({ connectionString: urlDueno, application_name: "b
 await cliente.connect();
 await cliente.query("truncate usuarios, representantes, plantillas, limites cascade");
 
-const { default: consentimiento } = await import("../api/auth/consentimiento.ts");
-const { default: registro } = await import("../api/auth/registro.ts");
-const { default: ingreso } = await import("../api/auth/ingreso.ts");
-const { default: sesionActual } = await import("../api/auth/sesion.ts");
-const { default: salir } = await import("../api/auth/salir.ts");
-const { default: verificar } = await import("../api/auth/verificar.ts");
-const { default: recuperar } = await import("../api/auth/recuperar.ts");
-const { default: restablecer } = await import("../api/auth/restablecer.ts");
-const { default: firma } = await import("../api/cliente/firma.ts");
-const { default: proyecto } = await import("../api/cliente/proyecto.ts");
-const { default: enviarProyecto } = await import("../api/cliente/proyecto/enviar.ts");
-const { default: representante } = await import("../api/admin/representante.ts");
-const { default: panelAdmin } = await import("../api/admin/panel.ts");
-const { default: generarExpediente } = await import("../api/documentos/generar.ts");
-const { default: firmarExpediente } = await import("../api/documentos/firmar.ts");
-const { default: verificarExpediente } = await import("../api/documentos/verificar.ts");
-const { default: descargarDocumento } = await import("../api/documentos/descargar.ts");
-const { default: enviarExpediente } = await import("../api/documentos/enviar.ts");
-const { default: documentosCliente } = await import("../api/cliente/documentos.ts");
-const { default: suscripcionCliente } = await import("../api/cliente/suscripcion.ts");
-const { default: crearSuscripcion } = await import("../api/suscripciones/crear.ts");
-const { default: registrarPago } = await import("../api/suscripciones/pago.ts");
-const { default: anularPago } = await import("../api/suscripciones/anular.ts");
-const { default: recalcular } = await import("../api/suscripciones/recalcular.ts");
-const { default: suspender } = await import("../api/suscripciones/suspender.ts");
-const { default: reactivar } = await import("../api/suscripciones/reactivar.ts");
-const { hashearClave } = await import("../api/_lib/clave.ts");
+const { default: consentimiento } = await import("../server/auth/consentimiento.ts");
+const { default: registro } = await import("../server/auth/registro.ts");
+const { default: ingreso } = await import("../server/auth/ingreso.ts");
+const { default: sesionActual } = await import("../server/auth/sesion.ts");
+const { default: salir } = await import("../server/auth/salir.ts");
+const { default: verificar } = await import("../server/auth/verificar.ts");
+const { default: recuperar } = await import("../server/auth/recuperar.ts");
+const { default: restablecer } = await import("../server/auth/restablecer.ts");
+const { default: firma } = await import("../server/cliente/firma.ts");
+const { default: proyecto } = await import("../server/cliente/proyecto.ts");
+const { default: enviarProyecto } = await import("../server/cliente/proyecto/enviar.ts");
+const { default: representante } = await import("../server/admin/representante.ts");
+const { default: panelAdmin } = await import("../server/admin/panel.ts");
+const { default: generarExpediente } = await import("../server/documentos/generar.ts");
+const { default: firmarExpediente } = await import("../server/documentos/firmar.ts");
+const { default: verificarExpediente } = await import("../server/documentos/verificar.ts");
+const { default: descargarDocumento } = await import("../server/documentos/descargar.ts");
+const { default: enviarExpediente } = await import("../server/documentos/enviar.ts");
+const { default: documentosCliente } = await import("../server/cliente/documentos.ts");
+const { default: suscripcionCliente } = await import("../server/cliente/suscripcion.ts");
+const { default: crearSuscripcion } = await import("../server/suscripciones/crear.ts");
+const { default: registrarPago } = await import("../server/suscripciones/pago.ts");
+const { default: anularPago } = await import("../server/suscripciones/anular.ts");
+const { default: recalcular } = await import("../server/suscripciones/recalcular.ts");
+const { default: suspender } = await import("../server/suscripciones/suspender.ts");
+const { default: reactivar } = await import("../server/suscripciones/reactivar.ts");
+const { hashearClave } = await import("../server/_lib/clave.ts");
 const { hashCadena, sha256Hex } = await import("../render/hash.ts");
 const { sembrarPlantillas } = await import("./sembrar-plantillas.mjs");
 

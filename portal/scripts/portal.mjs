@@ -38,7 +38,7 @@ const RAIZ = fileURLToPath(new URL("..", import.meta.url));
 const PUERTO = Number(process.env.PORTAL_PUERTO ?? 4188);
 const AXE = createRequire(import.meta.url).resolve("axe-core/axe.min.js");
 // Se evalúa en el contexto de la página: inyectarlo como <script> choca
-// con la CSP de vercel.json, que no permite scripts en línea.
+// con la CSP de `public/_headers`, que no permite scripts en línea.
 const AXE_FUENTE = await readFile(AXE, "utf8");
 const CORREO = join(RAIZ, "tmp", "correo-portal");
 
@@ -188,7 +188,7 @@ async function principal() {
   await base.query("truncate usuarios, representantes, limites cascade");
   await sembrarPlantillas(base);
 
-  const { hashearClave } = await import("../api/_lib/clave.ts");
+  const { hashearClave } = await import("../server/_lib/clave.ts");
   await base.query(
     `insert into usuarios (correo, clave_hash, nombre, rol, correo_verificado)
      values ($1, $2, $3, 'admin', true)`,
@@ -411,9 +411,11 @@ async function principal() {
       admin.locator(".po-admin-bloque").filter({ hasText: "App de citas" }).first();
 
     await bloqueExpediente().getByRole("button", { name: "Generar expediente" }).click();
+    // Ocho PDF con las seis fuentes incrustadas: en una máquina cargada
+    // pasa de los 30 s del tiempo por omisión.
     await bloqueExpediente()
       .getByText("Expediente generado: 8 documentos sellados.")
-      .waitFor();
+      .waitFor({ timeout: 120_000 });
     await bloqueExpediente().getByRole("button", { name: "Verificar cadena" }).click();
     await bloqueExpediente()
       .getByText("Hay comprobaciones en falso: revisa cada fila.")

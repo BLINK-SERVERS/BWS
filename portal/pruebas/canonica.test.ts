@@ -12,7 +12,7 @@ import { canonica } from "../legal/canonica.ts";
 import { DOCUMENTOS, DOCUMENTO_POR_CODIGO } from "../legal/index.ts";
 import { hashConsentimiento, hashPlantilla, sha256Hex } from "../render/hash.ts";
 import { resolver } from "../legal/validar.ts";
-import { huellaDelConsentimiento, huellasDeRegistro, DOCUMENTOS_REGISTRO } from "../api/_lib/registro.ts";
+import { huellaDelConsentimiento, huellasDeRegistro, DOCUMENTOS_REGISTRO } from "../server/_lib/registro.ts";
 
 describe("canonica", () => {
   it("ordena las claves en cualquier profundidad", () => {

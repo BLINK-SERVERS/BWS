@@ -15,10 +15,10 @@ import {
   normalizarBuzones,
   variablesDeProyecto,
   type ProyectoVista,
-} from "../api/_lib/proyecto.ts";
+} from "../server/_lib/proyecto.ts";
 import { normalizarDominio } from "../legal/identidad.ts";
-import type { PlanVista } from "../api/_lib/planes.ts";
-import { ErrorHttp } from "../api/_lib/respuestas.ts";
+import type { PlanVista } from "../server/_lib/planes.ts";
+import { ErrorHttp } from "../server/_lib/respuestas.ts";
 
 const PLAN: PlanVista = {
   clave: "supabase",

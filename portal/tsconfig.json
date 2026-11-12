@@ -18,5 +18,5 @@
     "allowImportingTsExtensions": true,
     "types": ["node", "vite/client"]
   },
-  "include": ["src", "api", "legal", "render", "pruebas", "vite.config.ts"]
+  "include": ["src", "api", "server", "legal", "render", "pruebas", "vite.config.ts"]
 }

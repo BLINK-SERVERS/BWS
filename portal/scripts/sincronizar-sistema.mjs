@@ -1,9 +1,9 @@
 /* ============================================================
    Copia el sistema visual de la landing al portal
    ------------------------------------------------------------
-   El portal se despliega solo con su carpeta, así que no puede
-   resolver `../src/styles` en Vercel. Aquí se mantiene una copia
-   fiel de los tokens y la tipografía dentro de `portal/sistema/`;
+   El portal se publica solo con su carpeta, así que no puede
+   resolver `../src/styles` fuera de ella. Aquí se mantiene una
+   copia fiel de los tokens y la tipografía en `portal/sistema/`;
    la landing sigue siendo la fuente única.
 
    · `fonts.css` se copia con la ruta de las fuentes ajustada a

@@ -17,9 +17,9 @@ import {
   type FirmaExpediente,
   type ProyectoExpediente,
   type RepresentanteExpediente,
-} from "../api/_lib/expediente.ts";
-import type { PlanVista } from "../api/_lib/planes.ts";
-import type { ProyectoVista } from "../api/_lib/proyecto.ts";
+} from "../server/_lib/expediente.ts";
+import type { PlanVista } from "../server/_lib/planes.ts";
+import type { ProyectoVista } from "../server/_lib/proyecto.ts";
 import { fechaLarga } from "../legal/fechas.ts";
 import { DOCUMENTOS } from "../legal/index.ts";
 import { hashCadena, selloDeContenido } from "../render/hash.ts";

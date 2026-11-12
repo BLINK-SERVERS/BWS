@@ -277,16 +277,17 @@ nítidos que renderizando directo y pesa la mitad (86 KB).
 ## Portal de clientes
 
 `portal/` es una aplicación **independiente**: su propio `package.json`,
-`vite.config.ts`, `src/`, `api/` y `vercel.json`. No comparte build con la
-landing, no se publica en GitHub Pages y no cambia una línea de lo que
-sirve `bws.blink.com.ve`. Su destino es Vercel
-(`portal.blink.com.ve`), con Neon como base. Las rutas son de hash
+`vite.config.ts`, `src/`, `server/`, `api/`, `worker.ts` y `wrangler.jsonc`.
+No comparte build con la landing, no se publica en GitHub Pages y no cambia
+una línea de lo que sirve `bws.blink.com.ve`. Su destino es un Worker de
+Cloudflare con assets estáticos (`portal.blink.com.ve`), con Neon como base.
+Las rutas son de hash
 (`#/ingreso`, `#/registro`, `#/panel`, `#/proyecto`, `#/admin`) para no
 depender de reescrituras; el navegador habla solo con su propio origen y
 los proveedores viven en el servidor.
 
 El sistema visual vive en `portal/sistema/`, una copia de `src/styles` que
-mantiene `npm run sistema`; Vercel sube solo la carpeta del portal y no
+mantiene `npm run sistema`; el Worker sube solo la carpeta del portal y no
 puede leer `../src`, y una prueba unitaria falla si la copia se desvía. El
 portal usa SF Pro para la interfaz, pero **los PDF usan Liberation
 Serif/Sans/Mono** (SIL OFL 1.1, vendorizadas en `portal/render/fuentes/`).
@@ -306,12 +307,15 @@ npm run admin:alta     # crea o actualiza la cuenta de administración (pide --c
 npm run db:pruebas     # RLS, solo agregar, cadena y doble firma en la rama de pruebas
 npm run api:pruebas    # registro, sesión, firma, proyecto, expediente, pagos y mora
 npm run pruebas        # unitarias: validadores, canónica, scrypt, tokens, PNG y suscripción
-npm run portal         # dist + api en http://127.0.0.1:4178 (base de pruebas)
+npm run portal         # dist + API en http://127.0.0.1:4178 (base de pruebas)
 npm run portal:pruebas # flujo completo en Chromium, axe y desborde en 390 y 1440
+npm run worker:dev     # build + Worker y assets locales en workerd
+npm run worker:seco    # empaqueta el Worker sin desplegar
+npm run desplegar      # build + wrangler deploy
 ```
 
-`npm run portal` sirve `dist/` y ejecuta las funciones de `api/` como lo hará
-Vercel. Por defecto usa `DATABASE_URL_PRUEBAS_APP` (`PORTAL_DB=pruebas`) y se
+`npm run portal` sirve `dist/` y despacha las rutas de `server/` como lo hará
+el Worker. Por defecto usa `DATABASE_URL_PRUEBAS_APP` (`PORTAL_DB=pruebas`) y se
 niega a arrancar si esa cadena comparte host con la principal; `PORTAL_DB=main`
 solo se usa a mano. El correo sale en modo archivo a `portal/tmp/correo-portal/`.
 
@@ -423,12 +427,13 @@ el estado anterior en `eventos`. Las pruebas cierran en 67 unitarias, 46 de
 API, 64 de navegador y 16 de base de datos.
 
 Estado de la entrega M6: la entrega queda endurecida y documentada.
-`portal/vercel.json` fija la región `cle1` —la más cercana a Neon— y aplica
-CSP sin `'unsafe-inline'` (`script-src 'self'`, `style-src 'self'`,
-`frame-ancestors 'none'`), HSTS de dos años, `nosniff`, `X-Frame-Options:
-DENY`, `Referrer-Policy: same-origin` y una `Permissions-Policy` que apaga
-cámara, micrófono, geolocalización, pago y USB. El servidor local lee ese
-mismo archivo y aplica sus cabeceras, así que la prueba de navegador las
+`portal/public/_headers` aplica a los assets y `portal/worker.ts` fija las
+mismas cabeceras a la API: CSP sin `'unsafe-inline'` (`script-src 'self'`,
+`style-src 'self'`, `frame-ancestors 'none'`), HSTS de dos años, `nosniff`,
+`X-Frame-Options: DENY`, `Referrer-Policy: same-origin` y una
+`Permissions-Policy` que apaga cámara, micrófono, geolocalización, pago y
+USB. El servidor local lee `_headers` y aplica esas cabeceras, y la API
+marca `Cache-Control: no-store`, así que la prueba de navegador las
 comprueba en cada respuesta y falla si alguien mete un script o un estilo en
 línea: el lienzo de firma dejó de llevar `style` y su alto vive en el CSS.
 La revisión de afirmaciones suma cinco reglas —disponibilidad total,
@@ -440,7 +445,7 @@ imprime la clave. La operación (procesadores, países, retención, respaldo,
 revisión de correo, incidentes) está en
 [`docs/legal/operacion.md`](docs/legal/operacion.md), y el costo, margen y
 suelo de cada plan en [`docs/legal/economia.md`](docs/legal/economia.md),
-interno y no se entrega al cliente. Las pruebas cierran en 70 unitarias, 47
+interno y no se entrega al cliente. Las pruebas cierran en 73 unitarias, 47
 de API, 66 de navegador y 16 de base de datos.
 
 Las variables de entorno (solo nombres, nunca valores en el repo):

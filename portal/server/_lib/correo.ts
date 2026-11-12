@@ -10,8 +10,6 @@
    ============================================================ */
 
 import { createHash, randomBytes } from "node:crypto";
-import { mkdir, writeFile } from "node:fs/promises";
-import { join } from "node:path";
 
 export interface Adjunto {
   nombre: string;
@@ -46,6 +44,12 @@ function nombreSeguro(nombre: string): string {
 }
 
 async function porArchivo(mensaje: Mensaje): Promise<Envio> {
+  // Solo para pruebas y desarrollo local: se importa aquí para que el
+  // paquete del Worker nunca cargue el sistema de archivos.
+  const [{ mkdir, writeFile }, { join }] = await Promise.all([
+    import("node:fs/promises"),
+    import("node:path"),
+  ]);
   const carpeta = process.env.CORREO_ARCHIVO_DIR ?? join(process.cwd(), "tmp", "correo");
   await mkdir(carpeta, { recursive: true });
   const marca = `${Date.now()}-${randomBytes(4).toString("hex")}`;

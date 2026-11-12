@@ -19,6 +19,7 @@ import { DOCUMENTOS, datosDePrueba } from "../legal/index.ts";
 import { resolver, validarPlantilla } from "../legal/validar.ts";
 import { PRESETS } from "../legal/planes.ts";
 import { hashCadena, hashPlantilla, selloDeContenido, sha256Hex } from "../render/hash.ts";
+import { lectorNodo } from "../render/fuentes-nodo.ts";
 import { generarPDF } from "../render/pdf.ts";
 import { firmaPNG } from "./firma-png.mjs";
 
@@ -108,6 +109,7 @@ async function generar(doc, datos, firmas, evidencia) {
     firmas,
     evidencia,
     fechaCreacion: FECHA,
+    leerFuente: lectorNodo,
   });
 }
 

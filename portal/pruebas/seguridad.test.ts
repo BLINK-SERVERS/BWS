@@ -8,10 +8,10 @@
 
 import assert from "node:assert/strict";
 import { afterEach, describe, it } from "node:test";
-import { ErrorHttp } from "../api/_lib/respuestas.ts";
-import { hashearClave, verificarClave, verificarConRelleno } from "../api/_lib/clave.ts";
-import { cookieBorrada, cookieDeSesion, hashToken, tokenNuevo } from "../api/_lib/sesion.ts";
-import { validarFirmaPNG } from "../api/_lib/imagen.ts";
+import { ErrorHttp } from "../server/_lib/respuestas.ts";
+import { hashearClave, verificarClave, verificarConRelleno } from "../server/_lib/clave.ts";
+import { cookieBorrada, cookieDeSesion, hashToken, tokenNuevo } from "../server/_lib/sesion.ts";
+import { validarFirmaPNG } from "../server/_lib/imagen.ts";
 
 describe("claves con scrypt", () => {
   it("guarda el formato con parámetros y una sal distinta cada vez", async () => {

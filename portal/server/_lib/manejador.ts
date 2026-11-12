@@ -1,7 +1,7 @@
 /* ============================================================
    Envoltura de las funciones
    ------------------------------------------------------------
-   Vercel entrega un `Request` web y espera un `Response` web.
+   Cloudflare entrega un `Request` web y espera un `Response` web.
    Esta envoltura comprueba el método, captura `ErrorHttp` y evita
    que un fallo interno se convierta en una traza con datos.
    ============================================================ */

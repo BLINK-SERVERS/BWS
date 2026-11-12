@@ -1,9 +1,9 @@
 /* ============================================================
    Servidor local del portal
    ------------------------------------------------------------
-   Sirve `dist/` y ejecuta las funciones de `api/` con el mismo
-   contrato que Vercel (`Request` → `Response`). No es el
-   servidor de producción: es la forma de probar el flujo
+   Sirve `dist/` y ejecuta las rutas de `server/` con el mismo
+   contrato que el Worker de Cloudflare (`Request` → `Response`).
+   No es el servidor de producción: es la forma de probar el flujo
    completo en un navegador sin desplegar.
 
    · `PORTAL_DB=pruebas` (por defecto) usa `DATABASE_URL_PRUEBAS_APP`
@@ -16,33 +16,48 @@
    ============================================================ */
 
 import { createServer } from "node:http";
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { readFile, stat } from "node:fs/promises";
 import { extname, join, resolve, sep } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { cargarEnv } from "./_env.mjs";
+import { configurarFuentes } from "../render/fuentes.ts";
+import { lectorNodo } from "../render/fuentes-nodo.ts";
 
 const RAIZ = fileURLToPath(new URL("..", import.meta.url));
-const API = resolve(RAIZ, "api");
+const API = resolve(RAIZ, "server");
 const DIST = resolve(RAIZ, "dist");
-const VERCEL = JSON.parse(await readFile(resolve(RAIZ, "vercel.json"), "utf8"));
+/** Reglas de `public/_headers`, las mismas que aplica Cloudflare. */
+const REGLAS_CABECERAS = (() => {
+  const texto = readFileSync(resolve(RAIZ, "public", "_headers"), "utf8");
+  const reglas = [];
+  let actual = null;
+  for (const linea of texto.split("\n")) {
+    if (!linea.trim() || linea.trim().startsWith("#")) continue;
+    if (!/^\s/.test(linea)) {
+      const patron = linea
+        .trim()
+        .split("*")
+        .map((parte) => parte.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))
+        .join(".*");
+      actual = { patron: new RegExp(`^${patron}$`), cabeceras: {} };
+      reglas.push(actual);
+      continue;
+    }
+    const separador = linea.indexOf(":");
+    if (!actual || separador < 0) continue;
+    const nombre = linea.slice(0, separador).trim().toLowerCase();
+    if (!nombre || nombre.startsWith("!")) continue;
+    actual.cabeceras[nombre] = linea.slice(separador + 1).trim();
+  }
+  return reglas;
+})();
 
-/** Convierte `/(.*)` de vercel.json en una expresión regular. */
-function patronDe(fuente) {
-  const partes = fuente
-    .split("(.*)")
-    .map((parte) => parte.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
-  return new RegExp(`^${partes.join("(.*)")}$`);
-}
-
-/** Cabeceras de vercel.json que aplican a esta ruta. */
+/** Cabeceras que aplican a esta ruta; las reglas se acumulan. */
 function cabecerasDe(ruta) {
   const cabeceras = {};
-  for (const regla of VERCEL.headers ?? []) {
-    if (!patronDe(regla.source).test(ruta)) continue;
-    for (const { key, value } of regla.headers) {
-      cabeceras[key.toLowerCase()] = value;
-    }
+  for (const regla of REGLAS_CABECERAS) {
+    if (regla.patron.test(ruta)) Object.assign(cabeceras, regla.cabeceras);
   }
   return cabeceras;
 }
@@ -99,7 +114,7 @@ async function leerCuerpo(req) {
   return partes.length ? Buffer.concat(partes) : undefined;
 }
 
-/** Importa `api/<ruta>.ts` y devuelve su `default`, o null si no existe. */
+/** Importa `server/<ruta>.ts` y devuelve su `default`, o null si no existe. */
 async function buscarManejador(ruta) {
   const limpia = ruta.replace(/^\/api\//, "").replace(/\/+$/, "");
   if (!/^[a-z0-9][a-z0-9/_-]*$/i.test(limpia)) return null;
@@ -192,6 +207,7 @@ async function atenderEstatico(req, res, url) {
 
 export async function crearServidor({ puerto = 4178 } = {}) {
   prepararEntorno(puerto);
+  configurarFuentes(lectorNodo);
   const servidor = createServer(async (req, res) => {
     try {
       const url = new URL(req.url, `http://${req.headers.host ?? "127.0.0.1"}`);

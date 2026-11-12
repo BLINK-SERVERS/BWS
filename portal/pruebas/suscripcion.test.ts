@@ -22,7 +22,7 @@ import {
   sumarDias,
   vencimientoDelPeriodo,
   vencimientoTrasPeriodo,
-} from "../api/_lib/suscripcion.ts";
+} from "../server/_lib/suscripcion.ts";
 
 describe("fechas en UTC", () => {
   it("hoyUTC no depende de la hora del día", () => {

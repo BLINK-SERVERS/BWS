@@ -18,7 +18,7 @@
 
 import pg from "pg";
 import { cargarEnv } from "./_env.mjs";
-import { hashearClave } from "../api/_lib/clave.ts";
+import { hashearClave } from "../server/_lib/clave.ts";
 import { correoNormalizado, mensajeClave } from "../legal/identidad.ts";
 
 async function principal() {
