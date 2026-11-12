@@ -10,9 +10,9 @@ una vez por trimestre.
 
 ## 1. Dos capas que no se mezclan
 
-1. **El portal de Blink** (`portal.blink.com.ve`): un Worker de Cloudflare
-   con Static Assets y un proyecto Neon multi-tenant. Este costo lo absorbe
-   Blink y no se factura por cliente.
+1. **El portal de Blink** (`bws.blink.com.ve/registro` y demás rutas del
+   portal): un Worker de Cloudflare con Static Assets y un proyecto Neon
+   multi-tenant. Este costo lo absorbe Blink y no se factura por cliente.
 2. **La aplicación de cada cliente**: los planes de `planes_infra`
    (`supabase` y `neon-cloudflare`, dos niveles cada uno). Esto es lo que el
    cliente paga como infraestructura y lo que se imprime en el anexo B.

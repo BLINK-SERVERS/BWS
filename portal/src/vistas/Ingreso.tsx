@@ -7,6 +7,7 @@
 
 import { useState } from "react";
 import { api, FalloApi, type SesionPortal } from "../datos/api";
+import { navegar } from "../datos/rutas";
 import { Campo } from "../componentes/Campo";
 
 export function Ingreso({
@@ -35,7 +36,7 @@ export function Ingreso({
         <p>
           <a
             className="po-boton po-boton-principal"
-            href={sesion.usuario.rol === "admin" ? "#/admin" : "#/panel"}
+            href={sesion.usuario.rol === "admin" ? "/admin" : "/panel"}
           >
             {sesion.usuario.rol === "admin" ? "Ir a la administración" : "Ir al panel"}
           </a>
@@ -51,7 +52,7 @@ export function Ingreso({
     try {
       const respuesta = await api.ingreso(correo.trim(), clave);
       await alEntrar();
-      window.location.hash = respuesta.rol === "admin" ? "#/admin" : "#/panel";
+      navegar(respuesta.rol === "admin" ? "/admin" : "/panel");
     } catch (fallo) {
       setError(
         fallo instanceof FalloApi ? fallo.message : "No pudimos entrar. Inténtalo de nuevo.",
@@ -99,8 +100,8 @@ export function Ingreso({
       </form>
 
       <p className="po-apagado">
-        ¿No tienes cuenta? <a href="#/registro">Crea una</a>. ¿Olvidaste la clave?{" "}
-        <a href="#/recuperar">Restablécala</a>.
+        ¿No tienes cuenta? <a href="/registro">Crea una</a>. ¿Olvidaste la clave?{" "}
+        <a href="/recuperar">Restablécala</a>.
       </p>
     </section>
   );

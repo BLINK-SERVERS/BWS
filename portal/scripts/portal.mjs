@@ -231,7 +231,7 @@ async function principal() {
 
     const medir = revisarAxe();
     const ir = async (ruta) => {
-      const respuesta = await pagina.goto(`${origen}/#/${ruta}`, { waitUntil: "domcontentloaded" });
+      const respuesta = await pagina.goto(`${origen}/${ruta}`, { waitUntil: "domcontentloaded" });
       await pagina.waitForSelector("main");
       return respuesta;
     };
@@ -277,7 +277,7 @@ async function principal() {
     const token = await correoDe(correo);
     comprobar("el correo de verificación llega al modo archivo", /^[A-Za-z0-9_-]{40,64}$/.test(token));
 
-    await pagina.goto(`${origen}/#/verificar?token=${encodeURIComponent(token)}`, {
+    await pagina.goto(`${origen}/verificar?token=${encodeURIComponent(token)}`, {
       waitUntil: "domcontentloaded",
     });
     await pagina.getByRole("heading", { name: "Correo confirmado." }).waitFor();
@@ -287,7 +287,7 @@ async function principal() {
     await pagina.getByLabel("Correo", { exact: true }).fill(correo);
     await pagina.getByLabel("Clave", { exact: true }).fill(clave);
     await pagina.getByRole("button", { name: "Entrar", exact: true }).click();
-    await pagina.waitForURL(/#\/panel/);
+    await pagina.waitForURL(/\/panel$/);
     await pagina.getByRole("heading", { name: "Ana Pérez" }).waitFor();
     await pagina.getByText("Firmar el consentimiento").waitFor();
     await medir(pagina, "panel sin firma", 1440);
@@ -368,12 +368,15 @@ async function principal() {
     admin.setDefaultTimeout(30_000);
     vigilar(admin);
 
-    await admin.goto(`${origen}/#/ingreso`, { waitUntil: "domcontentloaded" });
+    await admin.goto(`${origen}/ingreso`, { waitUntil: "domcontentloaded" });
     await admin.getByLabel("Correo", { exact: true }).fill(ADMIN.correo);
     await admin.getByLabel("Clave", { exact: true }).fill(ADMIN.clave);
     await admin.getByRole("button", { name: "Entrar", exact: true }).click();
-    await admin.waitForURL(/#\/admin/);
-    await admin.goto(`${origen}/#/admin`, { waitUntil: "domcontentloaded" });
+    await admin.waitForURL(/\/admin$/);
+    // El salto de cliente conserva la página: deja terminar el panel que
+    // monta la ruta antes de recargar, o la recarga aborta su petición.
+    await admin.getByRole("heading", { name: "Operación de Blink" }).waitFor();
+    await admin.goto(`${origen}/admin`, { waitUntil: "domcontentloaded" });
     await admin.getByRole("heading", { name: "Operación de Blink" }).waitFor();
     comprobar(
       "la administración entra y ve el resumen de operación",

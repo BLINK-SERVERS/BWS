@@ -25,7 +25,7 @@ test("cada ruta de server/ está despachada y no sobra ninguna", () => {
 });
 
 test("una ruta desconocida responde 404 sin tocar la base", async () => {
-  const respuesta = await despachar(new Request("https://portal.blink.com.ve/api/no/existe"));
+  const respuesta = await despachar(new Request("https://bws.blink.com.ve/api/no/existe"));
   assert.equal(respuesta.status, 404);
   assert.deepEqual(await respuesta.json(), { error: "No existe esa ruta de la API." });
 });

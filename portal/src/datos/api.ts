@@ -634,8 +634,7 @@ export function guardarDescarga(descarga: Descarga): void {
   URL.revokeObjectURL(url);
 }
 
-/** Parámetro de la ruta hash (`#/verificar?token=...`). */
+/** Parámetro de la ruta (`/verificar?token=...`). */
 export function parametro(nombre: string): string {
-  const consulta = window.location.hash.split("?")[1] ?? "";
-  return new URLSearchParams(consulta).get(nombre) ?? "";
+  return new URLSearchParams(window.location.search).get(nombre) ?? "";
 }

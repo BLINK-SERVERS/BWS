@@ -278,13 +278,27 @@ nítidos que renderizando directo y pesa la mitad (86 KB).
 
 `portal/` es una aplicación **independiente**: su propio `package.json`,
 `vite.config.ts`, `src/`, `server/`, `api/`, `worker.ts` y `wrangler.jsonc`.
-No comparte build con la landing, no se publica en GitHub Pages y no cambia
-una línea de lo que sirve `bws.blink.com.ve`. Su destino es un Worker de
-Cloudflare con assets estáticos (`portal.blink.com.ve`), con Neon como base.
-Las rutas son de hash
-(`#/ingreso`, `#/registro`, `#/panel`, `#/proyecto`, `#/admin`) para no
-depender de reescrituras; el navegador habla solo con su propio origen y
-los proveedores viven en el servidor.
+No comparte build con la landing, pero sí el dominio: el cliente se
+registra en `bws.blink.com.ve/registro` y usa `/ingreso`, `/panel`,
+`/proyecto`, `/admin`, `/verificar` y `/recuperar`, con los archivos del
+portal bajo `/portal/assets/`. La landing la sigue sirviendo GitHub Pages;
+un Worker de Cloudflare se engancha solo a esas rutas y a `/api/*`, así
+que el visitante no cambia de sitio para registrarse. El navegador habla
+solo con su propio origen y los proveedores viven en el servidor.
+
+| ruta | quién responde | origen |
+|---|---|---|
+| `/`, `/*.js`, `/*.css`, imágenes | GitHub Pages | `dist/` de la raíz |
+| `/registro`, `/ingreso`, `/panel`, `/proyecto`, `/admin`, `/verificar`, `/recuperar` | Worker `bws-portal` | `portal/dist/index.html` |
+| `/portal/assets/*` | Worker `bws-portal` | `portal/dist/portal/assets/*` |
+| `/api`, `/api/*` | Worker `bws-portal` | `portal/api/[...ruta].ts` |
+
+Los enlaces del portal son rutas limpias (`/panel`, no `#/panel`) y el
+Worker ejecuta primero en esas rutas (`assets.run_worker_first`) para
+fijar CSP, HSTS y el resto de cabeceras: `_headers` es de Pages y Workers
+no lo aplica. La barra de la landing enlaza «Entrar» a `/ingreso` y el
+pie a «Portal de clientes», ambos locales; si el Worker no está
+desplegado, esos enlaces caen en el `404.html` de Pages.
 
 El sistema visual vive en `portal/sistema/`, una copia de `src/styles` que
 mantiene `npm run sistema`; el Worker sube solo la carpeta del portal y no
@@ -576,3 +590,21 @@ están ambas:
    así que el forzado es solo el `301`: una primera visita escrita sin
    esquema depende de que el navegador pruebe `https://` antes, como
    hacen los actuales.
+
+**Estado de la tanda del 2026-11-11: el portal en `bws`, aún sin
+desplegar.** El registro dejó de vivir en un subdominio aparte: ahora es
+`bws.blink.com.ve/registro`, con las otras seis rutas del portal y la API
+en el mismo nombre, y la landing sigue en GitHub Pages. La landing suma
+«Entrar» en la barra y «Portal de clientes» en el pie, ambos a
+`/ingreso`. En local quedó así: typecheck y build de la landing limpios,
+`npm run verificar` en 13 archivos, 0 violaciones de axe y 0 px de
+desborde en 390 y 1440 con los dos enlaces nuevos; portal con 73
+unitarias, 66/66 comprobaciones de navegador y `afirmaciones` en verde;
+`wrangler deploy --dry-run` empaqueta sin errores y `wrangler dev` sirve
+`/registro`…`/recuperar` con `index.html`, CSP y HSTS, y `/portal/assets/`
+con caché inmutable. Falta lo que depende de la cuenta del dueño: iniciar
+sesión en Wrangler (`npx wrangler login` una vez, o
+`CLOUDFLARE_API_TOKEN` en `portal/.env.local`), poner el `CNAME` de `bws`
+en proxied y cargar secretos y variables; después `npm run desplegar`
+dentro de `portal/`. Mientras el Worker no esté publicado, «Entrar» y
+«Portal de clientes» responden el `404.html` de Pages.

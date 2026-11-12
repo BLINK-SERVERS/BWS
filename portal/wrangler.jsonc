@@ -9,8 +9,31 @@
     "directory": "./dist",
     "binding": "ASSETS",
     "not_found_handling": "single-page-application",
-    "run_worker_first": ["/api", "/api/*"]
+    "run_worker_first": [
+      "/api",
+      "/api/*",
+      "/portal/*",
+      "/registro",
+      "/ingreso",
+      "/panel",
+      "/proyecto",
+      "/admin",
+      "/verificar",
+      "/recuperar"
+    ]
   },
+  "routes": [
+    { "pattern": "bws.blink.com.ve/api", "zone_name": "blink.com.ve" },
+    { "pattern": "bws.blink.com.ve/api/*", "zone_name": "blink.com.ve" },
+    { "pattern": "bws.blink.com.ve/portal/*", "zone_name": "blink.com.ve" },
+    { "pattern": "bws.blink.com.ve/registro", "zone_name": "blink.com.ve" },
+    { "pattern": "bws.blink.com.ve/ingreso", "zone_name": "blink.com.ve" },
+    { "pattern": "bws.blink.com.ve/panel", "zone_name": "blink.com.ve" },
+    { "pattern": "bws.blink.com.ve/proyecto", "zone_name": "blink.com.ve" },
+    { "pattern": "bws.blink.com.ve/admin", "zone_name": "blink.com.ve" },
+    { "pattern": "bws.blink.com.ve/verificar", "zone_name": "blink.com.ve" },
+    { "pattern": "bws.blink.com.ve/recuperar", "zone_name": "blink.com.ve" }
+  ],
   "rules": [{ "type": "Data", "globs": ["**/*.ttf"], "fallthrough": false }],
   "durable_objects": {
     "bindings": [{ "name": "CARGA", "class_name": "Carga" }]

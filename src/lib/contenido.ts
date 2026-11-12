@@ -193,6 +193,7 @@ export const CIERRE = {
 export const PIE = {
   legal: `© 2026 Blink · ${CONTACTO.ciudad}`,
   enlaces: [
+    { texto: "Portal de clientes", url: "/ingreso" },
     { texto: "blink.com.ve", url: ENLACES_FABRICA.blink },
     { texto: "Blink Pay", url: ENLACES_FABRICA.pay },
     { texto: "Blink POS", url: ENLACES_FABRICA.pos },

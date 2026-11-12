@@ -1,15 +1,17 @@
 /* ============================================================
    Portal de clientes — BWS
    ------------------------------------------------------------
-   Rutas por hash (`#/ingreso`, `#/registro`, `#/panel`, …) para
-   no depender de reescrituras del servidor. La cuenta, la sesión
-   y la firma única ya están montadas; el alta del proyecto y el
-   panel de administración llegan en las siguientes entregas.
+   Rutas reales (`/ingreso`, `/registro`, `/panel`, …). La landing
+   vive en `/` y la sirve GitHub Pages; el Worker intercepta solo
+   estas rutas y `/api`. La cuenta, la sesión y la firma única ya
+   están montadas; el alta del proyecto y el panel de
+   administración llegan en las siguientes entregas.
    ============================================================ */
 
 import { useEffect, useState, type ReactNode } from "react";
 import { api, type SesionPortal } from "./datos/api";
 import { useSesion } from "./datos/sesion";
+import { navegar, rutaActual, RUTAS, type Ruta } from "./datos/rutas";
 import { Admin } from "./vistas/Admin";
 import { Ingreso } from "./vistas/Ingreso";
 import { Panel } from "./vistas/Panel";
@@ -18,33 +20,42 @@ import { Recuperar } from "./vistas/Recuperar";
 import { Registro } from "./vistas/Registro";
 import { Verificar } from "./vistas/Verificar";
 
-const RUTAS = [
-  "/ingreso",
-  "/registro",
-  "/panel",
-  "/proyecto",
-  "/admin",
-  "/verificar",
-  "/recuperar",
-] as const;
-
-type Ruta = (typeof RUTAS)[number] | "/";
-
-function rutaActual(): Ruta {
-  const hash = window.location.hash.replace(/^#/, "").split("?")[0];
-  const limpia = hash === "" ? "/" : hash.replace(/\/+$/, "") || "/";
-  return (RUTAS as readonly string[]).includes(limpia) ? (limpia as Ruta) : "/";
-}
-
 function usarRuta(): Ruta {
   const [ruta, setRuta] = useState<Ruta>(rutaActual);
   useEffect(() => {
     const alCambiar = () => setRuta(rutaActual());
-    window.addEventListener("hashchange", alCambiar);
-    if (window.location.hash === "") window.history.replaceState(null, "", "#/");
-    return () => window.removeEventListener("hashchange", alCambiar);
+    window.addEventListener("popstate", alCambiar);
+    return () => window.removeEventListener("popstate", alCambiar);
   }, []);
   return ruta;
+}
+
+/** Convierte los enlaces internos del portal en navegación sin recarga. */
+function usarEnlaces(): void {
+  useEffect(() => {
+    const alPulsar = (evento: MouseEvent) => {
+      if (
+        evento.defaultPrevented ||
+        evento.button !== 0 ||
+        evento.metaKey ||
+        evento.ctrlKey ||
+        evento.shiftKey ||
+        evento.altKey
+      ) {
+        return;
+      }
+      const enlace = (evento.target as Element | null)?.closest("a");
+      if (!enlace || enlace.target || enlace.hasAttribute("download")) return;
+      const destino = new URL(enlace.href, window.location.href);
+      if (destino.origin !== window.location.origin) return;
+      if (!(RUTAS as readonly string[]).includes(destino.pathname)) return;
+      evento.preventDefault();
+      navegar(destino.pathname + destino.search);
+      window.scrollTo({ top: 0 });
+    };
+    document.addEventListener("click", alPulsar);
+    return () => document.removeEventListener("click", alPulsar);
+  }, []);
 }
 
 function Portada({ sesion }: { sesion: SesionPortal | null | undefined }) {
@@ -63,15 +74,15 @@ function Portada({ sesion }: { sesion: SesionPortal | null | undefined }) {
 
       <div className="po-acciones-portada">
         {sesion?.usuario ? (
-          <a className="po-boton po-boton-principal" href="#/panel">
+          <a className="po-boton po-boton-principal" href="/panel">
             Ir a mi panel
           </a>
         ) : (
           <>
-            <a className="po-boton po-boton-principal" href="#/registro">
+            <a className="po-boton po-boton-principal" href="/registro">
               Crear cuenta
             </a>
-            <a className="po-boton po-boton-suave" href="#/ingreso">
+            <a className="po-boton po-boton-suave" href="/ingreso">
               Entrar
             </a>
           </>
@@ -97,7 +108,7 @@ function Portada({ sesion }: { sesion: SesionPortal | null | undefined }) {
       </ol>
 
       <p className="po-pie">
-        <a href="https://bws.blink.com.ve">Volver a bws.blink.com.ve</a>
+        <a href="/">Volver a bws.blink.com.ve</a>
       </p>
     </section>
   );
@@ -105,6 +116,7 @@ function Portada({ sesion }: { sesion: SesionPortal | null | undefined }) {
 
 export function App() {
   const ruta = usarRuta();
+  usarEnlaces();
   const { sesion, recargar } = useSesion();
 
   const salir = async () => {
@@ -112,7 +124,7 @@ export function App() {
       await api.salir();
     } finally {
       await recargar();
-      window.location.hash = "#/";
+      navegar("/ingreso");
     }
   };
 
@@ -146,22 +158,22 @@ export function App() {
   return (
     <main className="po-marco">
       <header className="po-cabecera">
-        <a className="po-marca" href="#/">
+        <a className="po-marca" href="/">
           Blink <span>Web Services</span>
         </a>
         <nav className="po-nav" aria-label="Cuenta">
           {sesion?.usuario ? (
             <>
-              <a href="#/panel">Panel</a>
-              {sesion.usuario.rol === "admin" ? <a href="#/admin">Admin</a> : null}
+              <a href="/panel">Panel</a>
+              {sesion.usuario.rol === "admin" ? <a href="/admin">Admin</a> : null}
               <button type="button" className="po-enlace-boton" onClick={() => void salir()}>
                 Salir
               </button>
             </>
           ) : (
             <>
-              <a href="#/ingreso">Entrar</a>
-              <a className="po-nav-destacado" href="#/registro">
+              <a href="/ingreso">Entrar</a>
+              <a className="po-nav-destacado" href="/registro">
                 Crear cuenta
               </a>
             </>

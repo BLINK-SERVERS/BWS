@@ -24,12 +24,12 @@ export function sitio(): string {
     .filter(Boolean)[0];
   if (configurado) return configurado.replace(/\/+$/, "");
   return process.env.ENTORNO === "produccion"
-    ? "https://portal.blink.com.ve"
+    ? "https://bws.blink.com.ve"
     : "http://localhost:5177";
 }
 
 export function enlace(ruta: string, token: string): string {
-  return `${sitio()}/#/${ruta}?token=${encodeURIComponent(token)}`;
+  return `${sitio()}/${ruta}?token=${encodeURIComponent(token)}`;
 }
 
 /** Token de un solo uso. Se guarda su hash, nunca el valor. */

@@ -145,7 +145,7 @@ export default manejar(["POST"], async (peticion) => {
   }
 
   const final = docs.at(-1)?.hash_cadena ?? "";
-  const enlacePortal = `${sitio()}/#/panel`;
+  const enlacePortal = `${sitio()}/panel`;
   const adjuntos = docs.map((doc) => ({
     nombre: `${doc.codigo}-v${doc.version}.pdf`,
     contenido: doc.pdf,

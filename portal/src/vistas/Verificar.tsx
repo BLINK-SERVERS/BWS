@@ -46,7 +46,7 @@ export function Verificar() {
           portal y revisa el estado de tu cuenta.
         </p>
         <p>
-          <a className="po-boton po-boton-principal" href="#/ingreso">
+          <a className="po-boton po-boton-principal" href="/ingreso">
             Entrar
           </a>
         </p>
@@ -68,7 +68,7 @@ export function Verificar() {
             cuenta.
           </p>
           <p>
-            <a className="po-boton po-boton-principal" href="#/ingreso">
+            <a className="po-boton po-boton-principal" href="/ingreso">
               Entrar y firmar
             </a>
           </p>
@@ -78,7 +78,7 @@ export function Verificar() {
         <>
           <p className="po-entrada">{mensaje}</p>
           <p>
-            <a href="#/ingreso">Volver al ingreso</a>
+            <a href="/ingreso">Volver al ingreso</a>
           </p>
         </>
       ) : null}

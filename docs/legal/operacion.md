@@ -2,10 +2,13 @@
 
 **Estado:** documento interno. No se entrega al cliente ni se firma.
 
-Este texto describe cómo se opera `portal.blink.com.ve` con lo que el
-software hace hoy. Cuando una tarea es manual, se dice; cuando algo todavía
-no existe, se anota como pendiente en la última sección. No promete
-disponibilidad ni recuperación garantizada: describe medidas y sus límites.
+Este texto describe cómo se opera el portal en `bws.blink.com.ve` con lo
+que el software hace hoy. El portal vive en rutas propias de ese dominio
+(`/registro`, `/ingreso`, `/panel`, …) y la landing sigue en GitHub Pages;
+un Worker de Cloudflare intercepta solo esas rutas y `/api/*`. Cuando una
+tarea es manual, se dice; cuando algo todavía no existe, se anota como
+pendiente en la última sección. No promete disponibilidad ni recuperación
+garantizada: describe medidas y sus límites.
 
 ## 1. Alcance y roles
 

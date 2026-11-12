@@ -92,7 +92,7 @@ function TarjetaProyecto() {
             <Dato titulo="Dominio">{proyecto.dominio}</Dato>
           </dl>
           <p>
-            <a className="po-boton po-boton-suave" href="#/proyecto">
+            <a className="po-boton po-boton-suave" href="/proyecto">
               {proyecto.estado === "borrador" ? "Continuar el borrador" : "Ver el proyecto enviado"}
             </a>
           </p>
@@ -104,7 +104,7 @@ function TarjetaProyecto() {
             plan de infraestructura se convierten en el anexo A y el anexo B del contrato.
           </p>
           <p>
-            <a className="po-boton po-boton-principal" href="#/proyecto">
+            <a className="po-boton po-boton-principal" href="/proyecto">
               Describir mi proyecto
             </a>
           </p>
@@ -431,7 +431,7 @@ export function Panel({
           Esta sección es privada. Entra con tu correo y tu clave para ver tu expediente.
         </p>
         <p>
-          <a className="po-boton po-boton-principal" href="#/ingreso">
+          <a className="po-boton po-boton-principal" href="/ingreso">
             Entrar
           </a>
         </p>
@@ -452,7 +452,7 @@ export function Panel({
           la administración.
         </p>
         <p>
-          <a className="po-boton po-boton-principal" href="#/admin">
+          <a className="po-boton po-boton-principal" href="/admin">
             Ir a la administración
           </a>
         </p>

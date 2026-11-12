@@ -1188,7 +1188,7 @@ export function Admin({ sesion }: { sesion: SesionPortal | null | undefined }) {
           pagos y licencias.
         </p>
         <p>
-          <a className="po-boton po-boton-principal" href={sesion ? "#/panel" : "#/ingreso"}>
+          <a className="po-boton po-boton-principal" href={sesion ? "/panel" : "/ingreso"}>
             {sesion ? "Volver al panel" : "Entrar"}
           </a>
         </p>

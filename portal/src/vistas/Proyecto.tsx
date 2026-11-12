@@ -295,7 +295,7 @@ export function Proyecto({ sesion }: { sesion: SesionPortal | null | undefined }
           El alta del proyecto es privada. Entra con tu correo y tu clave.
         </p>
         <p>
-          <a className="po-boton po-boton-principal" href="#/ingreso">
+          <a className="po-boton po-boton-principal" href="/ingreso">
             Entrar
           </a>
         </p>
@@ -386,7 +386,7 @@ export function Proyecto({ sesion }: { sesion: SesionPortal | null | undefined }
         <AnexoD condiciones={datos.condiciones} plan={proyecto.plan} />
 
         <p>
-          <a className="po-boton po-boton-principal" href="#/panel">
+          <a className="po-boton po-boton-principal" href="/panel">
             Volver al panel
           </a>
         </p>
@@ -418,7 +418,7 @@ export function Proyecto({ sesion }: { sesion: SesionPortal | null | undefined }
       {!sesion.firma ? (
         <div className="po-nota po-nota-aviso" role="alert">
           <p>
-            Registra tu firma en el <a href="#/panel">panel</a> antes de enviar. Sin firma
+            Registra tu firma en el <a href="/panel">panel</a> antes de enviar. Sin firma
             no hay quién se obligue al alcance descrito.
           </p>
         </div>

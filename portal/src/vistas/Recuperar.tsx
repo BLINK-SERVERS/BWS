@@ -72,7 +72,7 @@ export function Recuperar() {
           Cerramos todas las sesiones abiertas. Entra con la clave nueva.
         </p>
         <p>
-          <a className="po-boton po-boton-principal" href="#/ingreso">
+          <a className="po-boton po-boton-principal" href="/ingreso">
             Entrar
           </a>
         </p>
@@ -148,7 +148,7 @@ export function Recuperar() {
       )}
 
       <p className="po-apagado">
-        <a href="#/ingreso">Volver al ingreso</a>
+        <a href="/ingreso">Volver al ingreso</a>
       </p>
     </section>
   );

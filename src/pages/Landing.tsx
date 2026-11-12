@@ -79,14 +79,19 @@ export function Landing() {
             ))}
           </nav>
 
-          <a
-            className="lp-boton lp-boton--primario lp-nav__cta"
-            href={HERO.ctaPrimaria.url}
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Hablemos
-          </a>
+          <div className="lp-nav__cuenta">
+            <a className="lp-nav__acceso" href="/ingreso">
+              Entrar
+            </a>
+            <a
+              className="lp-boton lp-boton--primario lp-nav__cta"
+              href={HERO.ctaPrimaria.url}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Hablemos
+            </a>
+          </div>
         </div>
       </header>
 

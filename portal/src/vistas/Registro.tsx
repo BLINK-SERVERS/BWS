@@ -154,7 +154,7 @@ export function Registro() {
           </div>
         )}
         <p>
-          <a className="po-boton po-boton-principal" href="#/ingreso">
+          <a className="po-boton po-boton-principal" href="/ingreso">
             Entrar
           </a>
         </p>

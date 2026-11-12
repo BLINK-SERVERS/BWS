@@ -474,6 +474,28 @@
   text-decoration: none;
 }
 
+.lp-nav__cuenta {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.lp-nav__acceso {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  color: var(--lp-texto-2);
+  font-size: 0.875rem;
+  font-weight: 500;
+  letter-spacing: -0.005em;
+  white-space: nowrap;
+}
+
+.lp-nav__acceso:hover {
+  color: var(--lp-texto);
+  text-decoration: none;
+}
+
 .lp-nav__cta {
   min-height: 44px;
   padding: 0.45rem 1.1rem;

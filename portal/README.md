@@ -3,13 +3,15 @@
 Aplicación independiente de la landing. Aquí el cliente se registra, firma
 sus documentos, describe su proyecto, elige plan, revisa y firma el
 expediente; la administración lo genera, lo verifica, lo descarga y lo
-envía. Se publica como Worker de Cloudflare (`portal.blink.com.ve`) con sus
-assets estáticos, contra una base Neon propia (`bws-contratos`), nunca la de
-Pay ni la de POS.
+envía. Se publica como Worker de Cloudflare en `bws.blink.com.ve`, en
+rutas propias (`/registro`, `/ingreso`, `/panel`, …), con sus assets bajo
+`/portal/assets/`, contra una base Neon propia (`bws-contratos`), nunca la
+de Pay ni la de POS.
 
-La landing de `bws.blink.com.ve` no cambia una línea: este directorio tiene
-su propio `package.json`, `vite.config.ts`, `wrangler.jsonc`, `worker.ts`,
-`src/`, `server/` y `api/`.
+La landing sigue saliendo de GitHub Pages y no comparte build: este
+directorio tiene su propio `package.json`, `vite.config.ts`,
+`wrangler.jsonc`, `worker.ts`, `src/`, `server/` y `api/`. Lo único que se
+tocó de la landing son dos enlaces locales a `/ingreso` (barra y pie).
 
 ## Reglas que mandan el diseño
 
@@ -32,18 +34,26 @@ su propio `package.json`, `vite.config.ts`, `wrangler.jsonc`, `worker.ts`,
 
 ## Rutas
 
-Hash, para no depender de reescrituras en el host:
+Rutas limpias sobre `bws.blink.com.ve`; el Worker las atiende y entrega
+`index.html` como respaldo:
 
 | ruta | quién | qué |
 |---|---|---|
-| `#/` | todos | entrada |
-| `#/registro` | cliente | cuenta, ficha fiscal, cinco documentos y firma |
-| `#/verificar` | cliente | código de correo |
-| `#/ingreso` | todos | sesión |
-| `#/recuperar` | cliente | enlace de un solo uso |
-| `#/panel` | cliente | estado, suscripción, documentos, proyecto |
-| `#/proyecto` | cliente | borrador, plan y envío |
-| `#/admin` | administración | resumen, firma del representante, expediente |
+| `/registro` | cliente | cuenta, ficha fiscal, cinco documentos y firma |
+| `/verificar` | cliente | código de correo |
+| `/ingreso` | todos | sesión |
+| `/recuperar` | cliente | enlace de un solo uso |
+| `/panel` | cliente | estado, suscripción, documentos, proyecto |
+| `/proyecto` | cliente | borrador, plan y envío |
+| `/admin` | administración | resumen, firma del representante, expediente |
+
+En `bws`, `/` es la landing de GitHub Pages, y por eso el enlace de la
+marca lleva ahí. En `npm run dev` y `npm run portal`, `/` muestra la
+portada del portal con los accesos.
+
+Los enlaces de correo apuntan a `/verificar?token=…` y
+`/recuperar?token=…`. El resto de `bws` —la landing, sus imágenes y sus
+fuentes— lo sigue sirviendo GitHub Pages.
 
 ## Comandos
 
@@ -71,8 +81,9 @@ npm run afirmaciones   # revisa los textos legales
 ```
 
 `npm run portal` despacha las rutas de `server/` desde `api/[...ruta].ts`
-con el mismo contrato que el Worker (`Request` → `Response`) y aplica las
-cabeceras de `public/_headers`. Se niega a arrancar si
+con el mismo contrato que el Worker (`Request` → `Response`) y, para las
+páginas, lee las cabeceras de `public/_headers` —el Worker las fija en
+código porque Workers no aplica ese archivo—. Se niega a arrancar si
 `DATABASE_URL_PRUEBAS_APP` comparte host con `DATABASE_URL`. Con
 `PORTAL_DB=main` usa la base principal, y eso solo se hace a mano.
 
@@ -120,9 +131,10 @@ se niega a usarlo con `ENTORNO=produccion`.
   las lleva empaquetadas (`fuentes-worker.ts`), con salida byte por byte
   idéntica en ambos.
 - **API:** una sola entrada `api/[...ruta].ts` despacha las rutas de
-  `server/`; el Worker la invoca únicamente para `/api/*`, con el envoltorio
-  `_lib/manejador.ts`. Conexión con `@neondatabase/serverless` sobre HTTP;
-  cada operación abre una transacción que fija `app.usuario_id` y
+  `server/`; el Worker la invoca únicamente para `/api/*` y sirve las
+  páginas y los assets del portal desde la capa estática. Envuelve ambas
+  con `_lib/manejador.ts`. Conexión con `@neondatabase/serverless` sobre
+  HTTP; cada operación abre una transacción que fija `app.usuario_id` y
   `app.rol` para que RLS decida. No hay transacciones interactivas.
 - **Base:** esquema en `db/migrations` (0001–0011). Triggers abortan
   `UPDATE`/`DELETE` en firmas, actos, documentos, envíos, eventos,
@@ -147,15 +159,17 @@ se niega a usarlo con `ENTORNO=produccion`.
 
 ## Seguridad
 
-`public/_headers` aplica a los assets la CSP sin contenido en línea
-(`script-src 'self'`, `style-src 'self'`), `frame-ancestors 'none'`, HSTS de
-dos años, `nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy: same-origin`,
-`Permissions-Policy` sin cámara ni micrófono, y caché inmutable a
-`/assets/*`. `worker.ts` fija esas mismas cabeceras, más
-`Cache-Control: no-store`, a las respuestas de la API, porque `_headers` no
-se aplica a lo que genera código. El servidor local lee `public/_headers`, de
-modo que `npm run portal:pruebas` comprueba las cabeceras reales. Por eso el
-lienzo de firma no usa `style` en línea: su alto está en `estilos/portal.css`.
+`worker.ts` aplica a **todas** sus respuestas —páginas, assets y API— la
+CSP sin contenido en línea (`script-src 'self'`, `style-src 'self'`),
+`frame-ancestors 'none'`, HSTS de dos años, `nosniff`,
+`X-Frame-Options: DENY`, `Referrer-Policy: same-origin` y
+`Permissions-Policy` sin cámara ni micrófono; a `/portal/assets/*` le
+suma caché inmutable y a `/api/*`, `Cache-Control: no-store`. Workers no
+aplica `_headers` (es de Pages), así que `wrangler.jsonc` pone esas rutas
+en `assets.run_worker_first`. `public/_headers` sigue existiendo porque el
+servidor local lo lee, de modo que `npm run portal:pruebas` comprueba las
+mismas cabeceras que producción. Por eso el lienzo de firma no usa
+`style` en línea: su alto está en `estilos/portal.css`.
 
 Riesgos y deberes operativos —procesadores, países, retención, respaldo,
 SPF/DKIM/DMARC, respuesta a incidentes— están en
@@ -183,13 +197,26 @@ cadenas comparten host.
 ## Publicar
 
 `npm run desplegar` construye `dist/` y publica el Worker con Wrangler
-(`wrangler login` una vez, o `CLOUDFLARE_API_TOKEN`). `wrangler.jsonc` sirve
-`dist/` como assets con respaldo `index.html`, manda `/api/*` al Worker y
-declara las fuentes TTF como módulos `Data`. Antes del primer arranque hay
-que aplicar las migraciones como dueño, publicar las plantillas, crear la
-cuenta de administración y cargar los secretos `DATABASE_URL_APP` y
-`CORREO_API_KEY` más las variables `ENTORNO=produccion`, `APP_ORIGEN`,
-`CORREO_MODO=resend`, `CORREO_DESDE` y `CORREO_COPIA`.
+(`wrangler login` una vez, o `CLOUDFLARE_API_TOKEN` en `.env.local`).
+`wrangler.jsonc` declara las rutas de `bws.blink.com.ve` que atiende el
+Worker (`/api`, `/api/*`, `/portal/*` y las siete páginas), sirve `dist/`
+como assets con respaldo `index.html`, ejecuta primero en esas rutas para
+fijar las cabeceras y declara las fuentes TTF como módulos `Data`.
+
+**El `CNAME` de `bws` tiene que estar proxied** (naranja en Cloudflare).
+Hoy apunta a `blink-servers.github.io` sin proxy; mientras siga así, el
+Worker no puede engancharse a esas rutas y la landing sigue igual. Al
+activar el proxy, el tráfico de `/` sigue yendo a GitHub Pages y el de
+las rutas del portal y la API lo toma el Worker. Si el Worker falla o se
+borra, esas rutas dejan de responder: la landing no se toca.
+
+Antes del primer arranque hay que aplicar las migraciones como dueño,
+publicar las plantillas, crear la cuenta de administración y cargar los
+secretos `DATABASE_URL_APP` y `CORREO_API_KEY` más las variables
+`ENTORNO=produccion`, `APP_ORIGEN=https://bws.blink.com.ve`,
+`CORREO_MODO=resend`, `CORREO_DESDE` y `CORREO_COPIA`. Los enlaces de
+correo se arman con `APP_ORIGEN`, así que un valor con otro host manda al
+cliente fuera del portal.
 
 Todo cabe en el plan Free de Cloudflare. El plan gratuito limita el Worker a
 10 ms de CPU por solicitud, así que el registro, el ingreso, el

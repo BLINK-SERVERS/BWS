@@ -82,7 +82,7 @@ export function Firma({ alFirmar }: { alFirmar?: () => void }) {
         <p className="po-apagado">{fallo ?? "Cargando el consentimiento…"}</p>
         {fallo ? (
           <p>
-            <a href="#/ingreso">Entrar de nuevo</a>
+            <a href="/ingreso">Entrar de nuevo</a>
           </p>
         ) : null}
       </section>

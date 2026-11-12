@@ -166,7 +166,7 @@ async function correoMasReciente() {
 }
 
 function tokenDe(texto, ruta) {
-  const coincidencia = texto.match(new RegExp(`#/${ruta}\\?token=([A-Za-z0-9_-]{40,64})`));
+  const coincidencia = texto.match(new RegExp(`/${ruta}\\?token=([A-Za-z0-9_-]{40,64})`));
   return coincidencia ? coincidencia[1] : null;
 }
 
