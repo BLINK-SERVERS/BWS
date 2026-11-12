@@ -295,8 +295,12 @@ solo con su propio origen y los proveedores viven en el servidor.
 
 Los enlaces del portal son rutas limpias (`/panel`, no `#/panel`) y el
 Worker ejecuta primero en esas rutas (`assets.run_worker_first`) para
-fijar CSP, HSTS y el resto de cabeceras: `_headers` es de Pages y Workers
-no lo aplica. La barra de la landing enlaza «Entrar» a `/ingreso` y el
+fijar CSP, HSTS y el resto de cabeceras: Workers sí lee `_headers` para
+sus assets, pero no lo aplica a lo que genera el propio Worker (`/api`),
+así que `worker.ts` fija las mismas cabeceras en código. La caché
+inmutable de `/portal/assets/*` también vive solo en `worker.ts`, porque
+`_headers` la estamparía en el respaldo `index.html` de un asset
+inexistente. La barra de la landing enlaza «Entrar» a `/ingreso` y el
 pie a «Portal de clientes», ambos locales; si el Worker no está
 desplegado, esos enlaces caen en el `404.html` de Pages.
 

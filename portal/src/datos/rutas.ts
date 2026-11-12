@@ -18,9 +18,14 @@ export const RUTAS = [
 
 export type Ruta = (typeof RUTAS)[number] | "/";
 
-export function rutaActual(): Ruta {
-  const ruta = window.location.pathname.replace(/\/+$/, "") || "/";
+/** Ruta del portal para un `pathname`; lo desconocido cae en la portada. */
+export function rutaDe(pathname: string): Ruta {
+  const ruta = pathname.replace(/\/+$/, "") || "/";
   return (RUTAS as readonly string[]).includes(ruta) ? (ruta as Ruta) : "/";
+}
+
+export function rutaActual(): Ruta {
+  return rutaDe(window.location.pathname);
 }
 
 export function navegar(destino: string): void {

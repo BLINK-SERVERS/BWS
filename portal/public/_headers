@@ -6,6 +6,3 @@
   Referrer-Policy: same-origin
   Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=(), usb=()
   Cross-Origin-Opener-Policy: same-origin
-
-/portal/assets/*
-  Cache-Control: public, max-age=31536000, immutable

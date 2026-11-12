@@ -169,9 +169,10 @@ async function atenderApi(req, res, url) {
 }
 
 async function atenderEstatico(req, res, url) {
-  let ruta = decodeURIComponent(url.pathname);
-  if (ruta.endsWith("/")) ruta += "index.html";
-  let archivo = resolve(DIST, `.${ruta}`);
+  // La barra final no distingue: `/registro/` es la misma ruta que
+  // `/registro`, y sin extensión cae en la app.
+  const ruta = decodeURIComponent(url.pathname).replace(/\/+$/, "") || "/";
+  let archivo = ruta === "/" ? join(DIST, "index.html") : resolve(DIST, `.${ruta}`);
   if (!archivo.startsWith(DIST + sep)) {
     res.writeHead(403).end();
     return;

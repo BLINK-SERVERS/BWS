@@ -254,6 +254,17 @@ async function principal() {
     );
     await medir(pagina, "portada", 1440);
 
+    await ir("no-existe");
+    comprobar(
+      "una ruta desconocida cae en la portada",
+      (await pagina.getByRole("heading", { name: /Tu cuenta, tu firma y el expediente/ }).count()) === 1,
+    );
+    await ir("registro/");
+    comprobar(
+      "la barra final conserva la ruta",
+      (await pagina.getByRole("heading", { name: "Crear la cuenta." }).count()) === 1,
+    );
+
     await ir("registro");
     await pagina.getByLabel("Nombre de la persona que firma").fill("Ana Pérez");
     await pagina.getByLabel("Correo", { exact: true }).fill(correo);

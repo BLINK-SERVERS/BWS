@@ -83,7 +83,8 @@ npm run afirmaciones   # revisa los textos legales
 `npm run portal` despacha las rutas de `server/` desde `api/[...ruta].ts`
 con el mismo contrato que el Worker (`Request` → `Response`) y, para las
 páginas, lee las cabeceras de `public/_headers` —el Worker las fija en
-código porque Workers no aplica ese archivo—. Se niega a arrancar si
+código porque `_headers` no se aplica a lo que genera el propio Worker—.
+Se niega a arrancar si
 `DATABASE_URL_PRUEBAS_APP` comparte host con `DATABASE_URL`. Con
 `PORTAL_DB=main` usa la base principal, y eso solo se hace a mano.
 
@@ -164,9 +165,12 @@ CSP sin contenido en línea (`script-src 'self'`, `style-src 'self'`),
 `frame-ancestors 'none'`, HSTS de dos años, `nosniff`,
 `X-Frame-Options: DENY`, `Referrer-Policy: same-origin` y
 `Permissions-Policy` sin cámara ni micrófono; a `/portal/assets/*` le
-suma caché inmutable y a `/api/*`, `Cache-Control: no-store`. Workers no
-aplica `_headers` (es de Pages), así que `wrangler.jsonc` pone esas rutas
-en `assets.run_worker_first`. `public/_headers` sigue existiendo porque el
+suma caché inmutable y a `/api/*`, `Cache-Control: no-store`. Workers sí
+aplica `_headers` a sus assets, pero no a las respuestas que genera el
+propio Worker, así que `wrangler.jsonc` pone esas rutas en
+`assets.run_worker_first` y la caché inmutable vive solo en `worker.ts`:
+en `_headers` también marcaría el respaldo `index.html` de un asset que
+no existe. `public/_headers` sigue existiendo porque el
 servidor local lo lee, de modo que `npm run portal:pruebas` comprueba las
 mismas cabeceras que producción. Por eso el lienzo de firma no usa
 `style` en línea: su alto está en `estilos/portal.css`.

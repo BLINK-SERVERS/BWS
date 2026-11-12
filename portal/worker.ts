@@ -7,8 +7,9 @@
    Las páginas del portal (`/registro`, `/ingreso`, …) y sus
    archivos bajo `/portal/assets/` los sirve la capa de assets
    con `index.html` como respaldo, pero este Worker se ejecuta
-   primero (ver `run_worker_first`) para fijar las cabeceras:
-   `_headers` solo aplica a Pages y aquí se ignora.
+   primero (ver `run_worker_first`) para fijar las cabeceras.
+   La regla de caché inmutable no vive en `_headers`: esa capa
+   también la aplica al respaldo HTML de un asset inexistente.
 
    El plan gratuito corta a 10 ms de CPU por solicitud: scrypt
    (0,5–1,4 s) y los ocho PDF (unos 12 s) no caben ahí. Esas rutas
@@ -55,8 +56,13 @@ function conCabeceras(respuesta: Response, api: boolean, ruta: string): Response
   const cabeceras = new Headers(respuesta.headers);
   for (const [nombre, valor] of Object.entries(SEGURIDAD)) cabeceras.set(nombre, valor);
   if (api) cabeceras.set("cache-control", "no-store");
-  else if (ruta.startsWith("/portal/assets/") && respuesta.ok)
-    cabeceras.set("cache-control", "public, max-age=31536000, immutable");
+  else {
+    // Nunca cachear como inmutable el respaldo SPA con forma de asset:
+    // un archivo que no existe no debe quedar fijado con HTML.
+    const tipo = respuesta.headers.get("content-type") ?? "";
+    if (ruta.startsWith("/portal/assets/") && respuesta.ok && !tipo.startsWith("text/html"))
+      cabeceras.set("cache-control", "public, max-age=31536000, immutable");
+  }
   if (respuesta.status === 204 || respuesta.status === 304) {
     return new Response(null, { status: respuesta.status, statusText: respuesta.statusText, headers: cabeceras });
   }
