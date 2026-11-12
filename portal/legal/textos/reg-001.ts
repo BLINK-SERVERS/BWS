@@ -3,7 +3,7 @@ import type { DocumentoLegal } from "../tipos";
 export const REG_001: DocumentoLegal = {
   codigo: "BWS-REG-001",
   titulo: "Datos de identidad y fiscales del cliente",
-  version: "1.0",
+  version: "2.0",
   fecha: "2026-11-11",
   firma: "registro",
   resumen:
@@ -11,7 +11,7 @@ export const REG_001: DocumentoLegal = {
   campos: [
     "fecha_documento",
     "bws_razon_social",
-    "bws_rif",
+    "bws_documento",
     "bws_domicilio",
     "bws_correo",
     "bws_telefono",
@@ -27,7 +27,7 @@ export const REG_001: DocumentoLegal = {
     {
       tipo: "parrafo",
       texto:
-        "Este documento identifica a las partes y deja constancia de los datos que el cliente declara para la contratación de los servicios de Blink Web Services. Se completa y firma al crear la cuenta, antes de definir el proyecto.",
+        "Este documento identifica a las partes y deja constancia de los datos que el cliente declara para la contratación de los servicios de Blink. Se completa y firma al crear la cuenta, antes de definir el proyecto.",
     },
     { tipo: "subtitulo", texto: "1. Cliente" },
     {
@@ -51,7 +51,7 @@ export const REG_001: DocumentoLegal = {
       anchos: [0.34, 0.66],
       filas: [
         ["Razón social", "{{bws_razon_social}}"],
-        ["RIF", "{{bws_rif}}"],
+        ["Documento", "{{bws_documento}}"],
         ["Domicilio fiscal", "{{bws_domicilio}}"],
         ["Correo", "{{bws_correo}}"],
         ["Teléfono", "{{bws_telefono}}"],

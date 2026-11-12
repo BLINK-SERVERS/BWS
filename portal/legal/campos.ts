@@ -21,8 +21,8 @@ export interface Campo {
 export const CAMPOS: Campo[] = [
   { clave: "fecha_documento", etiqueta: "Fecha del documento", ejemplo: "11 de noviembre de 2026", grupo: "sistema" },
 
-  { clave: "bws_razon_social", etiqueta: "Razón social de Blink", ejemplo: "Blink Web Services, C.A.", grupo: "blink" },
-  { clave: "bws_rif", etiqueta: "RIF de Blink", ejemplo: "J-00000000-0", grupo: "blink" },
+  { clave: "bws_razon_social", etiqueta: "Nombre o razón social de Blink", ejemplo: "Blink", grupo: "blink" },
+  { clave: "bws_documento", etiqueta: "Documento fiscal de Blink (RIF o cédula)", ejemplo: "V-00000000", grupo: "blink" },
   { clave: "bws_domicilio", etiqueta: "Domicilio fiscal de Blink", ejemplo: "Caracas, Distrito Capital, Venezuela", grupo: "blink" },
   { clave: "bws_correo", etiqueta: "Correo de Blink", ejemplo: "business@blink.com.ve", grupo: "blink" },
   { clave: "bws_telefono", etiqueta: "Teléfono de Blink", ejemplo: "+1 (631) 821 1938", grupo: "blink" },

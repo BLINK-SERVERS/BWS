@@ -3,7 +3,7 @@ import type { DocumentoLegal } from "../tipos";
 export const CON_004: DocumentoLegal = {
   codigo: "BWS-CON-004",
   titulo: "Contrato de prestación de servicios y anexos A–F",
-  version: "2.0",
+  version: "3.0",
   fecha: "2026-11-11",
   firma: "proyecto",
   resumen:
@@ -11,7 +11,7 @@ export const CON_004: DocumentoLegal = {
   campos: [
     "fecha_documento",
     "bws_razon_social",
-    "bws_rif",
+    "bws_documento",
     "bws_domicilio",
     "bws_correo",
     "bws_telefono",
@@ -49,7 +49,7 @@ export const CON_004: DocumentoLegal = {
     {
       tipo: "parrafo",
       texto:
-        "Entre {{bws_razon_social}}, RIF {{bws_rif}}, domicilio {{bws_domicilio}}, teléfono {{bws_telefono}}, representada por {{representante_nombre}}, documento {{representante_documento}}, domicilio {{representante_domicilio}} (en adelante, «Blink»), y {{cliente_razon_social}}, documento {{cliente_documento_tipo}} {{cliente_documento_numero}}, domicilio {{cliente_domicilio}}, teléfono {{cliente_telefono}}, correo {{cliente_correo}} y correo de facturación {{cliente_correo_factura}}, representada por quien suscribe en su nombre (en adelante, «el Cliente»), se celebra el presente contrato, que se rige por las siguientes cláusulas y sus anexos A a F, que forman parte indivisible del mismo.",
+        "Entre {{bws_razon_social}}, documento {{bws_documento}}, domicilio {{bws_domicilio}}, teléfono {{bws_telefono}}, representada por {{representante_nombre}}, documento {{representante_documento}}, domicilio {{representante_domicilio}} (en adelante, «Blink»), y {{cliente_razon_social}}, documento {{cliente_documento_tipo}} {{cliente_documento_numero}}, domicilio {{cliente_domicilio}}, teléfono {{cliente_telefono}}, correo {{cliente_correo}} y correo de facturación {{cliente_correo_factura}}, representada por quien suscribe en su nombre (en adelante, «el Cliente»), se celebra el presente contrato, que se rige por las siguientes cláusulas y sus anexos A a F, que forman parte indivisible del mismo.",
     },
     { tipo: "subtitulo", texto: "Primera. Antecedentes" },
     {

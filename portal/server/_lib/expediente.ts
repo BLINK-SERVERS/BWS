@@ -251,7 +251,7 @@ export function datosDeExpediente(args: {
     variables: {
       fecha_documento: fechaLarga(fechaDocumento),
       bws_razon_social: prestador.razon_social,
-      bws_rif: prestador.rif,
+      bws_documento: prestador.documento,
       bws_domicilio: prestador.domicilio,
       bws_correo: prestador.correo,
       bws_telefono: prestador.telefono,

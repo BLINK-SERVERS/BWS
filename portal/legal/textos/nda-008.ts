@@ -3,7 +3,7 @@ import type { DocumentoLegal } from "../tipos";
 export const NDA_008: DocumentoLegal = {
   codigo: "BWS-NDA-008",
   titulo: "Acuerdo de confidencialidad mutuo",
-  version: "1.0",
+  version: "2.0",
   fecha: "2026-11-11",
   firma: "nda",
   resumen:
@@ -11,7 +11,7 @@ export const NDA_008: DocumentoLegal = {
   campos: [
     "fecha_documento",
     "bws_razon_social",
-    "bws_rif",
+    "bws_documento",
     "bws_domicilio",
     "bws_correo",
     "representante_nombre",
@@ -26,7 +26,7 @@ export const NDA_008: DocumentoLegal = {
     {
       tipo: "parrafo",
       texto:
-        "Entre {{bws_razon_social}}, RIF {{bws_rif}}, domicilio {{bws_domicilio}}, representada por {{representante_nombre}}, documento {{representante_documento}} (en adelante, «Blink»), y {{cliente_razon_social}}, documento {{cliente_documento_tipo}} {{cliente_documento_numero}}, domicilio {{cliente_domicilio}} (en adelante, «el Cliente»), se celebra este acuerdo de confidencialidad mutuo, aplicable antes y durante la ejecución del proyecto.",
+        "Entre {{bws_razon_social}}, documento {{bws_documento}}, domicilio {{bws_domicilio}}, representada por {{representante_nombre}}, documento {{representante_documento}} (en adelante, «Blink»), y {{cliente_razon_social}}, documento {{cliente_documento_tipo}} {{cliente_documento_numero}}, domicilio {{cliente_domicilio}} (en adelante, «el Cliente»), se celebra este acuerdo de confidencialidad mutuo, aplicable antes y durante la ejecución del proyecto.",
     },
     { tipo: "subtitulo", texto: "1. Información confidencial" },
     {

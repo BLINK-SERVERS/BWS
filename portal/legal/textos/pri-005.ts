@@ -3,7 +3,7 @@ import type { DocumentoLegal } from "../tipos";
 export const PRI_005: DocumentoLegal = {
   codigo: "BWS-PRI-005",
   titulo: "Política de privacidad y tratamiento de datos",
-  version: "2.0",
+  version: "3.0",
   fecha: "2026-11-11",
   firma: "registro",
   resumen:
@@ -11,7 +11,7 @@ export const PRI_005: DocumentoLegal = {
   campos: [
     "fecha_documento",
     "bws_razon_social",
-    "bws_rif",
+    "bws_documento",
     "bws_domicilio",
     "bws_correo",
     "bws_telefono",
@@ -25,7 +25,7 @@ export const PRI_005: DocumentoLegal = {
     {
       tipo: "parrafo",
       texto:
-        "Esta política explica cómo {{bws_razon_social}} (en adelante, «Blink»), RIF {{bws_rif}}, domicilio {{bws_domicilio}}, trata los datos personales de {{cliente_razon_social}} (documento {{cliente_documento_tipo}} {{cliente_documento_numero}}) y de las personas que usan el portal. Se acepta al crear la cuenta y acompaña al contrato BWS-CON-004.",
+        "Esta política explica cómo {{bws_razon_social}} (en adelante, «Blink»), documento {{bws_documento}}, domicilio {{bws_domicilio}}, trata los datos personales de {{cliente_razon_social}} (documento {{cliente_documento_tipo}} {{cliente_documento_numero}}) y de las personas que usan el portal. Se acepta al crear la cuenta y acompaña al contrato BWS-CON-004.",
     },
     { tipo: "subtitulo", texto: "1. Responsable" },
     {

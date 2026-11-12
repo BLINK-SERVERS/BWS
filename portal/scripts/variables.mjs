@@ -40,7 +40,7 @@ const TEMPORAL = join(RAIZ, "tmp", "secretos-worker.json");
 
 const ORIGEN = "https://bws.blink.com.ve";
 
-const IDENTIDAD = ["BWS_RAZON_SOCIAL", "BWS_RIF", "BWS_DOMICILIO", "BWS_CORREO", "BWS_TELEFONO"];
+const IDENTIDAD = ["BWS_RAZON_SOCIAL", "BWS_DOCUMENTO", "BWS_DOMICILIO", "BWS_CORREO", "BWS_TELEFONO"];
 const OPCIONALES = ["TARIFA_DESARROLLO", "TARIFA_INFRA_PRO", "CORREO_PROVEEDOR_NOMBRE", "CORREO_COPIA"];
 
 function leer(archivo) {
@@ -82,6 +82,7 @@ function vacio(valor) {
     valor === "[SENSITIVE]" ||
     valor === "..." ||
     valor === "J-00000000-0" ||
+    valor === "V-00000000" ||
     /^<.*>$/.test(valor) ||
     /^(TODO|CAMBIAR|x+)$/i.test(valor)
   );
@@ -146,7 +147,10 @@ function requeridas(variables) {
 function revisar(nombre, valor, variables) {
   if (vacio(valor)) return "falta";
   if (nombre === "DATABASE_URL_APP") return revisarBase(valor, variables);
-  if (nombre === "BWS_RIF") return /^[JVEPG]-\d{8,9}-\d$/i.test(valor) ? null : "no tiene forma de RIF";
+  if (nombre === "BWS_DOCUMENTO")
+    return /^[JVEPG]-\d{6,9}(-\d)?$/i.test(valor)
+      ? null
+      : "no es un RIF ni una cédula con formato válido";
   if (nombre === "CORREO_DESDE" || nombre === "BWS_CORREO")
     return correo(valor) ? null : "no es un correo válido";
   if (nombre === "CORREO_API_KEY" && !valor.startsWith("re_"))

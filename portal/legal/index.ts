@@ -40,8 +40,8 @@ export function datosDePrueba(opciones?: {
   const variables = Object.fromEntries(CAMPOS.map((c) => [c.clave, c.ejemplo]));
   Object.assign(variables, {
     fecha_documento: "11 de noviembre de 2026",
-    bws_razon_social: "Blink Web Services, C.A.",
-    bws_rif: "J-00000000-0",
+    bws_razon_social: "Blink",
+    bws_documento: "V-00000000",
     bws_domicilio: "Caracas, Distrito Capital, Venezuela",
     bws_correo: "business@blink.com.ve",
     bws_telefono: "+1 (631) 821 1938",

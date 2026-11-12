@@ -3,7 +3,9 @@
    ------------------------------------------------------------
    Los datos fiscales de Blink no se escriben en el repositorio:
    llegan por variables de entorno. En producción, si falta una,
-   el alta se detiene con 503 en vez de imprimir un RIF falso.
+   el alta se detiene con 503 en vez de imprimir un documento falso.
+   `BWS_DOCUMENTO` acepta un RIF o una cédula: mientras Blink no
+   esté registrada, se usa la cédula de quien responde por ella.
    En local y en las pruebas se usan valores de ejemplo, marcados
    como provisionales para que la interfaz lo advierta.
 
@@ -18,7 +20,7 @@ import { ErrorHttp } from "./respuestas";
 
 export interface Prestador {
   razon_social: string;
-  rif: string;
+  documento: string;
   domicilio: string;
   correo: string;
   telefono: string;
@@ -31,7 +33,7 @@ function valor(nombre: string, respaldo: string): { valor: string; provisional: 
   if (process.env.ENTORNO === "produccion") {
     throw new ErrorHttp(
       503,
-      "El alta está en pausa: falta configurar la identidad fiscal de Blink en el servidor.",
+      "El alta está en pausa: falta configurar la identidad de Blink en el servidor.",
       "configuracion",
     );
   }
@@ -39,18 +41,18 @@ function valor(nombre: string, respaldo: string): { valor: string; provisional: 
 }
 
 export function identidadPrestador(): Prestador {
-  const razon = valor("BWS_RAZON_SOCIAL", "Blink Web Services, C.A.");
-  const rif = valor("BWS_RIF", "J-00000000-0");
+  const razon = valor("BWS_RAZON_SOCIAL", "Blink");
+  const documento = valor("BWS_DOCUMENTO", "V-00000000");
   const domicilio = valor("BWS_DOMICILIO", "Caracas, Distrito Capital, Venezuela");
   const correo = valor("BWS_CORREO", "business@blink.com.ve");
   const telefono = valor("BWS_TELEFONO", "+1 (631) 821 1938");
   return {
     razon_social: razon.valor,
-    rif: rif.valor,
+    documento: documento.valor,
     domicilio: domicilio.valor,
     correo: correo.valor,
     telefono: telefono.valor,
-    provisional: razon.provisional || rif.provisional || domicilio.provisional ||
+    provisional: razon.provisional || documento.provisional || domicilio.provisional ||
       correo.provisional || telefono.provisional,
   };
 }

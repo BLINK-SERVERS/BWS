@@ -114,7 +114,7 @@ cambios.
 | `CORREO_DESDE` | remitente verificado |
 | `CORREO_COPIA` | copia a Blink de cada envío |
 | `SMTP_HOST`, `SMTP_PORT`, `SMTP_SEGURO`, `SMTP_USER`, `SMTP_PASS` | SMTP si no se usa Resend |
-| `BWS_RAZON_SOCIAL`, `BWS_RIF`, `BWS_DOMICILIO`, `BWS_CORREO`, `BWS_TELEFONO` | identidad fiscal que se imprime en el expediente |
+| `BWS_RAZON_SOCIAL`, `BWS_DOCUMENTO`, `BWS_DOMICILIO`, `BWS_CORREO`, `BWS_TELEFONO` | identidad del prestador que se imprime en el expediente; `BWS_DOCUMENTO` acepta RIF o cédula |
 | `TARIFA_DESARROLLO`, `TARIFA_INFRA_PRO`, `CORREO_PROVEEDOR_NOMBRE` | condiciones publicadas, si cambian |
 | `CORREO_ARCHIVO_DIR` | carpeta del modo `archivo`, solo local |
 | `ADMIN_CORREO`, `ADMIN_CLAVE` | alta inicial de administración |
