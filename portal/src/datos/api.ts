@@ -437,6 +437,10 @@ export const api = {
     return pedir("/api/auth/verificar", { metodo: "POST", cuerpo: { token } });
   },
 
+  reenviarVerificacion(): Promise<{ ok: true; enviado: boolean }> {
+    return pedir("/api/auth/reenviar-verificacion", { metodo: "POST", cuerpo: {} });
+  },
+
   recuperar(correo: string): Promise<{ ok: true; mensaje: string }> {
     return pedir("/api/auth/recuperar", { metodo: "POST", cuerpo: { correo } });
   },

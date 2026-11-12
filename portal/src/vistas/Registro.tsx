@@ -120,7 +120,8 @@ export function Registro() {
         {hecho.verificacion_enviada ? null : (
           <div className="po-nota po-nota-aviso" role="alert">
             <p>
-              El correo de verificación no pudo enviarse. Escribe a{" "}
+              El correo de verificación no pudo enviarse. Entra al portal y pide un enlace
+              nuevo desde tu cuenta, o escribe a{" "}
               <a href="mailto:business@blink.com.ve">business@blink.com.ve</a>.
             </p>
           </div>

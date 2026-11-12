@@ -2,7 +2,7 @@
    Entrada única de la API
    ------------------------------------------------------------
    El Worker manda aquí todo `/api/*` y este mapa despacha las
-   veintiséis rutas a `server/`: una sola entrada, un solo paquete
+   veintisiete rutas a `server/`: una sola entrada, un solo paquete
    y las rutas del cliente intactas (`/api/auth/ingreso`,
    `/api/documentos/generar`…).
    ============================================================ */
@@ -13,6 +13,7 @@ import consentimiento from "../server/auth/consentimiento";
 import ingreso from "../server/auth/ingreso";
 import recuperar from "../server/auth/recuperar";
 import registro from "../server/auth/registro";
+import reenviarVerificacion from "../server/auth/reenviar-verificacion";
 import restablecer from "../server/auth/restablecer";
 import salir from "../server/auth/salir";
 import sesion from "../server/auth/sesion";
@@ -43,6 +44,7 @@ export const RUTAS: Record<string, Manejador> = {
   "auth/ingreso": ingreso,
   "auth/recuperar": recuperar,
   "auth/registro": registro,
+  "auth/reenviar-verificacion": reenviarVerificacion,
   "auth/restablecer": restablecer,
   "auth/salir": salir,
   "auth/sesion": sesion,

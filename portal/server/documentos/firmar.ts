@@ -113,6 +113,7 @@ export default manejar(["POST"], async (peticion) => {
                    jsonb_build_object('actos', count(*)),
                    ${ip}, ${agente}
             from nuevos
+            having count(*) > 0
             returning 1
           )
           select count(*)::int as actos from nuevos`,

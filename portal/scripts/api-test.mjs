@@ -60,6 +60,9 @@ const { default: ingreso } = await import("../server/auth/ingreso.ts");
 const { default: sesionActual } = await import("../server/auth/sesion.ts");
 const { default: salir } = await import("../server/auth/salir.ts");
 const { default: verificar } = await import("../server/auth/verificar.ts");
+const { default: reenviarVerificacion } = await import(
+  "../server/auth/reenviar-verificacion.ts"
+);
 const { default: recuperar } = await import("../server/auth/recuperar.ts");
 const { default: restablecer } = await import("../server/auth/restablecer.ts");
 const { default: firma } = await import("../server/cliente/firma.ts");
@@ -345,6 +348,25 @@ probar("firma sin correo verificado", async () => {
   pasar("403 verificar_correo");
 });
 
+probar("reenvío del correo de verificación", async () => {
+  const sinSesion = await invocar(reenviarVerificacion, "/api/auth/reenviar-verificacion", {
+    metodo: "POST",
+  });
+  assert.equal(sinSesion.estado, 401);
+
+  const r = await invocar(reenviarVerificacion, "/api/auth/reenviar-verificacion", {
+    metodo: "POST",
+    cookie,
+  });
+  assert.equal(r.estado, 202);
+  assert.equal(r.cuerpo.enviado, true);
+
+  const mensaje = await correoMasReciente();
+  assert.ok(mensaje && mensaje.para === CUENTA.correo);
+  assert.ok(tokenDe(mensaje.texto, "verificar"), "el reenvío no trae enlace");
+  pasar("202 y enlace nuevo para la cuenta sin verificar");
+});
+
 probar("correo de verificación usable", async () => {
   const mensaje = await correoMasReciente();
   assert.ok(mensaje, "no se escribió el correo");
@@ -362,6 +384,16 @@ probar("correo de verificación usable", async () => {
   });
   assert.equal(repetido.estado, 400);
   pasar("verifica una vez y rechaza el segundo uso");
+});
+
+probar("reenvío rechazado con el correo ya confirmado", async () => {
+  const r = await invocar(reenviarVerificacion, "/api/auth/reenviar-verificacion", {
+    metodo: "POST",
+    cookie,
+  });
+  assert.equal(r.estado, 409);
+  assert.equal(r.cuerpo.codigo, "verificado");
+  pasar("409 verificado");
 });
 
 probar("firma única", async () => {
@@ -593,7 +625,12 @@ probar("proyecto: un enviado no se edita ni se duplica", async () => {
   const cambio = await invocar(proyecto, "/api/cliente/proyecto", {
     metodo: "POST",
     cookie,
-    cuerpo: { ...PROYECTO, nombre: "Otro nombre", alcance: "x".repeat(60) },
+    cuerpo: {
+      ...PROYECTO,
+      nombre: "Otro nombre",
+      alcance: "x".repeat(60),
+      ficha: { ...FICHA, razon_social: "Otra Razón Social, C.A." },
+    },
   });
   assert.equal(cambio.estado, 409);
   assert.equal(cambio.cuerpo.codigo, "proyecto_enviado");
@@ -606,10 +643,17 @@ probar("proyecto: un enviado no se edita ni se duplica", async () => {
   assert.equal(filas.rows[0].alcance, PROYECTO.alcance);
   assert.equal(filas.rows[0].estado, "enviado");
 
+  const fichaGuardada = await cliente.query("select razon_social from clientes");
+  assert.equal(
+    fichaGuardada.rows[0].razon_social,
+    FICHA.razon_social,
+    "la ficha cambió después del envío",
+  );
+
   const leido = await invocar(proyecto, "/api/cliente/proyecto", { cookie });
   assert.equal(leido.cuerpo.proyecto.estado, "enviado");
   assert.equal(leido.cuerpo.proyecto.nombre, PROYECTO.nombre);
-  pasar("409 sin_borrador, 409 proyecto_enviado y una sola fila intacta");
+  pasar("409 sin_borrador, 409 proyecto_enviado, una fila y la ficha intactas");
 });
 
 const REPRESENTANTE = {

@@ -101,8 +101,8 @@ export function Firma({ alFirmar }: { alFirmar?: () => void }) {
         <div className="po-nota po-nota-aviso" role="status">
           <p>
             Confirma tu correo antes de firmar. Revisa el mensaje que enviamos al crear la
-            cuenta; si no llegó, escribe a{" "}
-            <a href="mailto:business@blink.com.ve">business@blink.com.ve</a>.
+            cuenta. Si no llegó o ya venció, pide un enlace nuevo en la tarjeta Cuenta,
+            justo arriba.
           </p>
         </div>
       ) : null}

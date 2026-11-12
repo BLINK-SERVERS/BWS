@@ -19,6 +19,7 @@ import {
   type VistaSuscripcionCliente,
 } from "../datos/api";
 import { Firma } from "../componentes/Firma";
+import { ReenviarVerificacion } from "../componentes/ReenviarVerificacion";
 
 const ESTADOS: Record<string, string> = {
   borrador: "Borrador",
@@ -516,6 +517,15 @@ export function Panel({
             </>
           ) : null}
         </dl>
+        {usuario.verificado ? null : (
+          <div>
+            <p className="po-apagado">
+              El enlace de verificación vence a las 24 horas y se usa una sola vez. Si no
+              llegó o ya venció, pide otro.
+            </p>
+            <ReenviarVerificacion />
+          </div>
+        )}
       </section>
 
       <Firma alFirmar={() => void recargar()} />

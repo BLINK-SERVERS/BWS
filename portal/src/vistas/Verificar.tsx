@@ -43,7 +43,7 @@ export function Verificar() {
         </h1>
         <p className="po-entrada">
           Abre el enlace completo del correo de verificación. Si ya no lo tienes, entra al
-          portal y revisa el estado de tu cuenta.
+          portal con tu correo y tu clave y pide un enlace nuevo desde tu cuenta.
         </p>
         <p>
           <a className="po-boton po-boton-principal" href="/ingreso">
@@ -78,7 +78,11 @@ export function Verificar() {
         <>
           <p className="po-entrada">{mensaje}</p>
           <p>
-            <a href="/ingreso">Volver al ingreso</a>
+            Entra al portal con tu correo y tu clave: en tu cuenta puedes pedir un enlace
+            nuevo cuando el anterior venció o ya se usó.
+          </p>
+          <p>
+            <a href="/ingreso">Entrar para pedir otro enlace</a>
           </p>
         </>
       ) : null}

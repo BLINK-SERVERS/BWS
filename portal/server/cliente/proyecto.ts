@@ -103,7 +103,8 @@ export default manejar(["GET", "POST"], async (peticion) => {
   let guardado: Record<string, unknown> | undefined;
   try {
     // La ficha fiscal se guarda con el mismo borrador: es la que irá
-    // al contrato cuando el proyecto se envíe.
+    // al contrato cuando el proyecto se envíe. Si el proyecto ya salió,
+    // la ficha queda congelada aunque la petición termine en 409.
     const [, , , filas] = await enTransaccion(sesion.usuarioId, sesion.rol, (txn) => [
       txn`update clientes set
             razon_social = ${ficha.razon_social},
@@ -112,7 +113,11 @@ export default manejar(["GET", "POST"], async (peticion) => {
             domicilio_fiscal = ${ficha.domicilio},
             telefono = ${ficha.telefono},
             correo_factura = ${ficha.correo_factura}
-          where id = ${cliente.id}`,
+          where id = ${cliente.id}
+            and not exists (
+              select 1 from proyectos
+              where cliente_id = ${cliente.id} and estado <> 'borrador'
+            )`,
       txn`update proyectos set
             nombre = ${datos.nombre},
             categoria = ${datos.categoria},

@@ -323,20 +323,37 @@ async function principal() {
     await pagina.getByRole("button", { name: "Crear cuenta" }).click();
     await pagina.getByRole("heading", { name: "Cuenta creada." }).waitFor();
 
-    const token = await correoDe(correo);
-    comprobar("el correo de verificación llega al modo archivo", /^[A-Za-z0-9_-]{40,64}$/.test(token));
+    const tokenInicial = await correoDe(correo);
+    comprobar("el correo de verificación llega al modo archivo", /^[A-Za-z0-9_-]{40,64}$/.test(tokenInicial));
 
-    await pagina.goto(`${origen}/verificar?token=${encodeURIComponent(token)}`, {
-      waitUntil: "domcontentloaded",
-    });
-    await pagina.getByRole("heading", { name: "Correo confirmado." }).waitFor();
-
+    // La cuenta entra sin confirmar: el panel debe ofrecer otro enlace
+    // cuando el del correo venció o no llegó.
     await ir("ingreso");
     await medir(pagina, "ingreso", 1440);
     await pagina.getByLabel("Correo", { exact: true }).fill(correo);
     await pagina.getByLabel("Clave", { exact: true }).fill(clave);
     await pagina.getByRole("button", { name: "Entrar", exact: true }).click();
     await pagina.waitForURL(/\/panel$/);
+    await pagina.getByRole("heading", { name: "Ana Pérez" }).waitFor();
+    await pagina.getByText("Sin confirmar").waitFor();
+    await medir(pagina, "panel sin confirmar", 1440);
+
+    await pagina.getByRole("button", { name: "Reenviar el correo de verificación" }).click();
+    await pagina.getByText(/Te enviamos un enlace nuevo/).waitFor();
+    comprobar(
+      "el panel sin confirmar reenvía el enlace de verificación",
+      (await pagina.getByRole("button", { name: "Enlace enviado" }).count()) === 1,
+    );
+
+    const token = await correoDe(correo);
+    comprobar("el enlace reenviado es distinto del original", token !== tokenInicial);
+
+    await pagina.goto(`${origen}/verificar?token=${encodeURIComponent(token)}`, {
+      waitUntil: "domcontentloaded",
+    });
+    await pagina.getByRole("heading", { name: "Correo confirmado." }).waitFor();
+
+    await ir("panel");
     await pagina.getByRole("heading", { name: "Ana Pérez" }).waitFor();
     await pagina.getByText("Firmar el consentimiento").waitFor();
     await medir(pagina, "panel sin firma", 1440);
