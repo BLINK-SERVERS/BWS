@@ -63,7 +63,7 @@ export async function generarPDF(opciones: OpcionesPDF): Promise<Uint8Array> {
   const pdf = await PDFDocument.create();
   const fuentes = await cargarFuentes(pdf, opciones.leerFuente ?? lectorDeFuentes());
 
-  const bws = datos.variables.bws_razon_social ?? "Blink Web Services";
+  const bws = datos.variables.bws_razon_social ?? "Blink";
   const paginas: PDFPage[] = [];
   let pagina!: PDFPage;
   let y = 0;
