@@ -24,6 +24,8 @@
     "portal:pruebas": "npm run build && tsx scripts/portal.mjs",
     "worker:dev": "npm run build && wrangler dev",
     "worker:seco": "wrangler deploy --dry-run --outdir tmp/worker",
+    "vars": "node scripts/variables.mjs",
+    "vars:subir": "node scripts/variables.mjs --subir",
     "desplegar": "npm run build && wrangler deploy"
   },
   "engines": {

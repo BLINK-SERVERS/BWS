@@ -113,11 +113,21 @@ cambios.
 | `CORREO_API_KEY` | clave de Resend |
 | `CORREO_DESDE` | remitente verificado |
 | `CORREO_COPIA` | copia a Blink de cada envío |
-| `SMTP_HOST`, `SMTP_USER`, `SMTP_PASS` | SMTP si no se usa Resend |
+| `SMTP_HOST`, `SMTP_PORT`, `SMTP_SEGURO`, `SMTP_USER`, `SMTP_PASS` | SMTP si no se usa Resend |
+| `BWS_RAZON_SOCIAL`, `BWS_RIF`, `BWS_DOMICILIO`, `BWS_CORREO`, `BWS_TELEFONO` | identidad fiscal que se imprime en el expediente |
+| `TARIFA_DESARROLLO`, `TARIFA_INFRA_PRO`, `CORREO_PROVEEDOR_NOMBRE` | condiciones publicadas, si cambian |
+| `CORREO_ARCHIVO_DIR` | carpeta del modo `archivo`, solo local |
 | `ADMIN_CORREO`, `ADMIN_CLAVE` | alta inicial de administración |
 
 `CORREO_MODO=archivo` escribe los mensajes en `tmp/correo-portal/` y la API
 se niega a usarlo con `ENTORNO=produccion`.
+
+`npm run vars` comprueba la producción sin imprimir valores: exige la base
+principal con el rol `bws_app` (rechaza la cadena de pruebas), el modo de
+correo con sus claves y las cinco variables `BWS_*`. `npm run vars:subir`
+carga el resto en Cloudflare como secretos; `ENTORNO` y `APP_ORIGEN` viajan
+en `wrangler.jsonc`. Los valores locales van en `.env.produccion` (ignorado),
+a partir de [`ejemplo.env.produccion`](ejemplo.env.produccion).
 
 ## Arquitectura
 
@@ -207,20 +217,30 @@ Worker (`/api`, `/api/*`, `/portal/*` y las siete páginas), sirve `dist/`
 como assets con respaldo `index.html`, ejecuta primero en esas rutas para
 fijar las cabeceras y declara las fuentes TTF como módulos `Data`.
 
-**El `CNAME` de `bws` tiene que estar proxied** (naranja en Cloudflare).
-Hoy apunta a `blink-servers.github.io` sin proxy; mientras siga así, el
-Worker no puede engancharse a esas rutas y la landing sigue igual. Al
-activar el proxy, el tráfico de `/` sigue yendo a GitHub Pages y el de
-las rutas del portal y la API lo toma el Worker. Si el Worker falla o se
-borra, esas rutas dejan de responder: la landing no se toca.
+**El `CNAME` de `bws` tiene que estar proxied** (naranja en Cloudflare)
+para que las rutas se enganchen: Cloudflare exige un registro proxied
+antes de aceptar una ruta. Al activarlo, el tráfico de `/` sigue yendo a
+GitHub Pages y el de las rutas del portal y la API lo toma el Worker. Si
+el Worker falla o se borra, esas rutas dejan de responder: la landing no
+se toca.
 
-Antes del primer arranque hay que aplicar las migraciones como dueño,
-publicar las plantillas, crear la cuenta de administración y cargar los
-secretos `DATABASE_URL_APP` y `CORREO_API_KEY` más las variables
-`ENTORNO=produccion`, `APP_ORIGEN=https://bws.blink.com.ve`,
-`CORREO_MODO=resend`, `CORREO_DESDE` y `CORREO_COPIA`. Los enlaces de
-correo se arman con `APP_ORIGEN`, así que un valor con otro host manda al
-cliente fuera del portal.
+Primer arranque, en orden:
+
+1. `npx wrangler login` (o `CLOUDFLARE_API_TOKEN` en el entorno).
+2. Copiar `ejemplo.env.produccion` a `.env.produccion` y completar la
+   base, el correo y las cinco `BWS_*`; `npm run vars` debe cerrar sin
+   faltas.
+3. `npm run vars:subir` carga esos valores como secretos.
+4. Aplicar las migraciones como dueño, sembrar las plantillas y crear la
+   administración con `npm run db:migrar`, `npm run db:plantillas` y
+   `npm run admin:alta -- --confirmar` (solo la primera vez).
+5. Poner el `CNAME` de `bws` en proxied y activar **Always Use HTTPS**.
+6. `npm run desplegar` publica el Worker y crea las rutas.
+7. Verificar en vivo: `/`, `/registro`, `/api` y las cabeceras.
+
+Los enlaces de correo se arman con `APP_ORIGEN`, que vive en
+`wrangler.jsonc` junto a `ENTORNO=produccion`; un valor con otro host
+manda al cliente fuera del portal.
 
 Todo cabe en el plan Free de Cloudflare. El plan gratuito limita el Worker a
 10 ms de CPU por solicitud, así que el registro, el ingreso, el

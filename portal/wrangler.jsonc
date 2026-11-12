@@ -5,6 +5,10 @@
   "compatibility_date": "2026-11-01",
   "compatibility_flags": ["nodejs_compat"],
   "upload_source_maps": true,
+  "vars": {
+    "ENTORNO": "produccion",
+    "APP_ORIGEN": "https://bws.blink.com.ve"
+  },
   "assets": {
     "directory": "./dist",
     "binding": "ASSETS",

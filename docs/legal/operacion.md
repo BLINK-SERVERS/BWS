@@ -92,8 +92,10 @@ Antes de considerar el correo operativo en producción:
 4. Repetir la prueba después de cambiar de proveedor o de rotar la clave.
 
 Los valores de las claves no se guardan en el repositorio ni se imprimen; se
-cargan en el panel del proveedor y con `wrangler secret put` (secretos) o en
-`wrangler.jsonc` (variables del Worker).
+cargan en el panel del proveedor y con `npm run vars:subir`, que usa
+`wrangler secret bulk` desde un archivo local ignorado. `ENTORNO` y
+`APP_ORIGEN` viven en `wrangler.jsonc`, y la identidad fiscal (`BWS_*`) se
+carga igual que el resto de secretos: sin ella, el alta responde 503.
 
 ## 5. Retención
 

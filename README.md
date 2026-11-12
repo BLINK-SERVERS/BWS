@@ -470,7 +470,12 @@ Las variables de entorno (solo nombres, nunca valores en el repo):
 `DATABASE_URL`, `DATABASE_URL_APP`, `DATABASE_URL_PRUEBAS`,
 `DATABASE_URL_PRUEBAS_APP`, `APP_ORIGEN`, `CORREO_MODO`,
 `CORREO_API_KEY`, `CORREO_DESDE`, `CORREO_COPIA`, `SMTP_HOST`,
-`SMTP_USER`, `SMTP_PASS`, `ADMIN_CORREO`, `ADMIN_CLAVE`, `ENTORNO`.
+`SMTP_PORT`, `SMTP_SEGURO`, `SMTP_USER`, `SMTP_PASS`,
+`BWS_RAZON_SOCIAL`, `BWS_RIF`, `BWS_DOMICILIO`, `BWS_CORREO`,
+`BWS_TELEFONO`, `TARIFA_DESARROLLO`, `TARIFA_INFRA_PRO`,
+`CORREO_PROVEEDOR_NOMBRE`, `ADMIN_CORREO`, `ADMIN_CLAVE`, `ENTORNO`.
+`npm run vars` en `portal/` comprueba la producción sin imprimir valores
+y `npm run vars:subir` los carga en Cloudflare.
 
 ## Publicar
 
