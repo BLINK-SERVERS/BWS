@@ -8,8 +8,10 @@
 
    El trazo se captura en un lienzo lógico de tamaño fijo, con una
    línea de guía del ancho de la línea impresa en los documentos.
-   El PNG exportado recorta justo sobre esa línea, así que todas
-   las firmas llegan al PDF con la misma proporción y posición.
+   La guía es solo una referencia: la firma puede pasar por debajo,
+   como en el papel. El PNG sale con el lienzo completo y el PDF
+   apoya la guía sobre la línea impresa, así que todas las firmas
+   llegan con la misma proporción y posición.
 
    Quien no pueda dibujar con el puntero tiene la firma en papel
    como alternativa; este lienzo no la sustituye.
@@ -29,7 +31,7 @@ type Punto = { x: number; y: number };
 const ANCHO = 720;
 const ALTO = 200;
 /** Línea de guía: coincide con la línea de firma de los documentos. */
-const LINEA = 160;
+const LINEA = 120;
 const MARGEN_LINEA = 18;
 
 function pintar(contexto: CanvasRenderingContext2D, trazos: Punto[][]) {
@@ -130,11 +132,11 @@ export const LienzoFirma = forwardRef<
       png: () => {
         const canvas = lienzo.current;
         if (!canvas) return null;
-        // Se exporta solo lo que queda sobre la guía: el PDF dibuja la
-        // imagen encima de la línea impresa y todas caben igual.
+        // Se exporta el lienzo completo: lo que baja de la guía también
+        // viaja al PDF, que apoya la guía al 60 % del alto de la imagen.
         const salida = document.createElement("canvas");
         salida.width = canvas.width;
-        salida.height = Math.round(LINEA * (canvas.height / ALTO));
+        salida.height = canvas.height;
         const contexto = salida.getContext("2d");
         if (!contexto) return canvas.toDataURL("image/png");
         contexto.setTransform(
@@ -162,7 +164,7 @@ export const LienzoFirma = forwardRef<
     const rect = evento.currentTarget.getBoundingClientRect();
     return {
       x: Math.min(ANCHO, Math.max(0, ((evento.clientX - rect.left) / rect.width) * ANCHO)),
-      y: Math.min(LINEA, Math.max(0, ((evento.clientY - rect.top) / rect.height) * ALTO)),
+      y: Math.min(ALTO, Math.max(0, ((evento.clientY - rect.top) / rect.height) * ALTO)),
     };
   };
 
@@ -192,7 +194,7 @@ export const LienzoFirma = forwardRef<
       <canvas
         ref={lienzo}
         className="po-lienzo"
-        aria-label="Área para dibujar la firma sobre la línea de guía"
+        aria-label="Área para dibujar la firma sobre la línea de guía, arriba o abajo de ella"
         role="img"
         aria-disabled={!habilitado}
         onPointerDown={bajar}

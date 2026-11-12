@@ -67,26 +67,26 @@ async function esperar(condicion, mensaje, limite = 15_000) {
   throw new Error(mensaje);
 }
 
-/** Traza una firma de prueba sobre la guía, en proporción al lienzo. */
+/** Traza una firma de prueba sobre la guía, cruzando un poco por debajo. */
 async function trazarFirma(pagina, caja) {
-  const y = caja.y + caja.height * 0.5;
+  const y = caja.y + caja.height * 0.6;
   await pagina.mouse.move(caja.x + caja.width * 0.12, y);
   await pagina.mouse.down();
   for (let paso = 1; paso <= 16; paso += 1) {
     await pagina.mouse.move(
       caja.x + caja.width * (0.12 + paso * 0.04),
-      y + Math.sin(paso / 2) * caja.height * 0.18,
+      y + Math.sin(paso / 2) * caja.height * 0.12,
     );
   }
   await pagina.mouse.up();
 }
 
-/** Lee la guía dibujada en el lienzo lógico de 720×200. */
+/** Lee la guía dibujada en el lienzo lógico de 720×200, al 60 % del alto. */
 function revisarGuia(pagina) {
   return pagina.evaluate(() => {
     const canvas = document.querySelector("canvas.po-lienzo");
     if (!canvas) return null;
-    const renglon = Math.round((160 / 200) * canvas.height);
+    const renglon = Math.round((120 / 200) * canvas.height);
     const datos = canvas.getContext("2d").getImageData(0, renglon, canvas.width, 1).data;
     let pintados = 0;
     for (let indice = 3; indice < datos.length; indice += 4) {
@@ -365,8 +365,8 @@ async function principal() {
       alto: img.naturalHeight,
     }));
     comprobar(
-      "el trazo se exporta con la proporción de la guía",
-      Math.abs(trazo.ancho / trazo.alto - 720 / 160) < 0.02,
+      "el trazo se exporta con el lienzo completo, sin cortar la firma",
+      Math.abs(trazo.ancho / trazo.alto - 720 / 200) < 0.02,
       `${trazo.ancho}×${trazo.alto}`,
     );
     comprobar(

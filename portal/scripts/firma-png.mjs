@@ -104,9 +104,10 @@ const TRAZOS = {
 };
 
 export function firmaPNG(variante = "cliente") {
-  // Misma proporción que el lienzo recortado: 720 × 160 (4.5:1).
+  // Misma proporción que el lienzo completo: 720 × 200 (3.6:1),
+  // con la guía al 60 % del alto y trazos que también bajan de ella.
   const ancho = 720;
-  const alto = 160;
+  const alto = 200;
   const rgba = Buffer.alloc(ancho * alto * 4);
   const trazos = TRAZOS[variante] ?? TRAZOS.cliente;
   trazos.forEach(([p0, p1, p2, p3], indice) => {

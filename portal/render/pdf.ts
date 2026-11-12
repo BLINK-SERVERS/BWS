@@ -50,6 +50,8 @@ const INTERLINEADO_CUERPO = 14.2;
 const TAMANO_CELDA = 8.6;
 const INTERLINEADO_CELDA = 11.4;
 const RELLENO_CELDA = 5;
+/** Guía del lienzo de firma (720 × 200, línea en 120): 60 % del alto. */
+const GUIA_FIRMA = 0.6;
 
 interface Celda {
   lineas: string[];
@@ -320,8 +322,9 @@ export async function generarPDF(opciones: OpcionesPDF): Promise<Uint8Array> {
       const altoImg = imagen.height * escala;
       pagina.drawImage(imagen, {
         x: x + (ancho - anchoImg) / 2,
-        // El trazo se recorta sobre su guía: ese borde apoya en la línea.
-        y: yFirma - 30,
+        // La guía de la imagen apoya en la línea impresa; lo que baja de
+        // ella —como en una firma real— queda debajo, sin recortarse.
+        y: yFirma - 30 - altoImg * (1 - GUIA_FIRMA),
         width: anchoImg,
         height: altoImg,
       });
