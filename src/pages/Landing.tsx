@@ -83,13 +83,8 @@ export function Landing() {
             <a className="lp-nav__acceso" href="/ingreso">
               Entrar
             </a>
-            <a
-              className="lp-boton lp-boton--primario lp-nav__cta"
-              href={HERO.ctaPrimaria.url}
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              Hablemos
+            <a className="lp-boton lp-boton--primario lp-nav__cta" href="/registro">
+              Crear cuenta
             </a>
           </div>
         </div>
@@ -203,8 +198,11 @@ export function Landing() {
         <Seccion id={CIERRE.id} tema="oscura" titulo={CIERRE.titulo} className="lp-cierre">
           <p className="lp-cuerpo-icono">{CIERRE.bajada}</p>
           <p className="lp-cierre__cta">
+            <a className="lp-boton lp-boton--primario" href="/registro">
+              Crear cuenta
+            </a>
             <a
-              className="lp-boton lp-boton--primario"
+              className="lp-boton lp-boton--fantasma"
               href={CONTACTO.whatsappSaludo}
               target="_blank"
               rel="noopener noreferrer"
