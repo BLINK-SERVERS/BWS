@@ -320,7 +320,8 @@ export async function generarPDF(opciones: OpcionesPDF): Promise<Uint8Array> {
       const altoImg = imagen.height * escala;
       pagina.drawImage(imagen, {
         x: x + (ancho - anchoImg) / 2,
-        y: yFirma - altoImg / 2,
+        // El trazo se recorta sobre su guía: ese borde apoya en la línea.
+        y: yFirma - 30,
         width: anchoImg,
         height: altoImg,
       });

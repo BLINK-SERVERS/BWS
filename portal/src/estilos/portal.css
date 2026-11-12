@@ -656,6 +656,8 @@ code {
 .po-lienzo-marco {
   position: relative;
   margin-top: 1.25rem;
+  /* Ancho lógico del lienzo: la guía mantiene la proporción del papel. */
+  max-width: 720px;
   border: 1px dashed var(--color-border-strong);
   border-radius: var(--radius-md);
   background: #fff;
@@ -665,8 +667,9 @@ code {
 .po-lienzo {
   display: block;
   width: 100%;
-  /* Debe coincidir con ALTO: el trazo se captura en píxeles CSS. */
-  height: 180px;
+  /* Proporción del lienzo lógico (720 × 200): la guía no se deforma. */
+  height: auto;
+  aspect-ratio: 720 / 200;
   touch-action: none;
   cursor: crosshair;
 }

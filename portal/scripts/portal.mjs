@@ -67,6 +67,38 @@ async function esperar(condicion, mensaje, limite = 15_000) {
   throw new Error(mensaje);
 }
 
+/** Traza una firma de prueba sobre la guía, en proporción al lienzo. */
+async function trazarFirma(pagina, caja) {
+  const y = caja.y + caja.height * 0.5;
+  await pagina.mouse.move(caja.x + caja.width * 0.12, y);
+  await pagina.mouse.down();
+  for (let paso = 1; paso <= 16; paso += 1) {
+    await pagina.mouse.move(
+      caja.x + caja.width * (0.12 + paso * 0.04),
+      y + Math.sin(paso / 2) * caja.height * 0.18,
+    );
+  }
+  await pagina.mouse.up();
+}
+
+/** Lee la guía dibujada en el lienzo lógico de 720×200. */
+function revisarGuia(pagina) {
+  return pagina.evaluate(() => {
+    const canvas = document.querySelector("canvas.po-lienzo");
+    if (!canvas) return null;
+    const renglon = Math.round((160 / 200) * canvas.height);
+    const datos = canvas.getContext("2d").getImageData(0, renglon, canvas.width, 1).data;
+    let pintados = 0;
+    for (let indice = 3; indice < datos.length; indice += 4) {
+      if (datos[indice] > 0) pintados += 1;
+    }
+    return {
+      proporcion: canvas.width / canvas.height,
+      guia: pintados / (canvas.width || 1),
+    };
+  });
+}
+
 async function correoDe(destinatario) {
   let archivo = null;
   await esperar(async () => {
@@ -302,18 +334,31 @@ async function principal() {
     await pagina.locator(".po-tarjeta .po-casilla input[type=checkbox]").check();
     const caja = await pagina.locator("canvas.po-lienzo").boundingBox();
     afirmar(caja, "No se pudo medir el lienzo de firma.");
-    await pagina.mouse.move(caja.x + 60, caja.y + 100);
-    await pagina.mouse.down();
-    for (let paso = 1; paso <= 16; paso += 1) {
-      await pagina.mouse.move(
-        caja.x + 60 + paso * 14,
-        caja.y + 100 + Math.sin(paso / 2) * 28,
-      );
-    }
-    await pagina.mouse.up();
+    comprobar(
+      "el lienzo conserva la proporción de la línea impresa",
+      Math.abs(caja.width / caja.height - 720 / 200) < 0.04,
+      `${Math.round(caja.width)}×${Math.round(caja.height)}`,
+    );
+    const guia = await revisarGuia(pagina);
+    afirmar(guia, "No se pudo leer el lienzo de firma.");
+    comprobar(
+      "el lienzo dibuja la línea de guía de la firma",
+      guia.guia > 0.5 && Math.abs(guia.proporcion - 720 / 200) < 0.01,
+      `cobertura ${guia.guia.toFixed(2)} · proporción ${guia.proporcion.toFixed(2)}`,
+    );
+    await trazarFirma(pagina, caja);
     await pagina.getByRole("button", { name: "Firmar", exact: true }).click();
     await pagina.getByText("Firma registrada. No se puede reemplazar desde el portal.").waitFor();
     await pagina.locator("img.po-firma-imagen").waitFor();
+    const trazo = await pagina.locator("img.po-firma-imagen").evaluate((img) => ({
+      ancho: img.naturalWidth,
+      alto: img.naturalHeight,
+    }));
+    comprobar(
+      "el trazo se exporta con la proporción de la guía",
+      Math.abs(trazo.ancho / trazo.alto - 720 / 160) < 0.02,
+      `${trazo.ancho}×${trazo.alto}`,
+    );
     comprobar(
       "tras firmar ya no se ofrece el lienzo",
       (await pagina.locator("canvas.po-lienzo").count()) === 0,
@@ -403,15 +448,7 @@ async function principal() {
     await admin.locator("canvas.po-lienzo").scrollIntoViewIfNeeded();
     const lienzoAdmin = await admin.locator("canvas.po-lienzo").boundingBox();
     afirmar(lienzoAdmin, "No se pudo medir el lienzo del representante.");
-    await admin.mouse.move(lienzoAdmin.x + 50, lienzoAdmin.y + 90);
-    await admin.mouse.down();
-    for (let paso = 1; paso <= 14; paso += 1) {
-      await admin.mouse.move(
-        lienzoAdmin.x + 50 + paso * 16,
-        lienzoAdmin.y + 90 + Math.cos(paso / 2) * 24,
-      );
-    }
-    await admin.mouse.up();
+    await trazarFirma(admin, lienzoAdmin);
     await admin.getByRole("button", { name: "Guardar firma" }).click();
     await admin
       .getByText("Firma del representante capturada. Los expedientes nuevos la usarán.")
