@@ -3,8 +3,9 @@
    ------------------------------------------------------------
    La firma se captura una sola vez. El POST comprueba que el
    correo esté confirmado, que el consentimiento enviado sea el
-   que corresponde al texto LEG-002 resuelto con los datos del
-   cliente, y que no exista una firma original previa. La base
+   que corresponde al texto LEG-002 resuelto con el nombre y el
+   correo de la cuenta, y que no exista una firma original previa.
+   La base
    tiene el índice único como última defensa: si dos peticiones
    llegan a la vez, una sola escribe.
 
@@ -12,7 +13,6 @@
    ya estaba registrada y que no se reemplaza.
    ============================================================ */
 
-import type { TipoDocumento } from "../../legal/identidad";
 import { agenteDe, ipDe, json, leerJson, objeto, texto } from "../_lib/http";
 import { estadoDe, type ClienteCuenta } from "../_lib/cuenta";
 import { enTransaccion } from "../_lib/db";
@@ -22,7 +22,7 @@ import { manejar } from "../_lib/manejador";
 import {
   documentoDeConsentimiento,
   huellaDelConsentimiento,
-  type ClienteRegistro,
+  type PersonaRegistro,
 } from "../_lib/registro";
 import { leerSesion, type Sesion } from "../_lib/sesion";
 import { codigoPostgres, ErrorHttp } from "../_lib/respuestas";
@@ -35,16 +35,12 @@ function exigirCuenta(sesion: Sesion | null): Sesion {
   return sesion;
 }
 
-function comoRegistro(cliente: ClienteCuenta, correo: string): ClienteRegistro {
-  return {
-    razon_social: cliente.razon_social,
-    documento_tipo: cliente.documento_tipo as TipoDocumento,
-    documento_numero: cliente.documento_numero,
-    domicilio: cliente.domicilio_fiscal,
-    telefono: cliente.telefono,
-    correo,
-    correo_factura: cliente.correo_factura,
-  };
+function comoPersona(
+  cliente: ClienteCuenta,
+  nombre: string,
+  correo: string,
+): PersonaRegistro {
+  return { nombre, telefono: cliente.telefono, correo };
 }
 
 export default manejar(["GET", "POST"], async (peticion) => {
@@ -55,7 +51,8 @@ export default manejar(["GET", "POST"], async (peticion) => {
   }
 
   if (peticion.method === "GET") {
-    const consentimiento = huellaDelConsentimiento(comoRegistro(estado.cliente, sesion.correo));
+    const persona = comoPersona(estado.cliente, sesion.nombre, sesion.correo);
+    const consentimiento = huellaDelConsentimiento(persona);
     let imagen: string | null = null;
     if (estado.firma) {
       const [filas] = await enTransaccion(sesion.usuarioId, sesion.rol, (txn) => [
@@ -69,7 +66,7 @@ export default manejar(["GET", "POST"], async (peticion) => {
     return json({
       verificado: sesion.verificado,
       consentimiento_hash: consentimiento,
-      consentimiento: documentoDeConsentimiento(comoRegistro(estado.cliente, sesion.correo)),
+      consentimiento: documentoDeConsentimiento(persona),
       firma: estado.firma ? { ...estado.firma, png: imagen } : null,
     });
   }
@@ -86,7 +83,9 @@ export default manejar(["GET", "POST"], async (peticion) => {
 
   const cuerpo = objeto(await leerJson<unknown>(peticion));
   const firma = validarFirmaPNG(cuerpo?.png);
-  const consentimiento = huellaDelConsentimiento(comoRegistro(estado.cliente, sesion.correo));
+  const consentimiento = huellaDelConsentimiento(
+    comoPersona(estado.cliente, sesion.nombre, sesion.correo),
+  );
   if (texto(cuerpo?.consentimiento_hash) !== consentimiento) {
     throw new ErrorHttp(
       409,

@@ -68,31 +68,28 @@ describe("huellas de plantilla", () => {
 });
 
 describe("consentimiento del registro", () => {
-  const cliente = {
-    razon_social: "Estudio Prueba, C.A.",
-    documento_tipo: "RIF" as const,
-    documento_numero: "J-12345678-9",
-    domicilio: "Av. Principal, Caracas",
+  const persona = {
+    nombre: "Ana Pérez",
     telefono: "+58 412 1234567",
     correo: "prueba@ejemplo.com",
-    correo_factura: "factura@ejemplo.com",
   };
 
   it("la huella del consentimiento es la de BWS-LEG-002", () => {
-    assert.match(huellaDelConsentimiento(cliente), /^[0-9a-f]{64}$/);
-    assert.equal(huellaDelConsentimiento(cliente), huellaDelConsentimiento({ ...cliente }));
+    assert.match(huellaDelConsentimiento(persona), /^[0-9a-f]{64}$/);
+    assert.equal(huellaDelConsentimiento(persona), huellaDelConsentimiento({ ...persona }));
   });
 
   it("si cambia un dato que el documento usa, cambia la huella", () => {
     assert.notEqual(
-      huellaDelConsentimiento(cliente),
-      huellaDelConsentimiento({ ...cliente, razon_social: "Estudio Distinto, C.A." }),
+      huellaDelConsentimiento(persona),
+      huellaDelConsentimiento({ ...persona, nombre: "Ana Pérez Distinta" }),
     );
   });
 
-  it("se emiten las cinco huellas del registro, sin marcadores", () => {
-    const huellas = huellasDeRegistro(cliente);
+  it("se emiten las cuatro huellas del registro, sin marcadores", () => {
+    const huellas = huellasDeRegistro(persona);
     assert.deepEqual(Object.keys(huellas).sort(), [...DOCUMENTOS_REGISTRO].sort());
+    assert.equal(DOCUMENTOS_REGISTRO.length, 4);
     for (const hash of Object.values(huellas)) assert.match(hash, /^[0-9a-f]{64}$/);
   });
 });

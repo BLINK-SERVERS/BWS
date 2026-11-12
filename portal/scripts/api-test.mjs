@@ -176,7 +176,13 @@ const CUENTA = {
   nombre: "Ana Pérez",
 };
 
-const IDENTIDAD = {
+const PERSONA = {
+  nombre: "Ana Pérez",
+  telefono: "+58 412 123 4567",
+  correo: CUENTA.correo,
+};
+
+const FICHA = {
   razon_social: "Ana Pérez Diseño, C.A.",
   documento_tipo: "RIF",
   documento_numero: "J-12345678-9",
@@ -191,7 +197,7 @@ let cookie = null;
 probar("origen ajeno rechazado", async () => {
   const r = await invocar(consentimiento, "/api/auth/consentimiento", {
     metodo: "POST",
-    cuerpo: { correo: CUENTA.correo, cliente: IDENTIDAD },
+    cuerpo: { nombre: "Ana Pérez", telefono: PERSONA.telefono, correo: "no-es-correo" },
     origen: "https://sitio-ajeno.example",
   });
   assert.equal(r.estado, 403);
@@ -209,21 +215,31 @@ probar("método no permitido", async () => {
 probar("consentimiento resuelto", async () => {
   const r = await invocar(consentimiento, "/api/auth/consentimiento", {
     metodo: "POST",
-    cuerpo: { correo: CUENTA.correo, cliente: IDENTIDAD },
+    cuerpo: PERSONA,
   });
   assert.equal(r.estado, 200);
-  assert.equal(r.cuerpo.documentos.length, 5);
+  assert.equal(r.cuerpo.documentos.length, 4);
   assert.deepEqual(
     r.cuerpo.documentos.map((d) => d.codigo),
-    ["BWS-REG-001", "BWS-LEG-002", "BWS-LEG-003", "BWS-PRI-005", "BWS-WEB-006"],
+    ["BWS-LEG-002", "BWS-LEG-003", "BWS-PRI-005", "BWS-WEB-006"],
   );
   const texto = JSON.stringify(r.cuerpo.documentos);
   huellas = Object.fromEntries(r.cuerpo.documentos.map((d) => [d.codigo, d.hash]));
   assert.ok(!texto.includes("{{"), "quedaron marcadores");
-  assert.ok(texto.includes("Ana Pérez Diseño, C.A."));
+  assert.ok(texto.includes("Ana Pérez"));
   assert.ok(texto.includes("No es una firma electrónica certificada."));
   assert.ok(texto.includes("No es equivalente a una firma autógrafa"));
-  pasar("5 documentos, sin marcadores y con los datos del cliente");
+  pasar("4 documentos, sin marcadores y con los datos de la persona");
+});
+
+probar("consentimiento sin teléfono", async () => {
+  const r = await invocar(consentimiento, "/api/auth/consentimiento", {
+    metodo: "POST",
+    cuerpo: { nombre: PERSONA.nombre, correo: PERSONA.correo },
+  });
+  assert.equal(r.estado, 400);
+  assert.equal(r.cuerpo.codigo, "datos");
+  pasar("400 datos");
 });
 
 probar("registro con consentimiento viejo", async () => {
@@ -231,7 +247,7 @@ probar("registro con consentimiento viejo", async () => {
     metodo: "POST",
     cuerpo: {
       cuenta: CUENTA,
-      cliente: IDENTIDAD,
+      persona: PERSONA,
       hashes: { ...huellas, "BWS-LEG-002": "0".repeat(64) },
     },
   });
@@ -243,7 +259,7 @@ probar("registro con consentimiento viejo", async () => {
 probar("registro válido", async () => {
   const r = await invocar(registro, "/api/auth/registro", {
     metodo: "POST",
-    cuerpo: { cuenta: CUENTA, cliente: IDENTIDAD, hashes: huellas },
+    cuerpo: { cuenta: CUENTA, persona: PERSONA, hashes: huellas },
   });
   assert.equal(r.estado, 201);
   assert.equal(r.cuerpo.verificacion_enviada, true);
@@ -253,27 +269,31 @@ probar("registro válido", async () => {
 probar("correo duplicado", async () => {
   const r = await invocar(registro, "/api/auth/registro", {
     metodo: "POST",
-    cuerpo: { cuenta: CUENTA, cliente: IDENTIDAD, hashes: huellas },
+    cuerpo: { cuenta: CUENTA, persona: PERSONA, hashes: huellas },
   });
   assert.equal(r.estado, 409);
   assert.equal(r.cuerpo.codigo, "correo");
   pasar("409 correo");
 });
 
-probar("documento duplicado", async () => {
+probar("registro sin teléfono", async () => {
   const cuenta = { ...CUENTA, correo: "otra@ejemplo.com" };
   const previa = await invocar(consentimiento, "/api/auth/consentimiento", {
     metodo: "POST",
-    cuerpo: { correo: cuenta.correo, cliente: IDENTIDAD },
+    cuerpo: { nombre: PERSONA.nombre, correo: cuenta.correo },
   });
-  const propios = Object.fromEntries(previa.cuerpo.documentos.map((d) => [d.codigo, d.hash]));
+  assert.equal(previa.estado, 400);
   const r = await invocar(registro, "/api/auth/registro", {
     metodo: "POST",
-    cuerpo: { cuenta, cliente: IDENTIDAD, hashes: propios },
+    cuerpo: {
+      cuenta,
+      persona: { nombre: PERSONA.nombre, correo: cuenta.correo },
+      hashes: huellas,
+    },
   });
-  assert.equal(r.estado, 409);
-  assert.equal(r.cuerpo.codigo, "documento");
-  pasar("409 documento");
+  assert.equal(r.estado, 400);
+  assert.equal(r.cuerpo.codigo, "datos");
+  pasar("400 datos");
 });
 
 probar("ingreso con clave incorrecta", async () => {
@@ -304,9 +324,10 @@ probar("sesión con cliente y sin firma", async () => {
   assert.equal(r.estado, 200);
   assert.equal(r.cuerpo.sesion.usuario.correo, CUENTA.correo);
   assert.equal(r.cuerpo.sesion.usuario.verificado, false);
-  assert.equal(r.cuerpo.sesion.cliente.razon_social, IDENTIDAD.razon_social);
+  assert.equal(r.cuerpo.sesion.cliente.razon_social, null);
+  assert.equal(r.cuerpo.sesion.cliente.telefono, PERSONA.telefono);
   assert.equal(r.cuerpo.sesion.firma, null);
-  pasar("sesión con ficha y sin firma");
+  pasar("sesión con teléfono, sin ficha fiscal y sin firma");
 });
 
 probar("firma sin correo verificado", async () => {
@@ -397,6 +418,7 @@ const PROYECTO = {
   complejidad: "media",
   plan_clave: "supabase",
   plan_nivel: "inicial",
+  ficha: FICHA,
 };
 
 let proyectoGuardado = null;
@@ -476,6 +498,30 @@ probar("proyecto: sin no-reply y dominio ajeno rechazados", async () => {
   pasar("400 sin no-reply y 400 con dominio ajeno");
 });
 
+probar("proyecto: sin datos para el contrato se rechaza", async () => {
+  const { ficha, ...sinFicha } = PROYECTO;
+  void ficha;
+  const r = await invocar(proyecto, "/api/cliente/proyecto", {
+    metodo: "POST",
+    cookie,
+    cuerpo: sinFicha,
+  });
+  assert.equal(r.estado, 400);
+  assert.equal(r.cuerpo.codigo, "ficha");
+  pasar("400 ficha");
+});
+
+probar("proyecto: documento inválido se rechaza", async () => {
+  const r = await invocar(proyecto, "/api/cliente/proyecto", {
+    metodo: "POST",
+    cookie,
+    cuerpo: { ...PROYECTO, ficha: { ...FICHA, documento_numero: "123" } },
+  });
+  assert.equal(r.estado, 400);
+  assert.equal(r.cuerpo.codigo, "ficha");
+  pasar("400 ficha con documento inválido");
+});
+
 probar("proyecto: borrador guardado", async () => {
   const r = await invocar(proyecto, "/api/cliente/proyecto", {
     metodo: "POST",
@@ -490,7 +536,14 @@ probar("proyecto: borrador guardado", async () => {
   assert.equal(r.cuerpo.proyecto.buzones[0], "no-reply@estudio-ana.com.ve");
   assert.equal(r.cuerpo.proyecto.buzones.length, 2);
   proyectoGuardado = r.cuerpo.proyecto;
-  pasar("201, plan Inicial sin costo y no-reply primero");
+
+  const leido = await invocar(proyecto, "/api/cliente/proyecto", { cookie });
+  assert.equal(leido.cuerpo.ficha.razon_social, FICHA.razon_social);
+  assert.equal(leido.cuerpo.ficha.documento_numero, FICHA.documento_numero);
+  assert.equal(leido.cuerpo.ficha.telefono, FICHA.telefono);
+  const sesionFicha = await invocar(sesionActual, "/api/auth/sesion", { cookie });
+  assert.equal(sesionFicha.cuerpo.sesion.cliente.razon_social, FICHA.razon_social);
+  pasar("201, ficha guardada con el proyecto y visible en la sesión");
 });
 
 probar("proyecto: cambiar preset recalcula precio y versión", async () => {

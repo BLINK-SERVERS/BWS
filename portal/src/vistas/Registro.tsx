@@ -1,33 +1,27 @@
 /* ============================================================
    Registro en dos pasos
    ------------------------------------------------------------
-   1. Los datos de la cuenta y de la ficha fiscal.
-   2. Los cinco documentos resueltos con esos datos, su huella,
-      y la creación de la cuenta.
+   1. Nombre, correo, teléfono y clave.
+   2. Los cuatro documentos de la cuenta y su aceptación.
 
-   Si un dato cambia entre los dos pasos, la huella deja de
-   coincidir y el alta no se completa: el consentimiento no se
-   guarda sobre un texto que nadie leyó.
+   Los datos fiscales no se piden aquí: se completan al contratar
+   un proyecto. Si un dato cambia entre los dos pasos, la huella
+   deja de coincidir y el alta no se completa.
    ============================================================ */
 
 import { useState } from "react";
 import {
   correoNormalizado,
-  domicilioValido,
   mensajeClave,
-  mensajeDocumento,
   nombreValido,
-  razonSocialValida,
   telefonoNormalizado,
-  TIPOS_DOCUMENTO,
-  type TipoDocumento,
 } from "../../legal/identidad";
 import {
   api,
   FalloApi,
+  type PersonaDatos,
   type PreviaRegistro,
   type RespuestaRegistro,
-  type TipoDocumento as TipoCliente,
 } from "../datos/api";
 import { Campo } from "../componentes/Campo";
 import { TextoLegal } from "../componentes/TextoLegal";
@@ -35,13 +29,8 @@ import { TextoLegal } from "../componentes/TextoLegal";
 export function Registro() {
   const [nombre, setNombre] = useState("");
   const [correo, setCorreo] = useState("");
-  const [clave, setClave] = useState("");
-  const [razon, setRazon] = useState("");
-  const [tipo, setTipo] = useState<TipoDocumento>("RIF");
-  const [numero, setNumero] = useState("");
-  const [domicilio, setDomicilio] = useState("");
   const [telefono, setTelefono] = useState("");
-  const [correoFactura, setCorreoFactura] = useState("");
+  const [clave, setClave] = useState("");
 
   const [errores, setErrores] = useState<Record<string, string>>({});
   const [previa, setPrevia] = useState<PreviaRegistro | null>(null);
@@ -50,36 +39,24 @@ export function Registro() {
   const [errorGeneral, setErrorGeneral] = useState<string | null>(null);
   const [hecho, setHecho] = useState<RespuestaRegistro | null>(null);
 
+  const persona = (): PersonaDatos => ({
+    nombre: nombre.trim(),
+    telefono: telefono.trim(),
+    correo: correo.trim(),
+  });
+
   const validar = (): boolean => {
     const nuevos: Record<string, string> = {};
-    if (!nombreValido(nombre)) nuevos.nombre = "Escribe el nombre de la persona que firma.";
+    if (!nombreValido(nombre)) nuevos.nombre = "Escribe tu nombre completo.";
     if (!correoNormalizado(correo)) nuevos.correo = "El correo no tiene un formato válido.";
-    const problema = mensajeClave(clave);
-    if (problema) nuevos.clave = problema;
-    if (!razonSocialValida(razon)) {
-      nuevos.razon = "Escribe la razón social o el nombre del cliente.";
-    }
-    const documento = mensajeDocumento(tipo, numero);
-    if (documento) nuevos.numero = documento;
-    if (!domicilioValido(domicilio)) nuevos.domicilio = "Escribe el domicilio fiscal completo.";
     if (!telefonoNormalizado(telefono)) {
       nuevos.telefono = "Escribe un teléfono con al menos siete dígitos.";
     }
-    if (!correoNormalizado(correoFactura)) {
-      nuevos.correoFactura = "El correo de facturación no tiene un formato válido.";
-    }
+    const problema = mensajeClave(clave);
+    if (problema) nuevos.clave = problema;
     setErrores(nuevos);
     return Object.keys(nuevos).length === 0;
   };
-
-  const cliente = () => ({
-    razon_social: razon.trim(),
-    documento_tipo: tipo as TipoCliente,
-    documento_numero: numero.trim(),
-    domicilio: domicilio.trim(),
-    telefono: telefono.trim(),
-    correo_factura: correoFactura.trim(),
-  });
 
   const revisar = async (evento: React.FormEvent) => {
     evento.preventDefault();
@@ -87,7 +64,7 @@ export function Registro() {
     if (!validar()) return;
     setEnviando(true);
     try {
-      const respuesta = await api.consentimiento(correo.trim(), cliente());
+      const respuesta = await api.consentimiento(persona());
       setPrevia(respuesta);
       setAcepta(false);
     } catch (fallo) {
@@ -106,7 +83,7 @@ export function Registro() {
     try {
       const respuesta = await api.registro({
         cuenta: { correo: correo.trim(), clave, nombre: nombre.trim() },
-        cliente: cliente(),
+        persona: persona(),
         hashes: Object.fromEntries(previa.documentos.map((d) => [d.codigo, d.hash])),
       });
       setHecho(respuesta);
@@ -127,29 +104,17 @@ export function Registro() {
   if (hecho) {
     return (
       <section className="po-pagina po-pagina-angosta" aria-labelledby="po-registro-titulo">
-        <p className="po-sello">Paso 3 de 3</p>
         <h1 className="po-titulo-pagina" id="po-registro-titulo">
           Cuenta creada.
         </h1>
         <p className="po-entrada">
-          Enviamos un mensaje a <strong>{hecho.correo}</strong> con el enlace para confirmar
-          el correo. El enlace vence en 24 horas.
+          Te enviamos un mensaje a <strong>{hecho.correo}</strong> para confirmar el correo.
         </p>
-        {hecho.verificacion_enviada ? (
-          <div className="po-nota" role="status">
-            <p>
-              Sin confirmar el correo puedes entrar al portal, pero no firmar. Si el mensaje
-              no llega, revisa la carpeta de spam o escribe a{" "}
-              <a href="mailto:business@blink.com.ve">business@blink.com.ve</a>.
-            </p>
-          </div>
-        ) : (
+        {hecho.verificacion_enviada ? null : (
           <div className="po-nota po-nota-aviso" role="alert">
             <p>
-              La cuenta quedó creada, pero el correo de verificación no pudo enviarse desde
-              este servidor. Escribe a{" "}
-              <a href="mailto:business@blink.com.ve">business@blink.com.ve</a> para activar
-              la firma.
+              El correo de verificación no pudo enviarse. Escribe a{" "}
+              <a href="mailto:business@blink.com.ve">business@blink.com.ve</a>.
             </p>
           </div>
         )}
@@ -163,111 +128,55 @@ export function Registro() {
   }
 
   return (
-    <section className="po-pagina" aria-labelledby="po-registro-titulo">
-      <p className="po-sello">{previa ? "Paso 2 de 3" : "Paso 1 de 3"}</p>
+    <section className="po-pagina po-pagina-angosta" aria-labelledby="po-registro-titulo">
       <h1 className="po-titulo-pagina" id="po-registro-titulo">
-        {previa ? "Lee y acepta los documentos." : "Crear la cuenta."}
+        {previa ? "Documentos de la cuenta." : "Crear cuenta."}
       </h1>
 
       {!previa ? (
         <>
           <p className="po-entrada">
-            La cuenta es de la persona que va a firmar. Los datos fiscales son del cliente
-            que contrata. El portal valida el formato del documento; no consulta al SENIAT.
+            Nombre, teléfono y correo. Los datos del contrato se piden al contratar un
+            proyecto.
           </p>
 
           <form className="po-formulario" onSubmit={(e) => void revisar(e)} noValidate>
-            <fieldset className="po-grupo">
-              <legend>Cuenta</legend>
-              <Campo
-                id="registro-nombre"
-                etiqueta="Nombre de la persona que firma"
-                autocompletar="name"
-                valor={nombre}
-                alCambiar={setNombre}
-                error={errores.nombre}
-              />
-              <Campo
-                id="registro-correo"
-                etiqueta="Correo"
-                tipo="email"
-                autocompletar="email"
-                ayuda="Aquí llega el enlace de verificación."
-                valor={correo}
-                alCambiar={setCorreo}
-                error={errores.correo}
-              />
-              <Campo
-                id="registro-clave"
-                etiqueta="Clave"
-                tipo="password"
-                autocompletar="new-password"
-                ayuda="Al menos diez caracteres, con letras y números."
-                valor={clave}
-                alCambiar={setClave}
-                error={errores.clave}
-              />
-            </fieldset>
-
-            <fieldset className="po-grupo">
-              <legend>Datos fiscales del cliente</legend>
-              <Campo
-                id="registro-razon"
-                etiqueta="Razón social o nombre"
-                autocompletar="organization"
-                valor={razon}
-                alCambiar={setRazon}
-                error={errores.razon}
-              />
-              <div className="po-fila">
-                <Campo
-                  id="registro-tipo"
-                  etiqueta="Tipo de documento"
-                  modo="select"
-                  valor={tipo}
-                  alCambiar={(valor) => setTipo(valor as TipoDocumento)}
-                >
-                  {TIPOS_DOCUMENTO.map((opcion) => (
-                    <option key={opcion.valor} value={opcion.valor}>
-                      {opcion.etiqueta}
-                    </option>
-                  ))}
-                </Campo>
-                <Campo
-                  id="registro-numero"
-                  etiqueta="Número"
-                  ayuda={TIPOS_DOCUMENTO.find((t) => t.valor === tipo)?.ayuda}
-                  valor={numero}
-                  alCambiar={setNumero}
-                  error={errores.numero}
-                />
-              </div>
-              <Campo
-                id="registro-domicilio"
-                etiqueta="Domicilio fiscal"
-                autocompletar="street-address"
-                valor={domicilio}
-                alCambiar={setDomicilio}
-                error={errores.domicilio}
-              />
-              <Campo
-                id="registro-telefono"
-                etiqueta="Teléfono"
-                tipo="tel"
-                autocompletar="tel"
-                valor={telefono}
-                alCambiar={setTelefono}
-                error={errores.telefono}
-              />
-              <Campo
-                id="registro-factura"
-                etiqueta="Correo de facturación"
-                tipo="email"
-                valor={correoFactura}
-                alCambiar={setCorreoFactura}
-                error={errores.correoFactura}
-              />
-            </fieldset>
+            <Campo
+              id="registro-nombre"
+              etiqueta="Nombre completo"
+              autocompletar="name"
+              valor={nombre}
+              alCambiar={setNombre}
+              error={errores.nombre}
+            />
+            <Campo
+              id="registro-correo"
+              etiqueta="Correo"
+              tipo="email"
+              autocompletar="email"
+              valor={correo}
+              alCambiar={setCorreo}
+              error={errores.correo}
+            />
+            <Campo
+              id="registro-telefono"
+              etiqueta="Teléfono"
+              tipo="tel"
+              autocompletar="tel"
+              valor={telefono}
+              alCambiar={setTelefono}
+              error={errores.telefono}
+            />
+            <Campo
+              id="registro-clave"
+              etiqueta="Clave"
+              tipo="password"
+              autocompletar="new-password"
+              ayuda="Al menos diez caracteres, con letras y números."
+              valor={clave}
+              alCambiar={setClave}
+              error={errores.clave}
+            />
 
             {errorGeneral ? (
               <p className="po-campo-error" role="alert">
@@ -276,29 +185,13 @@ export function Registro() {
             ) : null}
 
             <button className="po-boton po-boton-principal" type="submit" disabled={enviando}>
-              {enviando ? "Preparando…" : "Revisar documentos"}
+              {enviando ? "Preparando…" : "Continuar"}
             </button>
-            <p className="po-apagado">
-              Al continuar verás los cinco documentos del registro resueltos con estos
-              datos, antes de aceptar nada.
-            </p>
           </form>
         </>
       ) : (
         <>
-          <p className="po-entrada">
-            Estos son los documentos que quedarán asociados a tu cuenta. Léelos completos:
-            la firma del consentimiento se guarda sobre este texto exacto.
-          </p>
-
-          {previa.prestador.provisional ? (
-            <div className="po-nota po-nota-aviso" role="alert">
-              <p>
-                Este entorno muestra datos fiscales provisionales de Blink. El alta real usa
-                los datos configurados en el servidor, no estos.
-              </p>
-            </div>
-          ) : null}
+          <p className="po-entrada">Lee y acepta para crear la cuenta.</p>
 
           <div className="po-documentos">
             {previa.documentos.map((documento) => (
@@ -310,7 +203,6 @@ export function Registro() {
                   </span>
                 </summary>
                 <div className="po-documento-cuerpo">
-                  <p className="po-apagado">{documento.resumen}</p>
                   <TextoLegal bloques={documento.bloques} />
                   <p className="po-hash-linea">
                     Huella: <code className="po-hash">{documento.hash}</code>
@@ -327,8 +219,8 @@ export function Registro() {
               onChange={(evento) => setAcepta(evento.target.checked)}
             />
             <span>
-              Leí los cinco documentos y acepto sus términos, incluido el consentimiento
-              para el uso de firma electrónica simple no certificada.
+              Acepto los documentos anteriores, incluido el consentimiento de firma
+              electrónica simple no certificada.
             </span>
           </label>
 
@@ -345,7 +237,7 @@ export function Registro() {
               onClick={() => setPrevia(null)}
               disabled={enviando}
             >
-              Volver a los datos
+              Volver
             </button>
             <button
               type="button"

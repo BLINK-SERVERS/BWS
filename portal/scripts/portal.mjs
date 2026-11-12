@@ -262,23 +262,19 @@ async function principal() {
     await ir("registro/");
     comprobar(
       "la barra final conserva la ruta",
-      (await pagina.getByRole("heading", { name: "Crear la cuenta." }).count()) === 1,
+      (await pagina.getByRole("heading", { name: "Crear cuenta." }).count()) === 1,
     );
 
     await ir("registro");
-    await pagina.getByLabel("Nombre de la persona que firma").fill("Ana Pérez");
+    await pagina.getByLabel("Nombre completo").fill("Ana Pérez");
     await pagina.getByLabel("Correo", { exact: true }).fill(correo);
-    await pagina.getByLabel("Clave", { exact: true }).fill(clave);
-    await pagina.getByLabel("Razón social o nombre").fill("Estudio Prueba, C.A.");
-    await pagina.getByLabel("Número").fill("J-12345678-9");
-    await pagina.getByLabel("Domicilio fiscal").fill("Av. Principal, Caracas");
     await pagina.getByLabel("Teléfono").fill("+58 412 1234567");
-    await pagina.getByLabel("Correo de facturación").fill(`factura-${marca}@ejemplo.com`);
+    await pagina.getByLabel("Clave", { exact: true }).fill(clave);
     await medir(pagina, "registro", 1440);
 
-    await pagina.getByRole("button", { name: "Revisar documentos" }).click();
-    await pagina.getByRole("heading", { name: "Lee y acepta los documentos." }).waitFor();
-    comprobar("el registro muestra cinco documentos", (await pagina.locator(".po-documento").count()) === 5);
+    await pagina.getByRole("button", { name: "Continuar" }).click();
+    await pagina.getByRole("heading", { name: "Documentos de la cuenta." }).waitFor();
+    comprobar("el registro muestra cuatro documentos", (await pagina.locator(".po-documento").count()) === 4);
     await medir(pagina, "consentimiento", 1440);
 
     await pagina.locator(".po-casilla input[type=checkbox]").check();
@@ -328,6 +324,10 @@ async function principal() {
     const dominio = `estudio-${marca}.com.ve`;
     await ir("proyecto");
     await pagina.getByRole("heading", { name: "Describe tu proyecto." }).waitFor();
+    await pagina.getByLabel("Razón social o nombre").fill("Estudio Prueba, C.A.");
+    await pagina.getByLabel("Número").fill("J-12345678-9");
+    await pagina.getByLabel("Domicilio fiscal").fill("Av. Principal, Caracas");
+    await pagina.getByLabel("Correo de facturación").fill(`factura-${marca}@ejemplo.com`);
     await pagina.getByLabel("Nombre del proyecto").fill("App de citas");
     await pagina.getByLabel("Categoría").selectOption("Aplicación web");
     await pagina.getByLabel("Dominio").fill(dominio);

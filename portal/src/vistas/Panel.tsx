@@ -487,23 +487,27 @@ export function Panel({
           </Dato>
           {cliente ? (
             <>
-              <Dato titulo="Cliente">{cliente.razon_social}</Dato>
+              <Dato titulo="Cliente">{cliente.razon_social ?? "Pendiente"}</Dato>
               <Dato titulo="Documento">
-                {cliente.documento_tipo === "cedula"
-                  ? "Cédula"
-                  : cliente.documento_tipo === "pasaporte"
-                    ? "Pasaporte"
-                    : "RIF"}{" "}
-                {cliente.documento_numero}
+                {cliente.documento_numero
+                  ? `${cliente.documento_tipo === "cedula"
+                    ? "Cédula"
+                    : cliente.documento_tipo === "pasaporte"
+                      ? "Pasaporte"
+                      : "RIF"} ${cliente.documento_numero}`
+                  : "Pendiente"}
               </Dato>
-              <Dato titulo="Domicilio fiscal">{cliente.domicilio_fiscal}</Dato>
+              <Dato titulo="Domicilio fiscal">{cliente.domicilio_fiscal ?? "Pendiente"}</Dato>
               <Dato titulo="Teléfono">{cliente.telefono}</Dato>
-              <Dato titulo="Correo de facturación">{cliente.correo_factura}</Dato>
+              <Dato titulo="Correo de facturación">
+                {cliente.correo_factura ?? "Pendiente"}
+              </Dato>
             </>
           ) : null}
         </dl>
         <p className="po-apagado">
-          Los datos fiscales se validan por formato; el portal no consulta al SENIAT.
+          Los datos que faltan se completan al crear el proyecto. El portal valida el
+          formato; no consulta al SENIAT.
         </p>
       </section>
 

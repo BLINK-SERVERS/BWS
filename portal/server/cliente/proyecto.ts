@@ -14,7 +14,14 @@
    código.
    ============================================================ */
 
-import { exigirCliente, leerProyecto, vistaDeProyecto, COMPLEJIDADES, CATEGORIAS } from "../_lib/proyecto";
+import {
+  exigirCliente,
+  leerFicha,
+  leerProyecto,
+  vistaDeProyecto,
+  COMPLEJIDADES,
+  CATEGORIAS,
+} from "../_lib/proyecto";
 import { estadoDe } from "../_lib/cuenta";
 import { exigirOrigen } from "../_lib/csrf";
 import { enTransaccion } from "../_lib/db";
@@ -68,12 +75,24 @@ export default manejar(["GET", "POST"], async (peticion) => {
       condiciones: condicionesPublicas(),
       categorias: CATEGORIAS,
       complejidades: COMPLEJIDADES,
+      ficha: estado.cliente
+        ? {
+            razon_social: estado.cliente.razon_social,
+            documento_tipo: estado.cliente.documento_tipo,
+            documento_numero: estado.cliente.documento_numero,
+            domicilio: estado.cliente.domicilio_fiscal,
+            telefono: estado.cliente.telefono,
+            correo_factura: estado.cliente.correo_factura,
+          }
+        : null,
     });
   }
 
   exigirOrigen(peticion);
   const cliente = exigirCliente(estado.cliente);
-  const datos = leerProyecto(objeto(await leerJson<unknown>(peticion)));
+  const cuerpo = objeto(await leerJson<unknown>(peticion));
+  const datos = leerProyecto(cuerpo);
+  const ficha = leerFicha(cuerpo?.ficha);
 
   const presets = await planesVigentes();
   const plan = buscarVigente(presets, datos.plan_clave, datos.plan_nivel);
@@ -83,12 +102,17 @@ export default manejar(["GET", "POST"], async (peticion) => {
 
   let guardado: Record<string, unknown> | undefined;
   try {
-    // Tres sentencias, en este orden: actualizar el borrador, crear uno
-    // si el cliente todavía no tiene proyecto y leer la fila resultante.
-    // Nada de RETURNING en el INSERT: bajo RLS, PostgreSQL aplica la
-    // política de SELECT a las filas devueltas y `bws_proyecto_propio`
-    // todavía no ve una fila que no existía en la instantánea.
-    const [, , filas] = await enTransaccion(sesion.usuarioId, sesion.rol, (txn) => [
+    // La ficha fiscal se guarda con el mismo borrador: es la que irá
+    // al contrato cuando el proyecto se envíe.
+    const [, , , filas] = await enTransaccion(sesion.usuarioId, sesion.rol, (txn) => [
+      txn`update clientes set
+            razon_social = ${ficha.razon_social},
+            documento_tipo = ${ficha.documento_tipo},
+            documento_numero = ${ficha.documento_numero},
+            domicilio_fiscal = ${ficha.domicilio},
+            telefono = ${ficha.telefono},
+            correo_factura = ${ficha.correo_factura}
+          where id = ${cliente.id}`,
       txn`update proyectos set
             nombre = ${datos.nombre},
             categoria = ${datos.categoria},
@@ -116,6 +140,14 @@ export default manejar(["GET", "POST"], async (peticion) => {
     guardado = (filas ?? [])[0] as Record<string, unknown> | undefined;
   } catch (error) {
     if (codigoPostgres(error) === "23505") {
+      const restriccion = (error as { constraint?: string }).constraint ?? "";
+      if (restriccion.startsWith("clientes_")) {
+        throw new ErrorHttp(
+          409,
+          "Ese documento ya está registrado en otra cuenta.",
+          "documento",
+        );
+      }
       throw new ErrorHttp(409, "Ya hay un borrador guardado. Recarga la página.", "borrador");
     }
     throw error;

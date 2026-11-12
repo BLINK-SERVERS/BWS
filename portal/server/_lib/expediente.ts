@@ -147,20 +147,41 @@ export async function clienteDeExpediente(
   ]);
   const fila = (filas ?? [])[0] as Record<string, unknown> | undefined;
   if (!fila) {
-    throw new ErrorHttp(404, "La ficha fiscal del cliente no existe.", "sin_cliente");
+    throw new ErrorHttp(404, "La ficha del cliente no existe.", "sin_cliente");
+  }
+  const razon_social = cadena(fila.razon_social);
+  const documento_tipo = cadena(fila.documento_tipo);
+  const documento_numero = cadena(fila.documento_numero);
+  const domicilio = cadena(fila.domicilio_fiscal);
+  const correo_factura = cadena(fila.correo_factura);
+  if (
+    !razon_social || !documento_tipo || !documento_numero || !domicilio ||
+    !correo_factura
+  ) {
+    throw new ErrorHttp(
+      409,
+      "El cliente no completó los datos para el contrato. El expediente se genera con la ficha fiscal completa.",
+      "ficha_incompleta",
+    );
   }
   return {
     id: String(fila.id),
-    razon_social: String(fila.razon_social),
-    documento_tipo: String(fila.documento_tipo),
-    documento_numero: String(fila.documento_numero),
-    domicilio: String(fila.domicilio_fiscal),
+    razon_social,
+    documento_tipo,
+    documento_numero,
+    domicilio,
     telefono: String(fila.telefono),
-    correo_factura: String(fila.correo_factura),
+    correo_factura,
     nombre: String(fila.nombre),
     correo: String(fila.correo),
     verificado: Boolean(fila.correo_verificado),
   };
+}
+
+function cadena(valor: unknown): string | null {
+  if (valor === null || valor === undefined) return null;
+  const texto = String(valor).trim();
+  return texto || null;
 }
 
 /** Firma original del cliente (o una concreta, cuando la fijó un acto anterior). */

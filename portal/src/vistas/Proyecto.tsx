@@ -13,8 +13,14 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   correoNormalizado,
+  domicilioValido,
   dominioDe,
+  mensajeDocumento,
   normalizarDominio,
+  razonSocialValida,
+  telefonoNormalizado,
+  TIPOS_DOCUMENTO,
+  type TipoDocumento,
 } from "../../legal/identidad";
 import {
   api,
@@ -134,6 +140,13 @@ export function Proyecto({ sesion }: { sesion: SesionPortal | null | undefined }
   const [planClave, setPlanClave] = useState("supabase");
   const [planNivel, setPlanNivel] = useState("inicial");
 
+  const [razon, setRazon] = useState("");
+  const [tipo, setTipo] = useState<TipoDocumento>("RIF");
+  const [numero, setNumero] = useState("");
+  const [domicilio, setDomicilio] = useState("");
+  const [telefono, setTelefono] = useState("");
+  const [correoFactura, setCorreoFactura] = useState("");
+
   const [errores, setErrores] = useState<Record<string, string>>({});
   const [guardando, setGuardando] = useState(false);
   const [confirmando, setConfirmando] = useState(false);
@@ -147,6 +160,17 @@ export function Proyecto({ sesion }: { sesion: SesionPortal | null | undefined }
         if (!vigente) return;
         setDatos(respuesta);
         setProyecto(respuesta.proyecto);
+        if (respuesta.ficha) {
+          const f = respuesta.ficha;
+          setRazon(f.razon_social ?? "");
+          if (f.documento_tipo === "RIF" || f.documento_tipo === "cedula" || f.documento_tipo === "pasaporte") {
+            setTipo(f.documento_tipo);
+          }
+          setNumero(f.documento_numero ?? "");
+          setDomicilio(f.domicilio ?? "");
+          setTelefono(f.telefono);
+          setCorreoFactura(f.correo_factura ?? "");
+        }
         if (respuesta.proyecto) {
           const p = respuesta.proyecto;
           setNombre(p.nombre);
@@ -228,6 +252,20 @@ export function Proyecto({ sesion }: { sesion: SesionPortal | null | undefined }
       nuevos.alcance = "Describe el alcance con al menos 40 caracteres.";
     }
     if (!plan) nuevos.plan = "Elige un plan disponible.";
+    if (!razonSocialValida(razon)) {
+      nuevos.razon = "Escribe la razón social o el nombre del cliente.";
+    }
+    const documento = mensajeDocumento(tipo, numero);
+    if (documento) nuevos.numero = documento;
+    if (!domicilioValido(domicilio)) {
+      nuevos.domicilio = "Escribe el domicilio fiscal completo.";
+    }
+    if (!telefonoNormalizado(telefono)) {
+      nuevos.telefono = "Escribe un teléfono con al menos siete dígitos.";
+    }
+    if (!correoNormalizado(correoFactura)) {
+      nuevos.correoFactura = "El correo de facturación no tiene un formato válido.";
+    }
     setErrores(nuevos);
     return Object.keys(nuevos).length === 0;
   };
@@ -250,6 +288,14 @@ export function Proyecto({ sesion }: { sesion: SesionPortal | null | undefined }
         complejidad,
         plan_clave: planClave,
         plan_nivel: planNivel,
+        ficha: {
+          razon_social: razon.trim(),
+          documento_tipo: tipo,
+          documento_numero: numero.trim(),
+          domicilio: domicilio.trim(),
+          telefono: telefono.trim(),
+          correo_factura: correoFactura.trim(),
+        },
       });
       setProyecto(guardado.proyecto);
       if (etapa === "guardar") {
@@ -425,6 +471,69 @@ export function Proyecto({ sesion }: { sesion: SesionPortal | null | undefined }
       ) : null}
 
       <form className="po-formulario" onSubmit={(e) => e.preventDefault()} noValidate>
+        <fieldset className="po-grupo">
+          <legend>Datos para el contrato</legend>
+          <p className="po-apagado">
+            Con estos datos se emite el contrato y la factura.
+          </p>
+          <Campo
+            id="proyecto-razon"
+            etiqueta="Razón social o nombre del cliente"
+            autocompletar="organization"
+            valor={razon}
+            alCambiar={setRazon}
+            error={errores.razon}
+          />
+          <div className="po-fila">
+            <Campo
+              id="proyecto-tipo"
+              etiqueta="Tipo de documento"
+              modo="select"
+              valor={tipo}
+              alCambiar={(valor) => setTipo(valor as TipoDocumento)}
+            >
+              {TIPOS_DOCUMENTO.map((opcion) => (
+                <option key={opcion.valor} value={opcion.valor}>
+                  {opcion.etiqueta}
+                </option>
+              ))}
+            </Campo>
+            <Campo
+              id="proyecto-numero"
+              etiqueta="Número"
+              ayuda={TIPOS_DOCUMENTO.find((t) => t.valor === tipo)?.ayuda}
+              valor={numero}
+              alCambiar={setNumero}
+              error={errores.numero}
+            />
+          </div>
+          <Campo
+            id="proyecto-domicilio"
+            etiqueta="Domicilio fiscal"
+            autocompletar="street-address"
+            valor={domicilio}
+            alCambiar={setDomicilio}
+            error={errores.domicilio}
+          />
+          <Campo
+            id="proyecto-telefono"
+            etiqueta="Teléfono"
+            tipo="tel"
+            autocompletar="tel"
+            valor={telefono}
+            alCambiar={setTelefono}
+            error={errores.telefono}
+          />
+          <Campo
+            id="proyecto-factura"
+            etiqueta="Correo de facturación"
+            tipo="email"
+            valor={correoFactura}
+            alCambiar={setCorreoFactura}
+            error={errores.correoFactura}
+          />
+        </fieldset>
+
         <fieldset className="po-grupo">
           <legend>El proyecto</legend>
           <Campo

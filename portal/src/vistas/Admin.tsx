@@ -334,8 +334,8 @@ function TarjetaExpediente({
         <div>
           <h3>{proyecto.nombre}</h3>
           <p className="po-apagado">
-            {cliente ? cliente.razon_social : "Cliente sin ficha"} · {proyecto.dominio} ·{" "}
-            {proyecto.plan_clave}/{proyecto.plan_nivel}
+            {cliente ? (cliente.razon_social ?? cliente.nombre) : "Cliente sin ficha"} ·{" "}
+            {proyecto.dominio} · {proyecto.plan_clave}/{proyecto.plan_nivel}
           </p>
         </div>
         <Etiqueta
@@ -693,7 +693,7 @@ function TarjetaSuscripcion({
         <div>
           <h3>{proyecto?.nombre ?? "Proyecto"}</h3>
           <p className="po-apagado">
-            {cliente ? cliente.razon_social : "Cliente sin ficha"} · USD{" "}
+            {cliente ? (cliente.razon_social ?? cliente.nombre) : "Cliente sin ficha"} · USD{" "}
             {suscripcion.monto_usd} al mes · cobro el día {suscripcion.dia_cobro}
           </p>
         </div>

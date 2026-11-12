@@ -3,8 +3,8 @@ import type { DocumentoLegal } from "../tipos";
 export const LEG_003: DocumentoLegal = {
   codigo: "BWS-LEG-003",
   titulo: "Términos y condiciones del servicio",
-  version: "2.0",
-  fecha: "2026-11-11",
+  version: "3.0",
+  fecha: "2026-11-12",
   firma: "registro",
   resumen:
     "Condiciones generales aplicables a todos los servicios de Blink: cuenta, alcance, precios, mora, propiedad intelectual, datos y responsabilidad.",
@@ -15,9 +15,6 @@ export const LEG_003: DocumentoLegal = {
     "bws_domicilio",
     "bws_correo",
     "cliente_razon_social",
-    "cliente_documento_tipo",
-    "cliente_documento_numero",
-    "cliente_domicilio",
     "cliente_correo",
     "tarifa_desarrollo",
     "tarifa_infra_pro",
@@ -34,7 +31,7 @@ export const LEG_003: DocumentoLegal = {
     {
       tipo: "parrafo",
       texto:
-        "Estos términos regulan la relación entre {{bws_razon_social}} (en adelante, «Blink»), documento {{bws_documento}}, domicilio {{bws_domicilio}}, y {{cliente_razon_social}} (en adelante, «el Cliente»), documento {{cliente_documento_tipo}} {{cliente_documento_numero}}, domicilio {{cliente_domicilio}}. Se aceptan al crear la cuenta y se complementan con el contrato de prestación de servicios (BWS-CON-004), sus anexos y la política de privacidad (BWS-PRI-005). Si hay conflicto, prevalece el contrato firmado para el proyecto.",
+        "Estos términos regulan la relación entre {{bws_razon_social}} (en adelante, «Blink»), documento {{bws_documento}}, domicilio {{bws_domicilio}}, y {{cliente_razon_social}} (en adelante, «el Cliente»), con correo {{cliente_correo}}. Se aceptan al crear la cuenta y se complementan con el contrato de prestación de servicios (BWS-CON-004), sus anexos y la política de privacidad (BWS-PRI-005). Si hay conflicto, prevalece el contrato firmado para el proyecto.",
     },
     { tipo: "subtitulo", texto: "1. Objeto" },
     {

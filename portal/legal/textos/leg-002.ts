@@ -3,8 +3,8 @@ import type { DocumentoLegal } from "../tipos";
 export const LEG_002: DocumentoLegal = {
   codigo: "BWS-LEG-002",
   titulo: "Consentimiento informado para el uso de firma electrónica no certificada",
-  version: "1.0",
-  fecha: "2026-11-11",
+  version: "2.0",
+  fecha: "2026-11-12",
   firma: "registro",
   resumen:
     "Explica qué firma se captura, qué significa y qué no, cómo se conserva la evidencia y qué alternativas existen. Se firma antes del trazo.",
@@ -13,15 +13,13 @@ export const LEG_002: DocumentoLegal = {
     "bws_razon_social",
     "bws_correo",
     "cliente_razon_social",
-    "cliente_documento_tipo",
-    "cliente_documento_numero",
     "cliente_correo",
   ],
   bloques: [
     {
       tipo: "parrafo",
       texto:
-        "Este documento se entrega a {{cliente_razon_social}}, documento {{cliente_documento_tipo}} {{cliente_documento_numero}}, antes de capturar su firma en el portal de {{bws_razon_social}}. Su finalidad es que usted entienda qué está firmando y qué valor tiene la firma que se captura. Léalo completo antes de continuar.",
+        "Este documento se entrega a {{cliente_razon_social}} ({{cliente_correo}}), antes de capturar su firma en el portal de {{bws_razon_social}}. Su finalidad es que usted entienda qué está firmando y qué valor tiene la firma que se captura. Léalo completo antes de continuar.",
     },
     { tipo: "subtitulo", texto: "1. Qué firma se usa" },
     {

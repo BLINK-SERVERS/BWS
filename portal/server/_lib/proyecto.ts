@@ -14,8 +14,14 @@
 
 import {
   correoNormalizado,
+  domicilioValido,
   dominioDe,
+  mensajeDocumento,
+  normalizarDocumento,
   normalizarDominio,
+  razonSocialValida,
+  telefonoNormalizado,
+  type TipoDocumento,
 } from "../../legal/identidad";
 import { ErrorHttp } from "./respuestas";
 import type { ClienteCuenta } from "./cuenta";
@@ -56,8 +62,77 @@ export interface ProyectoVista extends ProyectoDatos {
   plan: PlanVista;
 }
 
+export interface FichaContrato {
+  razon_social: string;
+  documento_tipo: TipoDocumento;
+  documento_numero: string;
+  domicilio: string;
+  telefono: string;
+  correo_factura: string;
+}
+
 function rechazar(mensaje: string, codigo = "proyecto"): never {
   throw new ErrorHttp(400, mensaje, codigo);
+}
+
+/** La ficha fiscal que va al contrato se pide al describir el proyecto. */
+export function leerFicha(fuente: unknown): FichaContrato {
+  if (!fuente || typeof fuente !== "object" || Array.isArray(fuente)) {
+    rechazar("Completa los datos para el contrato.", "ficha");
+  }
+  const datos = fuente as Record<string, unknown>;
+
+  const razon = limpiar(datos.razon_social);
+  if (!razonSocialValida(razon)) {
+    rechazar("Escribe la razón social o el nombre del cliente.", "ficha");
+  }
+
+  const tipoCrudo = limpiar(datos.documento_tipo);
+  if (tipoCrudo !== "RIF" && tipoCrudo !== "cedula" && tipoCrudo !== "pasaporte") {
+    rechazar("Elige el tipo de documento del cliente.", "ficha");
+  }
+  const numero = normalizarDocumento(tipoCrudo, datos.documento_numero);
+  if (!numero) {
+    rechazar(
+      mensajeDocumento(tipoCrudo, datos.documento_numero) ?? "Documento inválido.",
+      "ficha",
+    );
+  }
+
+  const domicilio = limpiar(datos.domicilio);
+  if (!domicilioValido(domicilio)) {
+    rechazar("Escribe el domicilio fiscal completo.", "ficha");
+  }
+
+  const telefono = telefonoNormalizado(datos.telefono);
+  if (!telefono) {
+    rechazar("Escribe un teléfono con al menos siete dígitos.", "ficha");
+  }
+
+  const correoFactura = correoNormalizado(datos.correo_factura);
+  if (!correoFactura) {
+    rechazar("El correo de facturación no tiene un formato válido.", "ficha");
+  }
+
+  return {
+    razon_social: razon,
+    documento_tipo: tipoCrudo,
+    documento_numero: numero,
+    domicilio,
+    telefono,
+    correo_factura: correoFactura,
+  };
+}
+
+/** Los cinco datos fiscales están completos. */
+export function fichaCompleta(cliente: ClienteCuenta): boolean {
+  return Boolean(
+    cliente.razon_social &&
+      cliente.documento_tipo &&
+      cliente.documento_numero &&
+      cliente.domicilio_fiscal &&
+      cliente.correo_factura,
+  );
 }
 
 function limpiar(valor: unknown): string {

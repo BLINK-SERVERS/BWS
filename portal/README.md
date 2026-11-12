@@ -39,12 +39,12 @@ Rutas limpias sobre `bws.blink.com.ve`; el Worker las atiende y entrega
 
 | ruta | quién | qué |
 |---|---|---|
-| `/registro` | cliente | cuenta, ficha fiscal, cinco documentos y firma |
+| `/registro` | cliente | cuenta con nombre, teléfono y correo, cuatro documentos |
 | `/verificar` | cliente | código de correo |
 | `/ingreso` | todos | sesión |
 | `/recuperar` | cliente | enlace de un solo uso |
 | `/panel` | cliente | estado, suscripción, documentos, proyecto |
-| `/proyecto` | cliente | borrador, plan y envío |
+| `/proyecto` | cliente | datos del contrato, borrador, plan y envío |
 | `/admin` | administración | resumen, firma del representante, expediente |
 
 En `bws`, `/` es la landing de GitHub Pages, y por eso el enlace de la

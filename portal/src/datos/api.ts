@@ -34,13 +34,10 @@ export interface PreviaRegistro {
   prestador: PrestadorPortal;
 }
 
-export interface ClienteDatos {
-  razon_social: string;
-  documento_tipo: TipoDocumento;
-  documento_numero: string;
-  domicilio: string;
+export interface PersonaDatos {
+  nombre: string;
   telefono: string;
-  correo_factura: string;
+  correo: string;
 }
 
 export interface CuentaDatos {
@@ -51,12 +48,32 @@ export interface CuentaDatos {
 
 export interface ClienteCuenta {
   id: string;
+  razon_social: string | null;
+  documento_tipo: string | null;
+  documento_numero: string | null;
+  domicilio_fiscal: string | null;
+  telefono: string;
+  correo_factura: string | null;
+}
+
+/** Ficha que se completa al contratar un proyecto. */
+export interface FichaContrato {
   razon_social: string;
-  documento_tipo: string;
+  documento_tipo: TipoDocumento;
   documento_numero: string;
-  domicilio_fiscal: string;
+  domicilio: string;
   telefono: string;
   correo_factura: string;
+}
+
+/** La misma ficha tal como está guardada: puede estar a medias. */
+export interface FichaVista {
+  razon_social: string | null;
+  documento_tipo: string | null;
+  documento_numero: string | null;
+  domicilio: string | null;
+  telefono: string;
+  correo_factura: string | null;
 }
 
 export interface FirmaCuenta {
@@ -127,9 +144,10 @@ export interface ProyectoDatos {
   complejidad: Complejidad;
   plan_clave: string;
   plan_nivel: string;
+  ficha: FichaContrato;
 }
 
-export interface ProyectoVista extends ProyectoDatos {
+export interface ProyectoVista extends Omit<ProyectoDatos, "ficha"> {
   id: string;
   estado: string;
   creado: string;
@@ -152,6 +170,7 @@ export interface DatosProyecto {
   condiciones: Condiciones;
   categorias: string[];
   complejidades: { valor: Complejidad; etiqueta: string }[];
+  ficha: FichaVista | null;
 }
 
 export interface DocumentoExpediente {
@@ -255,12 +274,12 @@ export interface RepresentanteVista {
 
 export interface ClienteAdmin {
   id: string;
-  razon_social: string;
-  documento_tipo: string;
-  documento_numero: string;
-  domicilio: string;
+  razon_social: string | null;
+  documento_tipo: string | null;
+  documento_numero: string | null;
+  domicilio: string | null;
   telefono: string;
-  correo_factura: string;
+  correo_factura: string | null;
   nombre: string;
   correo: string;
   verificado: boolean;
@@ -389,13 +408,13 @@ async function pedir<T>(
 }
 
 export const api = {
-  consentimiento(correo: string, cliente: ClienteDatos): Promise<PreviaRegistro> {
-    return pedir("/api/auth/consentimiento", { metodo: "POST", cuerpo: { correo, cliente } });
+  consentimiento(persona: PersonaDatos): Promise<PreviaRegistro> {
+    return pedir("/api/auth/consentimiento", { metodo: "POST", cuerpo: persona });
   },
 
   registro(payload: {
     cuenta: CuentaDatos;
-    cliente: ClienteDatos;
+    persona: PersonaDatos;
     hashes: Record<string, string>;
   }): Promise<RespuestaRegistro> {
     return pedir("/api/auth/registro", { metodo: "POST", cuerpo: payload });

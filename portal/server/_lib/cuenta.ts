@@ -91,12 +91,12 @@ export async function enviarRecuperacion(correo: string, token: string): Promise
 
 export interface ClienteCuenta {
   id: string;
-  razon_social: string;
-  documento_tipo: string;
-  documento_numero: string;
-  domicilio_fiscal: string;
+  razon_social: string | null;
+  documento_tipo: string | null;
+  documento_numero: string | null;
+  domicilio_fiscal: string | null;
   telefono: string;
-  correo_factura: string;
+  correo_factura: string | null;
 }
 
 export interface FirmaCuenta {
@@ -143,12 +143,12 @@ export async function estadoDe(sesion: Sesion): Promise<EstadoCuenta> {
     cliente: cliente
       ? {
           id: cliente.id as string,
-          razon_social: cliente.razon_social as string,
-          documento_tipo: cliente.documento_tipo as string,
-          documento_numero: cliente.documento_numero as string,
-          domicilio_fiscal: cliente.domicilio_fiscal as string,
+          razon_social: cliente.razon_social as string | null,
+          documento_tipo: cliente.documento_tipo as string | null,
+          documento_numero: cliente.documento_numero as string | null,
+          domicilio_fiscal: cliente.domicilio_fiscal as string | null,
           telefono: cliente.telefono as string,
-          correo_factura: cliente.correo_factura as string,
+          correo_factura: cliente.correo_factura as string | null,
         }
       : null,
     firma: firma

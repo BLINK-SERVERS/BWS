@@ -23,6 +23,12 @@ function instante(valor: unknown): string | null {
   return (valor instanceof Date ? valor : new Date(String(valor))).toISOString();
 }
 
+function opcional(valor: unknown): string | null {
+  if (valor === null || valor === undefined) return null;
+  const texto = String(valor).trim();
+  return texto || null;
+}
+
 export default manejar(["GET"], async (peticion) => {
   const sesion = exigirAdmin(await leerSesion(peticion));
   const hoy = hoyUTC();
@@ -86,12 +92,12 @@ export default manejar(["GET"], async (peticion) => {
     hoy,
     clientes: ((clientes ?? []) as Record<string, unknown>[]).map((fila) => ({
       id: String(fila.id),
-      razon_social: String(fila.razon_social),
-      documento_tipo: String(fila.documento_tipo),
-      documento_numero: String(fila.documento_numero),
-      domicilio: String(fila.domicilio_fiscal),
+      razon_social: opcional(fila.razon_social),
+      documento_tipo: opcional(fila.documento_tipo),
+      documento_numero: opcional(fila.documento_numero),
+      domicilio: opcional(fila.domicilio_fiscal),
       telefono: String(fila.telefono),
-      correo_factura: String(fila.correo_factura),
+      correo_factura: opcional(fila.correo_factura),
       nombre: String(fila.nombre),
       correo: String(fila.correo),
       verificado: Boolean(fila.correo_verificado),

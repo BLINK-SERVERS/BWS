@@ -2,8 +2,9 @@
    POST /api/cliente/proyecto/enviar
    ------------------------------------------------------------
    Enviar es el acto que congela el alcance y abre la etapa de
-   contrato. Exige correo confirmado y la firma única ya capturada:
-   sin firma no hay quién se obligue al alcance descrito.
+   contrato. Exige la ficha fiscal completa, el correo confirmado y
+   la firma única ya capturada: sin ficha no hay contraparte y sin
+   firma no hay quién se obligue al alcance descrito.
 
    La actualización solo toca un proyecto en `borrador` del cliente
    en sesión. Si no hay borrador, la respuesta es 409; si dos
@@ -16,7 +17,7 @@ import { enTransaccion } from "../../_lib/db";
 import { json } from "../../_lib/http";
 import { manejar } from "../../_lib/manejador";
 import { planExacto } from "../../_lib/planes";
-import { exigirCliente, vistaDeProyecto } from "../../_lib/proyecto";
+import { exigirCliente, fichaCompleta, vistaDeProyecto } from "../../_lib/proyecto";
 import { ErrorHttp } from "../../_lib/respuestas";
 import { leerSesion } from "../../_lib/sesion";
 
@@ -27,6 +28,13 @@ export default manejar(["POST"], async (peticion) => {
 
   const estado = await estadoDe(sesion);
   const cliente = exigirCliente(estado.cliente);
+  if (!fichaCompleta(cliente)) {
+    throw new ErrorHttp(
+      409,
+      "Completa los datos para el contrato antes de enviar el proyecto.",
+      "ficha_incompleta",
+    );
+  }
   if (!sesion.verificado) {
     throw new ErrorHttp(403, "Confirma tu correo antes de enviar el proyecto.", "verificar_correo");
   }

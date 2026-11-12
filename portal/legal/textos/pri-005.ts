@@ -3,8 +3,8 @@ import type { DocumentoLegal } from "../tipos";
 export const PRI_005: DocumentoLegal = {
   codigo: "BWS-PRI-005",
   titulo: "Política de privacidad y tratamiento de datos",
-  version: "3.0",
-  fecha: "2026-11-11",
+  version: "4.0",
+  fecha: "2026-11-12",
   firma: "registro",
   resumen:
     "Qué datos trata el portal, para qué, con quién se comparten, cuánto se conservan y cómo ejercer los derechos. Se firma al registrarse.",
@@ -16,8 +16,6 @@ export const PRI_005: DocumentoLegal = {
     "bws_correo",
     "bws_telefono",
     "cliente_razon_social",
-    "cliente_documento_tipo",
-    "cliente_documento_numero",
     "cliente_correo",
     "correo_proveedor",
   ],
@@ -25,7 +23,7 @@ export const PRI_005: DocumentoLegal = {
     {
       tipo: "parrafo",
       texto:
-        "Esta política explica cómo {{bws_razon_social}} (en adelante, «Blink»), documento {{bws_documento}}, domicilio {{bws_domicilio}}, trata los datos personales de {{cliente_razon_social}} (documento {{cliente_documento_tipo}} {{cliente_documento_numero}}) y de las personas que usan el portal. Se acepta al crear la cuenta y acompaña al contrato BWS-CON-004.",
+        "Esta política explica cómo {{bws_razon_social}} (en adelante, «Blink»), documento {{bws_documento}}, domicilio {{bws_domicilio}}, trata los datos personales de {{cliente_razon_social}} ({{cliente_correo}}) y de las personas que usan el portal. Se acepta al crear la cuenta y acompaña al contrato BWS-CON-004.",
     },
     { tipo: "subtitulo", texto: "1. Responsable" },
     {
@@ -45,8 +43,8 @@ export const PRI_005: DocumentoLegal = {
       cabecera: ["Categoría", "Ejemplos", "Origen"],
       anchos: [0.28, 0.46, 0.26],
       filas: [
-        ["Identidad", "Nombre o razón social, cédula o RIF, domicilio", "Registro del cliente"],
-        ["Contacto", "Correo electrónico, teléfono, correo de facturación", "Registro del cliente"],
+        ["Identidad", "Nombre o razón social, cédula o RIF, domicilio", "Registro y alta del proyecto"],
+        ["Contacto", "Correo electrónico, teléfono, correo de facturación", "Registro y alta del proyecto"],
         ["Firma", "Imagen PNG del trazo manuscrito digitalizado y su hash", "Captura en el portal"],
         ["Proyecto", "Nombre, categoría, dominio, alcance, buzones, plan", "Formulario del proyecto"],
         ["Evidencia", "Fecha y hora UTC, IP, agente de usuario, sellos SHA-256, actos de firma", "Generación automática"],

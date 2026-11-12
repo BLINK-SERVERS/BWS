@@ -1,24 +1,24 @@
 /* ============================================================
    Datos del registro y consentimiento
    ------------------------------------------------------------
-   El cliente ve los cinco documentos resueltos con sus datos y los
-   datos del prestador. La huella que se guarda es la del texto que
-   se mostró, no la de la plantilla: si cambia un dato, cambia la
-   huella y el registro rechaza un consentimiento viejo.
+   La cuenta se crea con nombre, teléfono y correo. La ficha fiscal
+   se completa al contratar el proyecto, así que los cuatro
+   documentos del registro identifican a la persona por su nombre y
+   su correo, no por un documento que todavía no se pidió.
+
+   El cliente ve los documentos resueltos y la huella que se guarda
+   es la del texto que se mostró, no la de la plantilla: si cambia
+   un dato, cambia la huella y el registro rechaza un consentimiento
+   viejo.
    ============================================================ */
 
 import { DOCUMENTO_POR_CODIGO } from "../../legal";
 import { fechaLarga } from "../../legal/fechas";
 import {
   correoNormalizado,
-  domicilioValido,
   mensajeClave,
-  mensajeDocumento,
   nombreValido,
-  normalizarDocumento,
-  razonSocialValida,
   telefonoNormalizado,
-  type TipoDocumento,
 } from "../../legal/identidad";
 import type { Bloque, DocumentoResuelto } from "../../legal/tipos";
 import { resolver } from "../../legal/validar";
@@ -28,21 +28,16 @@ import { identidadPrestador, variablesComerciales, type Prestador } from "./pres
 import { ErrorHttp } from "./respuestas";
 
 export const DOCUMENTOS_REGISTRO = [
-  "BWS-REG-001",
   "BWS-LEG-002",
   "BWS-LEG-003",
   "BWS-PRI-005",
   "BWS-WEB-006",
 ];
 
-export interface ClienteRegistro {
-  razon_social: string;
-  documento_tipo: TipoDocumento;
-  documento_numero: string;
-  domicilio: string;
+export interface PersonaRegistro {
+  nombre: string;
   telefono: string;
   correo: string;
-  correo_factura: string;
 }
 
 export interface CuentaRegistro {
@@ -82,56 +77,31 @@ export function leerCuenta(fuente: unknown): CuentaRegistro {
   if (problema) datoInvalido(problema);
 
   const nombre = texto(datos.nombre);
-  if (!nombreValido(nombre)) datoInvalido("Escribe el nombre de la persona que firma.");
+  if (!nombreValido(nombre)) datoInvalido("Escribe tu nombre completo.");
 
   return { correo, clave, nombre };
 }
 
-export function leerCliente(fuente: unknown, correoCuenta?: string): ClienteRegistro {
+export function leerPersona(fuente: unknown, correoCuenta?: string): PersonaRegistro {
   const datos = objeto(fuente);
-  if (!datos) datoInvalido("Faltan los datos de identidad.");
+  if (!datos) datoInvalido("Faltan los datos personales.");
 
-  const razon = texto(datos.razon_social);
-  if (!razonSocialValida(razon)) datoInvalido("Escribe la razón social o el nombre del cliente.");
-
-  const tipoCrudo = texto(datos.documento_tipo);
-  if (tipoCrudo !== "RIF" && tipoCrudo !== "cedula" && tipoCrudo !== "pasaporte") {
-    datoInvalido("Elige el tipo de documento.");
-  }
-  const numero = normalizarDocumento(tipoCrudo, datos.documento_numero);
-  if (!numero) datoInvalido(mensajeDocumento(tipoCrudo, datos.documento_numero) ?? "Documento inválido.");
-
-  const domicilio = texto(datos.domicilio);
-  if (!domicilioValido(domicilio)) datoInvalido("Escribe el domicilio fiscal completo.");
+  const nombre = texto(datos.nombre);
+  if (!nombreValido(nombre)) datoInvalido("Escribe tu nombre completo.");
 
   const telefono = telefonoNormalizado(datos.telefono);
   if (!telefono) datoInvalido("Escribe un teléfono con al menos siete dígitos.");
 
-  const correoFactura = correoNormalizado(datos.correo_factura);
-  if (!correoFactura) datoInvalido("El correo de facturación no tiene un formato válido.");
+  const correo = correoCuenta
+    ? correoNormalizado(correoCuenta)
+    : correoNormalizado(datos.correo);
+  if (!correo) datoInvalido("El correo no tiene un formato válido.");
 
-  const correo = correoCuenta ? correoNormalizado(correoCuenta) : correoNormalizado(datos.correo);
-  if (!correo) datoInvalido("Falta el correo principal del cliente.");
-
-  return {
-    razon_social: razon,
-    documento_tipo: tipoCrudo,
-    documento_numero: numero,
-    domicilio,
-    telefono,
-    correo,
-    correo_factura: correoFactura,
-  };
-}
-
-function etiquetaDocumento(tipo: TipoDocumento): string {
-  if (tipo === "RIF") return "RIF";
-  if (tipo === "cedula") return "Cédula";
-  return "Pasaporte";
+  return { nombre, telefono, correo };
 }
 
 export function variablesDeRegistro(
-  cliente: ClienteRegistro,
+  persona: PersonaRegistro,
   prestador: Prestador,
 ): Record<string, string> {
   return {
@@ -141,24 +111,20 @@ export function variablesDeRegistro(
     bws_domicilio: prestador.domicilio,
     bws_correo: prestador.correo,
     bws_telefono: prestador.telefono,
-    cliente_razon_social: cliente.razon_social,
-    cliente_documento_tipo: etiquetaDocumento(cliente.documento_tipo),
-    cliente_documento_numero: cliente.documento_numero,
-    cliente_domicilio: cliente.domicilio,
-    cliente_telefono: cliente.telefono,
-    cliente_correo: cliente.correo,
-    cliente_correo_factura: cliente.correo_factura,
+    cliente_razon_social: persona.nombre,
+    cliente_telefono: persona.telefono,
+    cliente_correo: persona.correo,
     ...variablesComerciales(),
   };
 }
 
-function resolverRegistro(cliente: ClienteRegistro): {
+function resolverRegistro(persona: PersonaRegistro): {
   prestador: Prestador;
   documentos: DocumentoPrevia[];
   resueltos: Map<string, DocumentoResuelto>;
 } {
   const prestador = identidadPrestador();
-  const variables = variablesDeRegistro(cliente, prestador);
+  const variables = variablesDeRegistro(persona, prestador);
   const documentos: DocumentoPrevia[] = [];
   const resueltos = new Map<string, DocumentoResuelto>();
 
@@ -181,28 +147,28 @@ function resolverRegistro(cliente: ClienteRegistro): {
   return { prestador, documentos, resueltos };
 }
 
-export function previaDeRegistro(cliente: ClienteRegistro): PreviaRegistro {
-  const { prestador, documentos } = resolverRegistro(cliente);
+export function previaDeRegistro(persona: PersonaRegistro): PreviaRegistro {
+  const { prestador, documentos } = resolverRegistro(persona);
   return { documentos, prestador };
 }
 
 /** BWS-LEG-002 resuelto, para leerlo antes de capturar el trazo. */
-export function documentoDeConsentimiento(cliente: ClienteRegistro): DocumentoPrevia {
-  const { documentos } = resolverRegistro(cliente);
+export function documentoDeConsentimiento(persona: PersonaRegistro): DocumentoPrevia {
+  const { documentos } = resolverRegistro(persona);
   const leg002 = documentos.find((d) => d.codigo === "BWS-LEG-002");
   if (!leg002) throw new Error("No se pudo resolver BWS-LEG-002.");
   return leg002;
 }
 
-export function huellaDelConsentimiento(cliente: ClienteRegistro): string {
-  const { documentos } = resolverRegistro(cliente);
+export function huellaDelConsentimiento(persona: PersonaRegistro): string {
+  const { documentos } = resolverRegistro(persona);
   const leg002 = documentos.find((d) => d.codigo === "BWS-LEG-002");
   if (!leg002) throw new Error("No se pudo resolver BWS-LEG-002.");
   return leg002.hash;
 }
 
 /** Huellas que quedan en el evento de registro, para el expediente. */
-export function huellasDeRegistro(cliente: ClienteRegistro): Record<string, string> {
-  const { documentos } = resolverRegistro(cliente);
+export function huellasDeRegistro(persona: PersonaRegistro): Record<string, string> {
+  const { documentos } = resolverRegistro(persona);
   return Object.fromEntries(documentos.map((d) => [d.codigo, d.hash]));
 }

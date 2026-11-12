@@ -1,9 +1,10 @@
 /* ============================================================
    POST /api/auth/registro
    ------------------------------------------------------------
-   Crea la cuenta y la ficha fiscal en una sola transacción. Antes
-   exige que el cliente devuelva las huellas de los cinco textos
-   que leyó: un consentimiento sobre otro texto no se guarda.
+   Crea la cuenta y su ficha mínima (teléfono) en una sola
+   transacción. Antes exige que el cliente devuelva las huellas de
+   los cuatro textos que leyó: un consentimiento sobre otro texto
+   no se guarda. La ficha fiscal se completa al contratar.
 
    La firma no se captura aquí. Se captura una sola vez, después
    de confirmar el correo, en `/api/cliente/firma`.
@@ -20,8 +21,8 @@ import { enviarVerificacion, horasDeToken } from "../_lib/cuenta";
 import {
   DOCUMENTOS_REGISTRO,
   huellasDeRegistro,
-  leerCliente,
   leerCuenta,
+  leerPersona,
 } from "../_lib/registro";
 import { hashToken } from "../_lib/sesion";
 import { codigoPostgres, ErrorHttp } from "../_lib/respuestas";
@@ -50,7 +51,7 @@ export default manejar(["POST"], async (peticion) => {
   if (!cuerpo) throw new ErrorHttp(400, "Faltan los datos del registro.", "datos");
 
   const cuenta = leerCuenta(cuerpo.cuenta);
-  const cliente = leerCliente(cuerpo.cliente, cuenta.correo);
+  const persona = leerPersona(cuerpo.persona, cuenta.correo);
 
   const limite = await consumirDoble("registro", ipDe(peticion), cuenta.correo, 10, 5, 3600);
   if (!limite.permitido) {
@@ -61,7 +62,7 @@ export default manejar(["POST"], async (peticion) => {
     );
   }
 
-  const huellas = huellasDeRegistro(cliente);
+  const huellas = huellasDeRegistro(persona);
   const enviadas = objeto(cuerpo.hashes) ?? {};
   for (const codigo of DOCUMENTOS_REGISTRO) {
     if (texto(enviadas[codigo]) !== huellas[codigo]) {
@@ -84,14 +85,8 @@ export default manejar(["POST"], async (peticion) => {
     await enTransaccion(usuarioId, "cliente", (txn) => [
       txn`insert into usuarios (id, correo, clave_hash, nombre)
           values (${usuarioId}, ${cuenta.correo}, ${claveHash}, ${cuenta.nombre})`,
-      txn`insert into clientes (
-            usuario_id, razon_social, documento_tipo, documento_numero,
-            domicilio_fiscal, telefono, correo_factura
-          ) values (
-            ${usuarioId}, ${cliente.razon_social}, ${cliente.documento_tipo},
-            ${cliente.documento_numero}, ${cliente.domicilio}, ${cliente.telefono},
-            ${cliente.correo_factura}
-          )`,
+      txn`insert into clientes (usuario_id, telefono)
+          values (${usuarioId}, ${persona.telefono})`,
       txn`insert into tokens_correo (usuario_id, tipo, token_hash, expira)
           values (${usuarioId}, 'verificacion', ${hashToken(token)},
                   ${expiraToken.toISOString()})`,
