@@ -35,7 +35,7 @@ export interface PresetVista {
 
 const NOMBRES: Record<string, string> = {
   supabase: "Supabase",
-  "neon-vercel": "Neon + Vercel",
+  "neon-cloudflare": "Neon + Cloudflare",
 };
 
 function limitesDe(valor: unknown): LimitePlan[] {

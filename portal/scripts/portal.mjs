@@ -326,7 +326,7 @@ async function principal() {
       .getByLabel("Qué incluye el proyecto")
       .fill("Agenda de citas con recordatorios por correo, cobros anticipados y un panel para el equipo.");
     await pagina.getByText("Plan Inicial · sin costo mensual").waitFor();
-    await pagina.locator('input[name="plan"][value="neon-vercel|pro"]').check();
+    await pagina.locator('input[name="plan"][value="neon-cloudflare|pro"]').check();
     await pagina.getByText("Plan Pro · USD 30 al mes").waitFor();
     comprobar(
       "cambiar de plan recalcula el anexo B",

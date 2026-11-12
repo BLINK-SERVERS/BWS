@@ -3,7 +3,7 @@ import type { DocumentoLegal } from "../tipos";
 export const CON_004: DocumentoLegal = {
   codigo: "BWS-CON-004",
   titulo: "Contrato de prestación de servicios y anexos A–F",
-  version: "1.0",
+  version: "2.0",
   fecha: "2026-11-11",
   firma: "proyecto",
   resumen:
@@ -244,7 +244,7 @@ export const CON_004: DocumentoLegal = {
       tipo: "lista",
       items: [
         "Blink no usará los datos para fines propios, no los venderá ni los cederá, y exigirá confidencialidad a quienes los traten.",
-        "Los subencargados son los proveedores de alojamiento, base de datos y correo (Neon, Vercel y {{correo_proveedor}}), que procesan datos en Estados Unidos. Cualquier cambio sustancial de subencargado se informa.",
+        "Los subencargados son los proveedores de alojamiento, base de datos y correo (Neon, Cloudflare y {{correo_proveedor}}). Neon procesa los datos en Estados Unidos; Cloudflare los procesa en su red global, que puede incluir centros fuera de Estados Unidos, y el proveedor de correo donde opera. Cualquier cambio sustancial de subencargado se informa.",
         "Blink aplica medidas razonables de seguridad: cifrado en tránsito, control de acceso, registro de eventos y respaldos según el plan. No se garantiza una seguridad absoluta.",
         "Ante un incidente que afecte datos personales, Blink avisará al Cliente sin demora indebida y, en todo caso, dentro de las setenta y dos (72) horas de conocido, con la información disponible.",
         "Al terminar, Blink devuelve o elimina los datos en un plazo de noventa (90) días, salvo obligación legal de conservarlos, y certifica la eliminación si se solicita.",

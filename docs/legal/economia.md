@@ -10,11 +10,11 @@ una vez por trimestre.
 
 ## 1. Dos capas que no se mezclan
 
-1. **El portal de Blink** (`portal.blink.com.ve`): una cuenta de Vercel y un
-   proyecto Neon multi-tenant. Este costo lo absorbe Blink y no se factura
-   por cliente.
+1. **El portal de Blink** (`portal.blink.com.ve`): un Worker de Cloudflare
+   con Static Assets y un proyecto Neon multi-tenant. Este costo lo absorbe
+   Blink y no se factura por cliente.
 2. **La aplicación de cada cliente**: los planes de `planes_infra`
-   (`supabase` y `neon-vercel`, dos niveles cada uno). Esto es lo que el
+   (`supabase` y `neon-cloudflare`, dos niveles cada uno). Esto es lo que el
    cliente paga como infraestructura y lo que se imprime en el anexo B.
 
 Tampoco se mezclan el desarrollo y la infraestructura: **USD 31/mes es
@@ -32,8 +32,8 @@ precio, límites, fuente y fecha.
 |---|---|---:|---:|---:|---:|
 | Supabase | Inicial | USD 0 | USD 0 | USD 0 | — |
 | Supabase | Pro | USD 30 | USD 25 | USD 5 | 17 % |
-| Neon + Vercel | Inicial | USD 0 | USD 0 | USD 0 | — |
-| Neon + Vercel | Pro | USD 30 | USD 19 | USD 11 | 37 % |
+| Neon + Cloudflare | Inicial | USD 0 | USD 0 | USD 0 | — |
+| Neon + Cloudflare | Pro | USD 30 | USD 24 | USD 6 | 20 % |
 
 Notas:
 
@@ -42,10 +42,13 @@ Notas:
   comparabilidad con el otro preset. Si el cliente exige su propia cuenta Pro
   y no se puede compartir, se sube el plan o se factura la infraestructura
   aparte.
-- **Neon + Vercel** usa el mínimo del plan Launch de Neon como costo por
-  cliente. La cuenta Pro de Vercel (unos USD 20/mes) es compartida por Blink
-  y no se imputa por cliente; si se imputara, el margen de este preset
-  quedaría cerca de cero.
+- **Neon + Cloudflare** usa el mínimo del plan Launch de Neon (USD 19) más
+  el plan Workers Paid de Cloudflare (USD 5) como costo por cliente: USD 24.
+  El plan gratuito de Cloudflare no se imputa, pero limita la CPU a 10 ms por
+  solicitud; por eso el preset Pro paga Workers Paid y puede sostener 30 s de
+  CPU por invocación. El plan Inicial usa el plan Free: los cómputos pesados
+  caben en un Durable Object con 30 s de CPU y hasta 100.000 solicitudes al
+  día, suficiente para una app pequeña.
 - Los dos niveles Inicial son gratuitos para el cliente y sin margen: existen
   para que una app pequeña pueda empezar. Los límites impresos son los del
   proveedor del preset, nunca los de otro.
@@ -57,17 +60,17 @@ Notas:
 
 | Concepto | Estimado | Cómo se reparte |
 |---|---:|---|
-| Vercel Pro | ~USD 20/mes | Cuenta compartida de Blink; no por cliente |
+| Cloudflare Workers | USD 0 en el plan Free; USD 5/mes en Workers Paid | Cuenta compartida de Blink; el plan gratuito cubre el portal |
 | Neon | USD 0 a ~USD 19/mes | Según plan; el proyecto `bws-contratos` vive en la cuenta de Blink |
 | Correo transaccional | USD 0 en el plan gratuito del proveedor; luego por envío | Absorbido |
-| Dominio del portal | Incluido en Vercel | Absorbido |
+| Dominio del portal | Subdominio de `blink.com.ve` | Absorbido |
 | Dominio del cliente | Cotizado en euros, a costo | Se factura aparte; no reembolsable una vez registrado |
 
-Punto de equilibrio aproximado: con la cuenta Pro de Vercel y el plan mínimo
-de Neon, unos **USD 39/mes** de costo fijo. Dos clientes Pro a USD 30 cubren
-ese piso antes de impuestos; con el plan gratuito de Neon el piso baja a unos
-USD 20. No se presupuesta crecimiento de tráfico: si un cliente consume más
-cómputo o almacenamiento, se sube de plan o se factura el exceso.
+Punto de equilibrio aproximado: con el plan mínimo de Neon y el plan Free de
+Cloudflare, unos **USD 19/mes** de costo fijo. Un solo cliente Pro a USD 30
+cubre ese piso antes de impuestos; con el plan gratuito de Neon el piso baja
+casi a cero. No se presupuesta crecimiento de tráfico: si un cliente consume
+más cómputo o almacenamiento, se sube de plan o se factura el exceso.
 
 ## 4. Costo marginal por cliente
 
@@ -110,12 +113,15 @@ Neon antes de seguir vendiendo.
 
 ## 7. Riesgos económicos
 
-- **Vercel Hobby es solo para uso no comercial.** El portal usa una cuenta
-  Pro; si se comparte con otros proyectos, el costo se reparte y el margen
-  depende de que Neon no salga del plan gratuito.
+- **Cloudflare Free tiene 10 ms de CPU por solicitud.** El portal no cabe en
+  ese límite para scrypt ni para los ocho PDF: esas rutas corren en un
+  Durable Object, que en el plan Free tiene 30 s de CPU por invocación,
+  100.000 solicitudes al día y 128 MB de memoria. La generación medida ronda
+  los 12 s de CPU; si el expediente crece y no cabe en 30 s o en 128 MB, el
+  plan Pro de Cloudflare pasa a Workers Paid.
 - **Neon gratuito** tiene límites de almacenamiento y cómputo y suspende por
-  inactividad. El preset `neon-vercel` imprime esos límites reales. Mezclar
-  límites de Supabase con Neon sería una promesa falsa.
+  inactividad. El preset `neon-cloudflare` imprime esos límites reales.
+  Mezclar límites de Supabase con Neon sería una promesa falsa.
 - **Cliente que exige su propio Supabase Pro**: el margen cae a USD 5. Se
   sube el plan o se factura la infraestructura como concepto aparte.
 - **Tipo de cambio**: una devaluación fuerte encarece el costo en bolívares;

@@ -41,9 +41,10 @@ constitucionales y en las obligaciones contractuales, y así lo dice.
    confiscación de datos o del dominio. Confirmar el plazo de gracia de cinco
    días y la redacción del anexo D.
 5. **Datos del cliente.** Que la retención de noventa días para permitir la
-   exportación, y hasta diez años de evidencia, sea proporcionada; y que el
-   encargo de tratamiento del anexo E cubra a Neon, Vercel y el proveedor de
-   correo en Estados Unidos.
+   exportación, y hasta diez años de evidencia, sea proporcionada; que el
+   encargo de tratamiento del anexo E cubra a Neon, Cloudflare y el proveedor
+   de correo, y que la transferencia internacional de Cloudflare (red global)
+   esté bien descrita.
 6. **Consumidor.** Si alguna cláusula de limitación de responsabilidad
    (doce meses de lo pagado), de terminación unilateral o de uso del crédito
    «Powered by Blink» choca con normas de protección al consumidor.

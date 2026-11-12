@@ -497,17 +497,17 @@ probar("proyecto: cambiar preset recalcula precio y versión", async () => {
   const r = await invocar(proyecto, "/api/cliente/proyecto", {
     metodo: "POST",
     cookie,
-    cuerpo: { ...PROYECTO, plan_clave: "neon-vercel", plan_nivel: "pro" },
+    cuerpo: { ...PROYECTO, plan_clave: "neon-cloudflare", plan_nivel: "pro" },
   });
   assert.equal(r.estado, 201);
   assert.equal(r.cuerpo.proyecto.id, proyectoGuardado.id, "creó otro proyecto");
-  assert.equal(r.cuerpo.proyecto.plan.clave, "neon-vercel");
+  assert.equal(r.cuerpo.proyecto.plan.clave, "neon-cloudflare");
   assert.equal(r.cuerpo.proyecto.plan.nivel, "pro");
   assert.equal(r.cuerpo.proyecto.plan.precio_usd, 30);
   assert.ok(r.cuerpo.proyecto.plan.version >= 1);
 
   const leido = await invocar(proyecto, "/api/cliente/proyecto", { cookie });
-  assert.equal(leido.cuerpo.proyecto.plan.clave, "neon-vercel");
+  assert.equal(leido.cuerpo.proyecto.plan.clave, "neon-cloudflare");
   assert.equal(leido.cuerpo.proyecto.plan.precio_usd, 30);
   pasar("mismo proyecto, precio 30 y plan leído de vuelta");
 });

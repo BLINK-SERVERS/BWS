@@ -3,7 +3,7 @@ import type { DocumentoLegal } from "../tipos";
 export const PRI_005: DocumentoLegal = {
   codigo: "BWS-PRI-005",
   titulo: "Política de privacidad y tratamiento de datos",
-  version: "1.0",
+  version: "2.0",
   fecha: "2026-11-11",
   firma: "registro",
   resumen:
@@ -78,7 +78,7 @@ export const PRI_005: DocumentoLegal = {
     {
       tipo: "parrafo",
       texto:
-        "Los datos se alojan en proveedores que actúan como encargados: Neon (base de datos), Vercel (alojamiento del portal y funciones) y {{correo_proveedor}} (envío de correos). Estos proveedores pueden procesar datos en Estados Unidos. Al aceptar esta política, el cliente consiente la transferencia internacional necesaria para prestar el servicio y declara que la informará a sus propios usuarios cuando corresponda.",
+        "Los datos se alojan en proveedores que actúan como encargados: Neon (base de datos), Cloudflare (alojamiento del portal y funciones) y {{correo_proveedor}} (envío de correos). Neon procesa los datos en Estados Unidos; Cloudflare los procesa en su red global, que puede incluir centros fuera de Estados Unidos, y el proveedor de correo donde opera. Al aceptar esta política, el cliente consiente la transferencia internacional necesaria para prestar el servicio y declara que la informará a sus propios usuarios cuando corresponda.",
     },
     {
       tipo: "parrafo",

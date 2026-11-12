@@ -27,7 +27,7 @@ export interface NivelPlan {
 }
 
 export interface PresetPlan {
-  clave: "supabase" | "neon-vercel";
+  clave: "supabase" | "neon-cloudflare";
   nombre: string;
   niveles: NivelPlan[];
 }
@@ -76,8 +76,8 @@ export const PRESETS: PresetPlan[] = [
     ],
   },
   {
-    clave: "neon-vercel",
-    nombre: "Neon + Vercel",
+    clave: "neon-cloudflare",
+    nombre: "Neon + Cloudflare",
     niveles: [
       {
         clave: "inicial",
@@ -87,13 +87,17 @@ export const PRESETS: PresetPlan[] = [
           { concepto: "Almacenamiento por proyecto", valor: "1 GB" },
           { concepto: "Cómputo", valor: "hasta 100 horas de cómputo al mes" },
           {
+            concepto: "Alojamiento y funciones",
+            valor: "plan gratuito de Cloudflare: hasta 100.000 solicitudes al día",
+          },
+          {
             concepto: "Disponibilidad",
             valor: "el servicio se suspende por inactividad y se reanuda al recibir tráfico",
           },
         ],
         costo_estimado_usd: 0,
         margen_usd: 0,
-        fuente: "Condiciones públicas del plan gratuito de Neon",
+        fuente: "Condiciones públicas del plan gratuito de Neon y del plan Free de Cloudflare",
         fecha: FECHA,
       },
       {
@@ -103,14 +107,18 @@ export const PRESETS: PresetPlan[] = [
         limites: [
           { concepto: "Disponibilidad", valor: "continua, sin suspensión por inactividad" },
           { concepto: "Respaldos", valor: "automáticos según el proveedor" },
+          {
+            concepto: "Alojamiento y funciones",
+            valor: "Cloudflare Workers Paid: 30 s de CPU por solicitud",
+          },
           { concepto: "Límites", valor: "ampliados según consumo y condiciones del proveedor" },
         ],
-        costo_estimado_usd: 19,
-        margen_usd: 11,
-        fuente: "Condiciones públicas del plan Launch de Neon y del plan Pro de Vercel",
+        costo_estimado_usd: 24,
+        margen_usd: 6,
+        fuente: "Condiciones públicas del plan Launch de Neon y del plan Workers Paid de Cloudflare",
         fecha: FECHA,
         nota_interna:
-          "El plan Pro de Vercel es una cuenta compartida de Blink (~USD 20/mes) y no se imputa por cliente; el costo por cliente estimado es el mínimo de Neon Launch.",
+          "Neon Launch (USD 19) más Workers Paid (USD 5). Cloudflare no imputa por solicitud dentro del plan; el costo por cliente es la suma de ambos mínimos.",
       },
     ],
   },

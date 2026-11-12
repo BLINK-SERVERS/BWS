@@ -25,7 +25,7 @@ import { DOCUMENTOS } from "../legal/index.ts";
 import { hashCadena, selloDeContenido } from "../render/hash.ts";
 
 const PLAN: PlanVista = {
-  clave: "neon-vercel",
+  clave: "neon-cloudflare",
   nivel: "pro",
   version: 1,
   nombre: "Pro",
@@ -136,7 +136,7 @@ describe("variables del expediente", () => {
     assert.equal(datos.variables.representante_domicilio, REPRESENTANTE.domicilio);
     assert.equal(datos.variables.proyecto_dominio, VISTA.dominio);
     assert.equal(datos.variables.plan_precio, "USD 30");
-    assert.equal(datos.variables.plan_nombre, "Pro de Neon + Vercel");
+    assert.equal(datos.variables.plan_nombre, "Pro de Neon + Cloudflare");
     assert.ok(datos.variables.bws_razon_social.length > 0);
 
     assert.deepEqual(datos.buzones, [

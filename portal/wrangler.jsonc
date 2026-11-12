@@ -12,6 +12,9 @@
     "run_worker_first": ["/api", "/api/*"]
   },
   "rules": [{ "type": "Data", "globs": ["**/*.ttf"], "fallthrough": false }],
-  "limits": { "cpu_ms": 60000 },
+  "durable_objects": {
+    "bindings": [{ "name": "CARGA", "class_name": "Carga" }]
+  },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["Carga"] }],
   "observability": { "enabled": true }
 }

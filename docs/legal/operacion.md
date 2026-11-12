@@ -12,8 +12,13 @@ disponibilidad ni recuperación garantizada: describe medidas y sus límites.
 - El portal es una aplicación multi-tenant: todos los clientes comparten la
   base `bws-contratos` en Neon (PostgreSQL 18, región `aws-us-east-2`) y se
   aíslan por fila con RLS (`app.usuario_id` y `app.rol`).
-- La interfaz y las funciones corren en Vercel; la región configurada para
-  las funciones es `cle1`, cercana a la base.
+- La interfaz estática y la API corren en un Worker de Cloudflare con
+  Static Assets. Las rutas que consumen CPU (registro, ingreso,
+  restablecimiento y generación del expediente) se ejecutan en un Durable
+  Object con 30 s de CPU por invocación en el plan Free; el resto despacha
+  directo en el Worker, con el límite de 10 ms. El Durable Object se ubica
+  cerca de la base y los assets se sirven desde la red global; no hay una
+  región fija que configurar.
 - Dos roles: `cliente` (ve solo sus filas) y `admin` (expedientes, pagos,
   licencias y plantillas). El rol se comprueba en cada función, no solo en
   RLS.
@@ -47,7 +52,7 @@ desarrollo y escribe en `portal/tmp/`, que no se versiona.
 | Tercero | Para qué | Dónde |
 |---|---|---|
 | Neon | Base de datos y respaldos | AWS `us-east-2`, Estados Unidos |
-| Vercel | Interfaz, funciones y TLS | Estados Unidos (región `cle1`) |
+| Cloudflare | Interfaz estática, API, Durable Object y TLS | Red global; el Durable Object se ubica cerca de la base (Estados Unidos) |
 | Proveedor de correo (Resend o SMTP) | Envío del expediente | Según el proveedor contratado |
 | NIC.ve | Registro del dominio del cliente | Venezuela |
 
@@ -84,7 +89,8 @@ Antes de considerar el correo operativo en producción:
 4. Repetir la prueba después de cambiar de proveedor o de rotar la clave.
 
 Los valores de las claves no se guardan en el repositorio ni se imprimen; se
-cargan en el panel del proveedor y en Vercel.
+cargan en el panel del proveedor y con `wrangler secret put` (secretos) o en
+`wrangler.jsonc` (variables del Worker).
 
 ## 5. Retención
 
@@ -107,8 +113,9 @@ plazos es manual: no hay un trabajo automático que la ejecute.
   ventana del plan. A la fecha de este documento el proyecto tiene una
   ventana corta; antes de abrir al público debe ampliarse o programarse
   instantáneas periódicas. La ventana actual no cubre un fin de semana.
-- La aplicación de Vercel no guarda estado propio: se reconstruye desde
-  `main`. Las variables de entorno se cargan en el panel, no en el repo.
+- El Worker no guarda estado propio: se reconstruye desde `main` con
+  `npm run desplegar`. Las variables y secretos se cargan en Cloudflare, no
+  en el repo.
 - Restaurar nunca se hace sobre `main` a ciegas. Se toma una instantánea,
   se restaura en una rama aparte, se corren `npm run db:pruebas` y
   `npm run api:pruebas` contra esa rama y se verifica un expediente firmado
@@ -143,8 +150,9 @@ plazos es manual: no hay un trabajo automático que la ejecute.
 **Quién:** el dueño de Blink dirige; la administración ejecuta. Se usa una
 sola cuenta de administración por persona, nunca compartida.
 
-**Detectar.** Logs de Neon y Vercel, correos rebotados, reporte del cliente o
-una verificación que deja de coincidir. Anotar hora UTC, qué se vio y cómo.
+**Detectar.** Logs de Neon y de Cloudflare (`wrangler tail` u Observability),
+correos rebotados, reporte del cliente o una verificación que deja de
+coincidir. Anotar hora UTC, qué se vio y cómo.
 
 **Contener.**
 
@@ -152,8 +160,8 @@ una verificación que deja de coincidir. Anotar hora UTC, qué se vio y cómo.
   para todas si hay duda.
 - Bloquear la cuenta (`usuarios.bloqueado`) o cambiar su clave.
 - Rotar credenciales en el proveedor: contraseña de la base, clave del API de
-  correo o SMTP, y la clave del administrador. Actualizar Vercel y
-  `portal/.env.local` sin imprimir valores.
+  correo o SMTP, y la clave del administrador. Actualizar los secretos del
+  Worker y `portal/.env.local` sin imprimir valores.
 - No borrar filas para «limpiar»: las tablas de evidencia son de solo
   agregar y un borrado destruye la prueba.
 
@@ -181,7 +189,8 @@ prueba que la detecte y registrar la lección.
 - El rol `bws_app` escribe filas, no crea objetos, no es superusuario y no
   toca las tablas de solo agregar. Las migraciones se aplican como dueño.
 - Ninguna variable se commitea. En local viven en `portal/.env.local`
-  (ignorado); en producción, en el panel de Vercel.
+  (ignorado); en producción, como secretos y variables del Worker
+  (`wrangler secret put`, `wrangler.jsonc`).
 - `SESION_SECRETO` no se usa: el token de sesión es aleatorio y la base
   guarda su hash. Si aparece en una lista de variables, es un residuo y se
   puede omitir.
@@ -198,9 +207,9 @@ El orden es:
 2. `npm run db:pruebas` y `npm run api:pruebas` contra la rama `pruebas`.
 3. `npm run portal:pruebas` (Chromium, axe, desborde, CSP).
 4. Migraciones como dueño sobre `main`, una sola vez y revisadas.
-5. Desplegar en Vercel y comprobar en el dominio: HTTPS, HSTS, CSP,
-   `frame-ancestors 'none'`, correo real y un expediente de prueba de punta a
-   punta.
+5. Publicar el Worker con `npm run desplegar` y comprobar en el dominio:
+   HTTPS, HSTS, CSP, `frame-ancestors 'none'`, correo real y un expediente de
+   prueba de punta a punta.
 
 ## 11. Pendientes operativos
 

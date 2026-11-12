@@ -189,8 +189,12 @@ declara las fuentes TTF como módulos `Data`. Antes del primer arranque hay
 que aplicar las migraciones como dueño, publicar las plantillas, crear la
 cuenta de administración y cargar los secretos `DATABASE_URL_APP` y
 `CORREO_API_KEY` más las variables `ENTORNO=produccion`, `APP_ORIGEN`,
-`CORREO_MODO=resend`, `CORREO_DESDE` y `CORREO_COPIA`. El plan Workers Paid
-es necesario para generar los PDF: el gratuito limita la CPU a 10 ms.
-`wrangler.jsonc` fija `limits.cpu_ms` en 60 s, por encima de los 30 s por
-omisión, porque los ocho documentos con fuentes incrustadas consumen unos 12 s
-de CPU.
+`CORREO_MODO=resend`, `CORREO_DESDE` y `CORREO_COPIA`.
+
+Todo cabe en el plan Free de Cloudflare. El plan gratuito limita el Worker a
+10 ms de CPU por solicitud, así que el registro, el ingreso, el
+restablecimiento y la generación del expediente se ejecutan en un Durable
+Object (`CARGA`), que tiene 30 s de CPU por invocación, 100.000 solicitudes
+al día y 128 MB de memoria. Los ocho PDF con fuentes incrustadas consumen
+unos 12 s de CPU y quedan dentro de ese presupuesto. No hace falta Workers
+Paid ni ningún plan de pago.

@@ -1,21 +1,40 @@
 /* ============================================================
    Entrada del Worker de Cloudflare
    ------------------------------------------------------------
-   `run_worker_first: ["/api/*"]` manda la API aquí; el resto de
-   rutas las sirve la capa de assets, con `index.html` como
-   respaldo. Las cabeceras de la API se fijan en este archivo
-   porque `_headers` solo aplica a respuestas de assets.
+   `run_worker_first` manda la API aquí; el resto de rutas las
+   sirve la capa de assets, con `index.html` como respaldo. Las
+   cabeceras de la API se fijan en este archivo porque `_headers`
+   solo aplica a respuestas de assets.
+
+   El plan gratuito corta a 10 ms de CPU por solicitud: scrypt
+   (0,5–1,4 s) y los ocho PDF (unos 12 s) no caben ahí. Esas rutas
+   pasan por un Durable Object, que tiene 30 s de CPU por invocación
+   sin cambiar de plan. `auth` y `expediente` son dos instancias
+   distintas: un expediente largo no bloquea los ingresos.
    ============================================================ */
 
 import despachar from "./api/[...ruta]";
 import { configurarFuentes } from "./render/fuentes";
 import { lectorWorker } from "./render/fuentes-worker";
 
+interface EspacioDO {
+  idFromName(nombre: string): unknown;
+  get(id: unknown): { fetch(peticion: Request): Promise<Response> };
+}
+
 interface Entorno {
   ASSETS: { fetch(peticion: Request): Promise<Response> };
+  CARGA: EspacioDO;
 }
 
 configurarFuentes(lectorWorker);
+
+const PESADAS: Record<string, string> = {
+  "/api/auth/registro": "auth",
+  "/api/auth/ingreso": "auth",
+  "/api/auth/restablecer": "auth",
+  "/api/documentos/generar": "expediente",
+};
 
 const SEGURIDAD: Record<string, string> = {
   "content-security-policy":
@@ -42,11 +61,22 @@ function conCabeceras(respuesta: Response, api: boolean): Response {
   });
 }
 
+export class Carga {
+  async fetch(peticion: Request): Promise<Response> {
+    return despachar(peticion);
+  }
+}
+
 export default {
   async fetch(peticion: Request, entorno: Entorno): Promise<Response> {
     const { pathname } = new URL(peticion.url);
     const api = pathname === "/api" || pathname.startsWith("/api/");
     try {
+      const pesada = PESADAS[pathname];
+      if (pesada) {
+        const id = entorno.CARGA.idFromName(pesada);
+        return conCabeceras(await entorno.CARGA.get(id).fetch(peticion), true);
+      }
       const respuesta = api ? await despachar(peticion) : await entorno.ASSETS.fetch(peticion);
       return conCabeceras(respuesta, api);
     } catch (error) {
