@@ -64,7 +64,12 @@ function leer(archivo) {
 }
 
 function cargar() {
-  const variables = { ...leer(LOCAL), ...leer(PRODUCCION) };
+  const variables = {};
+  for (const archivo of [LOCAL, PRODUCCION]) {
+    for (const [nombre, valor] of Object.entries(leer(archivo))) {
+      if (valor) variables[nombre] = valor;
+    }
+  }
   for (const [nombre, valor] of Object.entries(process.env)) {
     if (valor) variables[nombre] = valor;
   }
