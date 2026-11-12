@@ -189,6 +189,7 @@ export interface ListaDocumentos {
   proyecto_id: string | null;
   proyecto: { nombre: string; estado: string } | null;
   documentos: DocumentoExpediente[];
+  envio: { enviado: boolean; utc: string | null };
 }
 
 export interface PagoVista {
@@ -475,7 +476,12 @@ export const api = {
     return pedir("/api/cliente/suscripcion");
   },
 
-  firmarExpediente(): Promise<{ ok: true; actos: number; documentos: number }> {
+  firmarExpediente(): Promise<{
+    ok: true;
+    actos: number;
+    documentos: number;
+    envio: "enviado" | "pendiente";
+  }> {
     return pedir("/api/documentos/firmar", { metodo: "POST", cuerpo: {} });
   },
 

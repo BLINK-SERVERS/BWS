@@ -292,8 +292,8 @@ function TarjetaExpediente({
     ejecutar("generar", async () => {
       const respuesta = await api.generarExpediente(proyecto.id);
       return respuesta.reutilizado
-        ? "El expediente ya estaba generado."
-        : `Expediente generado: ${respuesta.documentos.length} documentos sellados.`;
+        ? "El proyecto ya estaba asignado."
+        : `Proyecto asignado: ${respuesta.documentos.length} documentos sellados y disponibles para el cliente.`;
     });
 
   const verificar = async () => {
@@ -376,7 +376,7 @@ function TarjetaExpediente({
             onClick={() => void generar()}
             disabled={ocupado !== null}
           >
-            {ocupado === "generar" ? "Generando…" : "Generar expediente"}
+            {ocupado === "generar" ? "Asignando…" : "Asignar proyecto"}
           </button>
         ) : null}
         {proyecto.documentos > 0 ? (
@@ -402,7 +402,8 @@ function TarjetaExpediente({
       </div>
       {!listoParaEnviar && proyecto.documentos > 0 ? (
         <p className="po-apagado">
-          El envío espera las dos firmas en los ocho documentos.
+          El correo sale solo cuando el cliente confirma los ocho documentos. Si ese envío
+          falló, este botón lo reintenta.
         </p>
       ) : null}
 

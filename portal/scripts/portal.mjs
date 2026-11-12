@@ -298,10 +298,20 @@ async function principal() {
     );
 
     await ir("registro");
-    await pagina.getByLabel("Nombre completo").fill("Ana Pérez");
+    await pagina.getByLabel("Nombre completo").fill("Ana");
+    await pagina.getByLabel("Apellidos").fill("Pérez");
     await pagina.getByLabel("Correo", { exact: true }).fill(correo);
     await pagina.getByLabel("Teléfono").fill("+58 412 1234567");
     await pagina.getByLabel("Clave", { exact: true }).fill(clave);
+    comprobar(
+      "el registro pide solo los datos de la persona",
+      (await pagina.getByText(/SENIAT/).count()) === 0 &&
+        (await pagina.getByLabel("Nombre completo").count()) === 1 &&
+        (await pagina.getByLabel("Apellidos").count()) === 1 &&
+        (await pagina.getByLabel("Teléfono").count()) === 1 &&
+        (await pagina.getByLabel("Correo", { exact: true }).count()) === 1 &&
+        (await pagina.getByLabel("Clave", { exact: true }).count()) === 1,
+    );
     await medir(pagina, "registro", 1440);
 
     await pagina.getByRole("button", { name: "Continuar" }).click();
@@ -364,6 +374,15 @@ async function principal() {
       (await pagina.locator("canvas.po-lienzo").count()) === 0,
     );
     await medir(pagina, "panel firmado", 1440);
+
+    const solicitud = pagina.locator('section[aria-labelledby="po-proyecto-titulo"]');
+    await solicitud.getByRole("heading", { name: "Solicitar mi proyecto" }).waitFor();
+    comprobar(
+      "el panel ofrece solicitar el proyecto sobre los datos fiscales",
+      (await solicitud
+        .getByRole("link", { name: "Solicitar mi proyecto" })
+        .getAttribute("href")) === "/proyecto",
+    );
 
     // Alta del proyecto: plan, anexo B y congelado al enviar.
     const dominio = `estudio-${marca}.com.ve`;
@@ -461,11 +480,11 @@ async function principal() {
     const bloqueExpediente = () =>
       admin.locator(".po-admin-bloque").filter({ hasText: "App de citas" }).first();
 
-    await bloqueExpediente().getByRole("button", { name: "Generar expediente" }).click();
+    await bloqueExpediente().getByRole("button", { name: "Asignar proyecto" }).click();
     // Ocho PDF con las seis fuentes incrustadas: en una máquina cargada
     // pasa de los 30 s del tiempo por omisión.
     await bloqueExpediente()
-      .getByText("Expediente generado: 8 documentos sellados.")
+      .getByText("Proyecto asignado: 8 documentos sellados y disponibles para el cliente.")
       .waitFor({ timeout: 120_000 });
     await bloqueExpediente().getByRole("button", { name: "Verificar cadena" }).click();
     await bloqueExpediente()
@@ -513,9 +532,10 @@ async function principal() {
     );
     const seccionExpediente = pagina.locator('section[aria-labelledby="po-expediente-titulo"]');
     await seccionExpediente.getByRole("button", { name: "Confirmar el expediente" }).click();
-    await pagina.getByText("Confirmaste 8 de 8 documentos.").waitFor();
     await pagina
-      .getByText("Confirmaste los 8 documentos. El envío por correo lo hace la administración.")
+      .getByText(
+        "Confirmaste los 8 documentos y el expediente salió a tu correo con los PDF adjuntos.",
+      )
       .waitFor();
     comprobar(
       "el cliente confirma los ocho documentos",
@@ -532,6 +552,20 @@ async function principal() {
     );
     await medir(pagina, "panel con expediente y licencia", 1440);
 
+    const automatico = (await todosLosCorreos()).filter(
+      (enviado) => enviado.asunto === "Expediente firmado — Estudio Prueba, C.A.",
+    );
+    comprobar(
+      "el correo sale al confirmar el cliente, con ocho adjuntos y copia a Blink",
+      automatico.length === 1 &&
+        automatico[0].adjuntos.length === 8 &&
+        automatico[0].copia.some((direccion) => direccion.endsWith("blink.com.ve")),
+      JSON.stringify({
+        envios: automatico.length,
+        adjuntos: automatico[0]?.adjuntos.length,
+      }),
+    );
+
     // Envío único: el reintento no produce un segundo correo.
     await admin.reload({ waitUntil: "domcontentloaded" });
     await admin.getByRole("heading", { name: "Operación de Blink" }).waitFor();
@@ -545,10 +579,7 @@ async function principal() {
       "con las dos firmas la cadena queda íntegra y completa",
       (await expedienteFinal.getByText("FALLA", { exact: true }).count()) === 0,
     );
-    await expedienteFinal.getByRole("button", { name: "Enviar al cliente" }).click();
-    await expedienteFinal
-      .getByText("Enviado al cliente con 8 adjuntos y copia a Blink.")
-      .waitFor();
+    // El correo ya salió al confirmar el cliente: el botón es el reintento.
     await expedienteFinal.getByRole("button", { name: "Enviar al cliente" }).click();
     await expedienteFinal
       .getByText("El expediente ya había salido: no se envió un segundo correo.")

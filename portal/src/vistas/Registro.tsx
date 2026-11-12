@@ -1,12 +1,14 @@
 /* ============================================================
    Registro en dos pasos
    ------------------------------------------------------------
-   1. Nombre, correo, teléfono y clave.
+   1. Nombre, apellidos, teléfono, correo y clave.
    2. Los cuatro documentos de la cuenta y su aceptación.
 
-   Los datos fiscales no se piden aquí: se completan al contratar
-   un proyecto. Si un dato cambia entre los dos pasos, la huella
-   deja de coincidir y el alta no se completa.
+   Los datos fiscales no se piden aquí: se completan al solicitar
+   un proyecto. El nombre y los apellidos se guardan juntos como
+   el nombre completo de la persona. Si un dato cambia entre los
+   dos pasos, la huella deja de coincidir y el alta no se
+   completa.
    ============================================================ */
 
 import { useState } from "react";
@@ -28,6 +30,7 @@ import { TextoLegal } from "../componentes/TextoLegal";
 
 export function Registro() {
   const [nombre, setNombre] = useState("");
+  const [apellidos, setApellidos] = useState("");
   const [correo, setCorreo] = useState("");
   const [telefono, setTelefono] = useState("");
   const [clave, setClave] = useState("");
@@ -39,15 +42,19 @@ export function Registro() {
   const [errorGeneral, setErrorGeneral] = useState<string | null>(null);
   const [hecho, setHecho] = useState<RespuestaRegistro | null>(null);
 
+  const nombreCompleto = () =>
+    `${nombre.trim()} ${apellidos.trim()}`.replace(/\s+/g, " ").trim();
+
   const persona = (): PersonaDatos => ({
-    nombre: nombre.trim(),
+    nombre: nombreCompleto(),
     telefono: telefono.trim(),
     correo: correo.trim(),
   });
 
   const validar = (): boolean => {
     const nuevos: Record<string, string> = {};
-    if (!nombreValido(nombre)) nuevos.nombre = "Escribe tu nombre completo.";
+    if (!nombreValido(nombre)) nuevos.nombre = "Escribe tu nombre.";
+    if (!nombreValido(apellidos)) nuevos.apellidos = "Escribe tus apellidos.";
     if (!correoNormalizado(correo)) nuevos.correo = "El correo no tiene un formato válido.";
     if (!telefonoNormalizado(telefono)) {
       nuevos.telefono = "Escribe un teléfono con al menos siete dígitos.";
@@ -82,7 +89,7 @@ export function Registro() {
     setErrorGeneral(null);
     try {
       const respuesta = await api.registro({
-        cuenta: { correo: correo.trim(), clave, nombre: nombre.trim() },
+        cuenta: { correo: correo.trim(), clave, nombre: nombreCompleto() },
         persona: persona(),
         hashes: Object.fromEntries(previa.documentos.map((d) => [d.codigo, d.hash])),
       });
@@ -135,28 +142,22 @@ export function Registro() {
 
       {!previa ? (
         <>
-          <p className="po-entrada">
-            Nombre, teléfono y correo. Los datos del contrato se piden al contratar un
-            proyecto.
-          </p>
-
           <form className="po-formulario" onSubmit={(e) => void revisar(e)} noValidate>
             <Campo
               id="registro-nombre"
               etiqueta="Nombre completo"
-              autocompletar="name"
+              autocompletar="given-name"
               valor={nombre}
               alCambiar={setNombre}
               error={errores.nombre}
             />
             <Campo
-              id="registro-correo"
-              etiqueta="Correo"
-              tipo="email"
-              autocompletar="email"
-              valor={correo}
-              alCambiar={setCorreo}
-              error={errores.correo}
+              id="registro-apellidos"
+              etiqueta="Apellidos"
+              autocompletar="family-name"
+              valor={apellidos}
+              alCambiar={setApellidos}
+              error={errores.apellidos}
             />
             <Campo
               id="registro-telefono"
@@ -166,6 +167,15 @@ export function Registro() {
               valor={telefono}
               alCambiar={setTelefono}
               error={errores.telefono}
+            />
+            <Campo
+              id="registro-correo"
+              etiqueta="Correo"
+              tipo="email"
+              autocompletar="email"
+              valor={correo}
+              alCambiar={setCorreo}
+              error={errores.correo}
             />
             <Campo
               id="registro-clave"

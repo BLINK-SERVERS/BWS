@@ -10,11 +10,17 @@
    El expediente debe estar completo del lado de Blink: sin los
    actos del representante no hay nada que el cliente pueda
    aceptar.
+
+   Cuando la confirmación completa las dos firmas, el correo con
+   los ocho PDF sale de aquí mismo. Si ese envío falla, la
+   confirmación ya quedó registrada y la administración puede
+   reintentarlo desde `/api/documentos/enviar`.
    ============================================================ */
 
 import { agenteDe, ipDe, json } from "../_lib/http";
 import { exigirOrigen } from "../_lib/csrf";
 import { enTransaccion } from "../_lib/db";
+import { enviarExpediente } from "../_lib/envio-expediente";
 import {
   firmaDeExpediente,
   proyectoDeExpediente,
@@ -58,7 +64,7 @@ export default manejar(["POST"], async (peticion) => {
   if (!docs.length) {
     throw new ErrorHttp(
       409,
-      "Todavía no hay un expediente generado. La administración lo genera cuando revisa el proyecto.",
+      "Todavía no hay un expediente asignado. Blink lo prepara al revisar el proyecto.",
       "sin_expediente",
     );
   }
@@ -131,5 +137,15 @@ export default manejar(["POST"], async (peticion) => {
     );
   }
 
-  return json({ ok: true, actos: firmados, documentos: docs.length });
+  let envio: "enviado" | "pendiente" = "pendiente";
+  if (cliente + firmados >= docs.length) {
+    try {
+      const resultado = await enviarExpediente(sesion, proyectoId, ip, agente);
+      envio = resultado.ok ? "enviado" : "pendiente";
+    } catch {
+      // La confirmación ya quedó asentada: el reenvío es del panel de administración.
+    }
+  }
+
+  return json({ ok: true, actos: firmados, documentos: docs.length, envio });
 });

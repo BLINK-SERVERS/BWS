@@ -898,6 +898,14 @@ probar("envío: sin el acto del cliente no sale", async () => {
 });
 
 probar("expediente: el cliente confirma una sola vez", async () => {
+  // La licencia suspendida no frena la confirmación, pero deja el correo pendiente.
+  const susp = await invocar(suspender, "/api/suscripciones/suspender", {
+    metodo: "POST",
+    cookie: cookieAdmin,
+    cuerpo: { suscripcion_id: suscripcionId, motivo: "Prueba de envío suspendido" },
+  });
+  assert.equal(susp.estado, 200);
+
   const primera = await invocar(firmarExpediente, "/api/documentos/firmar", {
     metodo: "POST",
     cookie,
@@ -905,6 +913,7 @@ probar("expediente: el cliente confirma una sola vez", async () => {
   assert.equal(primera.estado, 200);
   assert.equal(primera.cuerpo.actos, 8);
   assert.equal(primera.cuerpo.documentos, 8);
+  assert.equal(primera.cuerpo.envio, "pendiente");
 
   const segunda = await invocar(firmarExpediente, "/api/documentos/firmar", {
     metodo: "POST",
@@ -922,7 +931,13 @@ probar("expediente: el cliente confirma una sola vez", async () => {
   );
   assert.equal(actos.rows[0].total, 16);
   assert.equal(actos.rows[0].cliente, 8);
-  pasar("200 con 8 actos, 409 la segunda vez y 16 actos en total");
+
+  const sinCorreo = await cliente.query(
+    "select count(*)::int as n from envios where clave_idempotencia like $1",
+    [`expediente/${proyectoGuardado.id}/%`],
+  );
+  assert.equal(sinCorreo.rows[0].n, 0);
+  pasar("200 con 8 actos y envío pendiente, 409 la segunda vez, 16 actos y ningún correo");
 });
 
 probar("expediente: la verificación cuadra para las dos partes", async () => {
@@ -966,12 +981,8 @@ probar("envío: ocho PDF, copia a Blink, idempotente y auditado", async () => {
   });
   assert.equal(deCliente.estado, 403);
 
-  const susp = await invocar(suspender, "/api/suscripciones/suspender", {
-    metodo: "POST",
-    cookie: cookieAdmin,
-    cuerpo: { suscripcion_id: suscripcionId, motivo: "Prueba de envío suspendido" },
-  });
-  assert.equal(susp.estado, 200);
+  // El intento automático quedó pendiente: con la licencia suspendida
+  // tampoco sale el reintento de la administración.
   const sinLicencia = await invocar(enviarExpediente, "/api/documentos/enviar", {
     metodo: "POST",
     cookie: cookieAdmin,
@@ -1075,6 +1086,8 @@ probar("documentos del cliente: ocho, firmados y con título", async () => {
   assert.ok(r.cuerpo.documentos.every((d) => d.firmado === true));
   assert.ok(r.cuerpo.documentos.every((d) => d.titulo.length > 0));
   assert.equal(r.cuerpo.documentos[0].codigo, "BWS-REG-001");
+  assert.equal(r.cuerpo.envio.enviado, true);
+  assert.match(r.cuerpo.envio.utc, /^\d{4}-\d{2}-\d{2}T[\d:.]+Z$/);
 
   const admin = await invocar(documentosCliente, "/api/cliente/documentos", {
     cookie: cookieAdmin,

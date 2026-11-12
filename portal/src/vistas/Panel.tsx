@@ -1,10 +1,11 @@
 /* ============================================================
    Panel del cliente
    ------------------------------------------------------------
-   Lo que ya está hecho: cuenta, ficha fiscal, firma y el alta
-   del proyecto con sus anexos. El expediente firmado llega con
-   la siguiente entrega; aquí no se promete una pantalla que
-   todavía no existe.
+   La cuenta se crea con nombre, apellidos, teléfono y correo. El
+   resto —ficha fiscal, alcance y plan— se completa al solicitar
+   el proyecto. Blink lo revisa y lo asigna; desde ese momento el
+   expediente aparece aquí para descargarlo, y al confirmar los
+   ocho documentos sale el correo con los PDF.
    ============================================================ */
 
 import { useCallback, useEffect, useState, type ReactNode } from "react";
@@ -62,7 +63,7 @@ function TarjetaProyecto() {
   return (
     <section className="po-tarjeta" aria-labelledby="po-proyecto-titulo">
       <h2 className="po-tarjeta-titulo" id="po-proyecto-titulo">
-        Proyecto
+        {proyecto ? "Proyecto" : "Solicitar mi proyecto"}
       </h2>
       {cargando ? (
         <p className="po-apagado" aria-live="polite">
@@ -100,12 +101,14 @@ function TarjetaProyecto() {
       ) : (
         <>
           <p className="po-apagado">
-            Todavía no describiste tu proyecto. El alcance, el dominio, los buzones y el
-            plan de infraestructura se convierten en el anexo A y el anexo B del contrato.
+            Completa tus datos fiscales y describe tu proyecto: alcance, dominio, buzones
+            y plan de infraestructura. Blink revisa la solicitud y te asigna el
+            expediente. Cuando esté asignado, podrás descargar los PDF desde aquí y, al
+            confirmarlos, también te llegarán por correo.
           </p>
           <p>
             <a className="po-boton po-boton-principal" href="/proyecto">
-              Describir mi proyecto
+              Solicitar mi proyecto
             </a>
           </p>
         </>
@@ -257,6 +260,10 @@ function TarjetaLicencia() {
 
 function TarjetaExpediente() {
   const [documentos, setDocumentos] = useState<DocumentoExpediente[] | null>(null);
+  const [envio, setEnvio] = useState<{ enviado: boolean; utc: string | null }>({
+    enviado: false,
+    utc: null,
+  });
   const [fallo, setFallo] = useState<string | null>(null);
   const [aviso, setAviso] = useState<string | null>(null);
   const [ocupado, setOcupado] = useState<string | null>(null);
@@ -265,6 +272,7 @@ function TarjetaExpediente() {
     try {
       const respuesta = await api.documentosCliente();
       setDocumentos(respuesta.documentos);
+      setEnvio(respuesta.envio);
       setFallo(null);
     } catch (error) {
       if (error instanceof FalloApi && error.estado === 404) {
@@ -301,10 +309,12 @@ function TarjetaExpediente() {
     setAviso(null);
     try {
       const respuesta = await api.firmarExpediente();
-      setAviso(
-        `Confirmaste ${respuesta.actos} de ${respuesta.documentos} documentos. El expediente se envía por correo cuando la administración lo cierra.`,
-      );
       await cargar();
+      if (respuesta.envio === "pendiente") {
+        setAviso(
+          `Confirmaste los ${respuesta.documentos} documentos. El correo quedó pendiente: la administración lo reenviará.`,
+        );
+      }
     } catch (error) {
       setFallo(
         error instanceof FalloApi ? error.message : "No pudimos registrar tu confirmación.",
@@ -369,8 +379,9 @@ function TarjetaExpediente() {
 
       {completo ? (
         <p className="po-nota po-nota-ok" role="status">
-          Confirmaste los {documentos.length} documentos. El envío por correo lo hace la
-          administración.
+          {envio.enviado
+            ? `Confirmaste los ${documentos.length} documentos y el expediente salió a tu correo con los PDF adjuntos.`
+            : `Confirmaste los ${documentos.length} documentos. El correo todavía no ha salido: la administración puede reenviarlo desde su panel.`}
         </p>
       ) : (
         <>
@@ -398,7 +409,7 @@ function TarjetaExpediente() {
         </p>
       ) : null}
       {aviso ? (
-        <p className="po-nota po-nota-ok" role="status">
+        <p className="po-nota po-nota-aviso" role="status">
           {aviso}
         </p>
       ) : null}
@@ -505,10 +516,6 @@ export function Panel({
             </>
           ) : null}
         </dl>
-        <p className="po-apagado">
-          Los datos que faltan se completan al crear el proyecto. El portal valida el
-          formato; no consulta al SENIAT.
-        </p>
       </section>
 
       <Firma alFirmar={() => void recargar()} />
