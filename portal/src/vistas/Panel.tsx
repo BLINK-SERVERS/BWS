@@ -344,6 +344,7 @@ function TarjetaExpediente() {
             <tr>
               <th scope="col">Documento</th>
               <th scope="col">Versión</th>
+              <th scope="col">Archivo que descargas</th>
               <th scope="col">Tu confirmación</th>
               <th scope="col">Descargar</th>
             </tr>
@@ -355,6 +356,24 @@ function TarjetaExpediente() {
                   {documento.codigo} · {documento.titulo}
                 </th>
                 <td>{documento.version}</td>
+                <td>
+                  {documento.ajustado.sha256 ? (
+                    <div className="po-ajuste-hecho">
+                      <span className="po-etiqueta po-etiqueta-ajuste">
+                        Ajustado a mano por Blink
+                      </span>
+                      <p className="po-hash">
+                        generado {documento.hash_archivo.slice(0, 16)}… · el que recibes{" "}
+                        {documento.ajustado.sha256.slice(0, 16)}…
+                      </p>
+                      {documento.ajustado.nota ? <p>{documento.ajustado.nota}</p> : null}
+                    </div>
+                  ) : (
+                    <p className="po-hash">
+                      Generado por el sistema · {documento.hash_archivo.slice(0, 16)}…
+                    </p>
+                  )}
+                </td>
                 <td>
                   {documento.firmado ? (
                     <span className="po-etiqueta po-etiqueta-ok">Confirmado</span>

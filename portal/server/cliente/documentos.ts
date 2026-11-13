@@ -6,6 +6,10 @@
    si su acto de firma ya quedó registrado. La descarga va por
    `/api/documentos/descargar`, que audita cada acceso.
 
+   Cada documento dice si Blink lo ajustó a mano: el cliente sabe
+   que el PDF que baja no es el renderizado automático y ve el
+   hash del archivo que recibe.
+
    El cliente no recibe PDF en esta respuesta: solo el resumen.
    ============================================================ */
 
@@ -15,6 +19,10 @@ import { proyectoOpcionalDeExpediente } from "../_lib/expediente";
 import { manejar } from "../_lib/manejador";
 import { ErrorHttp } from "../_lib/respuestas";
 import { leerSesion } from "../_lib/sesion";
+
+function instante(valor: unknown): Date {
+  return valor instanceof Date ? valor : new Date(String(valor));
+}
 
 export default manejar(["GET"], async (peticion) => {
   const sesion = await leerSesion(peticion);
@@ -38,13 +46,21 @@ export default manejar(["GET"], async (peticion) => {
   const [filas, envios] = await enTransaccion(sesion.usuarioId, sesion.rol, (txn) => [
     txn`select d.plantilla_codigo, d.plantilla_version, d.orden,
                d.hash_archivo, d.hash_cadena, d.estado, p.contenido->>'titulo' as titulo,
+               a.sha256_ajustado, a.nota, a.utc as ajuste_utc,
                exists (
-                 select 1 from actos_firma a
-                 where a.documento_id = d.id and a.firmante = 'cliente'
+                 select 1 from actos_firma af
+                 where af.documento_id = d.id and af.firmante = 'cliente'
                ) as firmado
         from documentos d
         join plantillas p
           on p.codigo = d.plantilla_codigo and p.version = d.plantilla_version
+        left join lateral (
+          select aj.sha256_ajustado, aj.nota, aj.utc
+          from documentos_ajustados aj
+          where aj.documento_id = d.id
+          order by aj.utc desc, aj.id
+          limit 1
+        ) a on true
         where d.proyecto_id = ${proyectoId}
         order by d.orden`,
     txn`select count(*)::int as total, max(e.utc) as utc
@@ -63,6 +79,11 @@ export default manejar(["GET"], async (peticion) => {
     hash_cadena: String(fila.hash_cadena),
     estado: String(fila.estado),
     firmado: Boolean(fila.firmado),
+    ajustado: {
+      sha256: fila.sha256_ajustado ? String(fila.sha256_ajustado) : null,
+      nota: fila.nota ? String(fila.nota) : null,
+      utc: fila.ajuste_utc ? instante(fila.ajuste_utc).toISOString() : null,
+    },
   }));
 
   const conteoEnvio = ((envios ?? [])[0] ?? {}) as Record<string, unknown>;

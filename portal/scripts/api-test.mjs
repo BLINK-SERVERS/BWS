@@ -9,7 +9,9 @@
    · ingreso, cookie de sesión, sesión vencida y salida;
    · verificación del correo en modo archivo;
    · firma única (la segunda devuelve 409) y consentimiento viejo;
-   · recuperación y restablecimiento con cierre de sesiones.
+   · recuperación y restablecimiento con cierre de sesiones;
+   · ajuste a mano de un PDF: se registra, se sirve y se cierra al enviar;
+   · el estado del proyecto avanza con la evidencia y el historial se lee.
 
    Nunca corre contra `main`: exige que las variables de pruebas
    apunten a otro host que la base principal.
@@ -70,6 +72,8 @@ const { default: proyecto } = await import("../server/cliente/proyecto.ts");
 const { default: enviarProyecto } = await import("../server/cliente/proyecto/enviar.ts");
 const { default: representante } = await import("../server/admin/representante.ts");
 const { default: panelAdmin } = await import("../server/admin/panel.ts");
+const { default: historialAdmin } = await import("../server/admin/historial.ts");
+const { default: ajustarDocumento } = await import("../server/admin/documentos/ajustar.ts");
 const { default: generarExpediente } = await import("../server/documentos/generar.ts");
 const { default: firmarExpediente } = await import("../server/documentos/firmar.ts");
 const { default: verificarExpediente } = await import("../server/documentos/verificar.ts");
@@ -88,6 +92,16 @@ const { hashCadena, sha256Hex } = await import("../render/hash.ts");
 const { sembrarPlantillas } = await import("./sembrar-plantillas.mjs");
 
 await sembrarPlantillas(cliente);
+
+// `scripts/servidor.mjs` resuelve cada ruta por su archivo: una ruta
+// declarada en el mapa sin `server/<ruta>.ts` funciona en el Worker y
+// da 404 en el navegador. Las dos entradas tienen que coincidir.
+const { RUTAS } = await import("../api/[...ruta].ts");
+for (const ruta of Object.keys(RUTAS)) {
+  if (!existsSync(new URL(`../server/${ruta}.ts`, import.meta.url))) {
+    throw new Error(`Falta server/${ruta}.ts para la ruta /api/${ruta}.`);
+  }
+}
 
 const ADMIN = {
   correo: "admin@blink.test",
@@ -665,6 +679,7 @@ const REPRESENTANTE = {
 
 let cookieAdmin = null;
 let expediente = null;
+let ajustePrueba = null;
 
 probar("administración: la captura del representante exige rol admin", async () => {
   const anonima = await invocar(representante, "/api/admin/representante");
@@ -930,6 +945,124 @@ probar("expediente: antes de confirmar está íntegro pero incompleto", async ()
   pasar("integro sin actos del cliente: completo en falso");
 });
 
+probar("ajuste: Blink sube el PDF revisado antes de que el cliente confirme", async () => {
+  const fila = await cliente.query(
+    `select id, plantilla_codigo, hash_archivo, pdf
+     from documentos where proyecto_id = $1 and plantilla_codigo = 'BWS-REG-001'`,
+    [proyectoGuardado.id],
+  );
+  const documento = fila.rows[0];
+  const dataUrl = (bytes) => `data:application/pdf;base64,${Buffer.from(bytes).toString("base64")}`;
+  const ajustado = Buffer.concat([
+    documento.pdf,
+    Buffer.from("\n% Ajuste a mano de prueba\n%%EOF\n"),
+  ]);
+  const shaAjustado = sha256Hex(ajustado);
+
+  const deCliente = await invocar(ajustarDocumento, "/api/admin/documentos/ajustar", {
+    metodo: "POST",
+    cookie,
+    cuerpo: { documento_id: documento.id, pdf: dataUrl(ajustado) },
+  });
+  assert.equal(deCliente.estado, 403);
+  assert.equal(deCliente.cuerpo.codigo, "rol");
+
+  const sinArchivo = await invocar(ajustarDocumento, "/api/admin/documentos/ajustar", {
+    metodo: "POST",
+    cookie: cookieAdmin,
+    cuerpo: { documento_id: documento.id, pdf: dataUrl("nada de pdf") },
+  });
+  assert.equal(sinArchivo.estado, 400);
+  assert.equal(sinArchivo.cuerpo.codigo, "archivo");
+
+  const identico = await invocar(ajustarDocumento, "/api/admin/documentos/ajustar", {
+    metodo: "POST",
+    cookie: cookieAdmin,
+    cuerpo: { documento_id: documento.id, pdf: dataUrl(documento.pdf) },
+  });
+  assert.equal(identico.estado, 400);
+  assert.equal(identico.cuerpo.codigo, "identico");
+
+  const ajeno = await invocar(ajustarDocumento, "/api/admin/documentos/ajustar", {
+    metodo: "POST",
+    cookie: cookieAdmin,
+    cuerpo: { documento_id: "00000000-0000-4000-8000-000000000000", pdf: dataUrl(ajustado) },
+  });
+  assert.equal(ajeno.estado, 404);
+  assert.equal(ajeno.cuerpo.codigo, "documento");
+
+  const r = await invocar(ajustarDocumento, "/api/admin/documentos/ajustar", {
+    metodo: "POST",
+    cookie: cookieAdmin,
+    cuerpo: { documento_id: documento.id, pdf: dataUrl(ajustado), nota: "Firma manuscrita adjunta" },
+  });
+  assert.equal(r.estado, 201);
+  assert.equal(r.cuerpo.reutilizado, false);
+  assert.equal(r.cuerpo.ajuste.sha256_ajustado, shaAjustado);
+  assert.equal(r.cuerpo.ajuste.sha256_original, documento.hash_archivo);
+  assert.equal(r.cuerpo.ajuste.tamano, ajustado.length);
+
+  const otraVez = await invocar(ajustarDocumento, "/api/admin/documentos/ajustar", {
+    metodo: "POST",
+    cookie: cookieAdmin,
+    cuerpo: { documento_id: documento.id, pdf: dataUrl(ajustado) },
+  });
+  assert.equal(otraVez.estado, 200);
+  assert.equal(otraVez.cuerpo.reutilizado, true);
+
+  const filas = await cliente.query(
+    `select count(*)::int as n from documentos_ajustados where documento_id = $1`,
+    [documento.id],
+  );
+  assert.equal(filas.rows[0].n, 1, "el mismo PDF ajustado creó dos filas");
+
+  // El generado sigue intacto: el ajuste se suma, no reemplaza.
+  assert.equal(
+    (await cliente.query("select count(*)::int as n from eventos where accion = 'documento.ajustado'"))
+      .rows[0].n,
+    1,
+  );
+
+  const bajado = await invocarBinario(
+    descargarDocumento,
+    `/api/documentos/descargar?codigo=BWS-REG-001&proyecto_id=${proyectoGuardado.id}`,
+    { cookie: cookieAdmin },
+  );
+  assert.equal(bajado.estado, 200);
+  assert.deepEqual(Buffer.from(bajado.bytes), ajustado);
+  assert.equal(bajado.cabeceras.get("x-bws-sha256"), shaAjustado);
+  assert.equal(bajado.cabeceras.get("x-bws-ajuste"), documento.hash_archivo);
+  assert.match(
+    bajado.cabeceras.get("content-disposition") ?? "",
+    /BWS-REG-001-v\d+-ajustado\.pdf/,
+  );
+
+  const verificado = await invocar(
+    verificarExpediente,
+    `/api/documentos/verificar?proyecto_id=${proyectoGuardado.id}`,
+    { cookie: cookieAdmin },
+  );
+  assert.equal(verificado.cuerpo.integro, true, "el ajuste rompió la integridad del expediente");
+  const docVerificado = verificado.cuerpo.documentos.find((d) => d.codigo === "BWS-REG-001");
+  assert.equal(docVerificado.ajuste_ok, true);
+  assert.equal(docVerificado.ajuste.sha256_ajustado, shaAjustado);
+  assert.equal(docVerificado.ajuste.nota, "Firma manuscrita adjunta");
+
+  const lista = await invocar(documentosCliente, "/api/cliente/documentos", { cookie });
+  assert.equal(lista.estado, 200);
+  const enLista = lista.cuerpo.documentos.find((d) => d.codigo === "BWS-REG-001");
+  assert.equal(enLista.ajustado.sha256, shaAjustado);
+  assert.equal(enLista.hash_archivo, documento.hash_archivo);
+  assert.ok(
+    lista.cuerpo.documentos
+      .filter((d) => d.codigo !== "BWS-REG-001")
+      .every((d) => d.ajustado.sha256 === null),
+  );
+
+  ajustePrueba = { documentoId: documento.id, shaAjustado, codigo: documento.plantilla_codigo };
+  pasar("201 con los dos hashes, repetido sin segunda fila, descarga y verificación con el ajuste");
+});
+
 probar("envío: sin el acto del cliente no sale", async () => {
   const r = await invocar(enviarExpediente, "/api/documentos/enviar", {
     metodo: "POST",
@@ -981,7 +1114,15 @@ probar("expediente: el cliente confirma una sola vez", async () => {
     [`expediente/${proyectoGuardado.id}/%`],
   );
   assert.equal(sinCorreo.rows[0].n, 0);
-  pasar("200 con 8 actos y envío pendiente, 409 la segunda vez, 16 actos y ningún correo");
+
+  // Confirmar es un hecho aunque el correo no haya salido: el proyecto
+  // queda `aprobado`, el estado intermedio que antes nadie escribía.
+  const aprobado = await cliente.query(
+    "select estado from proyectos where id = $1",
+    [proyectoGuardado.id],
+  );
+  assert.equal(aprobado.rows[0].estado, "aprobado");
+  pasar("200 con 8 actos y envío pendiente, 409 la segunda vez, 16 actos y el proyecto en aprobado");
 });
 
 probar("expediente: la verificación cuadra para las dos partes", async () => {
@@ -1059,8 +1200,14 @@ probar("envío: ocho PDF, copia a Blink, idempotente y auditado", async () => {
   assert.equal(correo.para, CUENTA.correo);
   assert.equal(correo.adjuntos.length, 8);
   assert.ok(correo.copia.includes("business@blink.com.ve"));
-  assert.ok(correo.adjuntos.every((a) => /^BWS-[A-Z]{3}-\d{3}-v\d+\.pdf$/.test(a.nombre)));
+  assert.ok(correo.adjuntos.every((a) => /^BWS-[A-Z]{3}-\d{3}-v\d+(-ajustado)?\.pdf$/.test(a.nombre)));
   assert.ok(correo.adjuntos.every((a) => a.bytes > 1000 && /^[0-9a-f]{64}$/.test(a.sha256)));
+
+  // El documento ajustado sale con su sufijo y con el hash del archivo subido.
+  const adjuntoAjustado = correo.adjuntos.find((a) => a.nombre.includes("-ajustado"));
+  assert.ok(adjuntoAjustado, "el correo no llevó el PDF ajustado");
+  assert.equal(adjuntoAjustado.sha256, ajustePrueba.shaAjustado);
+  assert.ok(correo.texto.includes("ajustado a mano por Blink"));
 
   const otraVez = await invocar(enviarExpediente, "/api/documentos/enviar", {
     metodo: "POST",
@@ -1079,7 +1226,117 @@ probar("envío: ocho PDF, copia a Blink, idempotente y auditado", async () => {
     "select count(*)::int as n from eventos where accion = 'expediente.enviado'",
   );
   assert.equal(eventos.rows[0].n, 1);
-  pasar("403 al cliente, 8 adjuntos, copia a Blink, reintento reutilizado y un solo evento");
+
+  // El correo salió: el expediente pasa a `entregado` en la misma transacción.
+  const estado = await cliente.query(
+    "select estado from proyectos where id = $1",
+    [proyectoGuardado.id],
+  );
+  assert.equal(estado.rows[0].estado, "entregado");
+  pasar("403 al cliente, 8 adjuntos, copia a Blink, reintento reutilizado y el proyecto entregado");
+});
+
+probar("historial: la evidencia del expediente se lee sin salir del panel", async () => {
+  const anonimo = await invocar(historialAdmin, `/api/admin/historial?proyecto_id=${proyectoGuardado.id}`);
+  assert.equal(anonimo.estado, 401);
+
+  const ajeno = await invocar(
+    historialAdmin,
+    `/api/admin/historial?proyecto_id=${proyectoGuardado.id}`,
+    { cookie },
+  );
+  assert.equal(ajeno.estado, 403);
+
+  const sinId = await invocar(historialAdmin, "/api/admin/historial", { cookie: cookieAdmin });
+  assert.equal(sinId.estado, 200);
+  assert.equal(sinId.cuerpo.proyecto_id, null);
+
+  const sucio = await invocar(historialAdmin, "/api/admin/historial?proyecto_id=no-es-uuid", {
+    cookie: cookieAdmin,
+  });
+  assert.equal(sucio.estado, 400);
+
+  const r = await invocar(
+    historialAdmin,
+    `/api/admin/historial?proyecto_id=${proyectoGuardado.id}`,
+    { cookie: cookieAdmin },
+  );
+  assert.equal(r.estado, 200);
+  assert.equal(r.cuerpo.ok, true);
+  assert.equal(r.cuerpo.proyecto_id, proyectoGuardado.id);
+  assert.ok(r.cuerpo.eventos.length >= 6, `solo ${r.cuerpo.eventos.length} eventos`);
+
+  const acciones = new Set(r.cuerpo.eventos.map((evento) => evento.accion));
+  for (const esperada of [
+    "expediente.generado",
+    "expediente.firmado",
+    "documento.ajustado",
+    "expediente.enviado",
+  ]) {
+    assert.ok(acciones.has(esperada), `falta ${esperada}: ${[...acciones].join(", ")}`);
+  }
+
+  // Cada fila trae con quién, desde dónde y cuándo, que es lo que hace
+  // que el historial valga como prueba y no como un registro de notas.
+  const envio = r.cuerpo.eventos.find((evento) => evento.accion === "expediente.enviado");
+  assert.equal(envio.rol, "admin");
+  assert.ok(envio.actor, "el envío no dejó actor");
+  assert.match(envio.ocurrido, /^\d{4}-\d{2}-\d{2}T/);
+  assert.ok(envio.detalle && envio.detalle.hash_final, "el envío no trae su huella");
+
+  // El orden es del más reciente al más antiguo.
+  const instantes = r.cuerpo.eventos.map((evento) => evento.ocurrido ?? "");
+  const ordenado = [...instantes].sort().reverse();
+  assert.deepEqual(instantes, ordenado);
+
+  // Sin proyecto devuelve el rastro completo de la operación.
+  const todo = await invocar(historialAdmin, "/api/admin/historial?limite=400", {
+    cookie: cookieAdmin,
+  });
+  assert.equal(todo.estado, 200);
+  assert.ok(todo.cuerpo.eventos.length >= r.cuerpo.eventos.length);
+  assert.ok(todo.cuerpo.eventos.length <= 400);
+  pasar("401, 403, 400, el rastro del proyecto con actor e ip y en orden inverso");
+});
+
+probar("ajuste: cerrado el expediente, el PDF ya no se cambia", async () => {
+  const fila = await cliente.query(
+    `select id, pdf from documentos where proyecto_id = $1 and plantilla_codigo = 'BWS-LEG-002'`,
+    [proyectoGuardado.id],
+  );
+  const documento = fila.rows[0];
+  const intentado = Buffer.concat([
+    documento.pdf,
+    Buffer.from("\n% Intento después del envío\n%%EOF\n"),
+  ]);
+
+  const r = await invocar(ajustarDocumento, "/api/admin/documentos/ajustar", {
+    metodo: "POST",
+    cookie: cookieAdmin,
+    cuerpo: {
+      documento_id: documento.id,
+      pdf: `data:application/pdf;base64,${intentado.toString("base64")}`,
+      nota: "Comprobación de la puerta cerrada",
+    },
+  });
+  assert.equal(r.estado, 409);
+  assert.equal(r.cuerpo.codigo, "ya_enviado");
+
+  const filas = await cliente.query(
+    `select count(*)::int as n from documentos_ajustados where documento_id = $1`,
+    [documento.id],
+  );
+  assert.equal(filas.rows[0].n, 0, "el ajuste entró en un expediente ya enviado");
+
+  // El reintento del correo sigue sirviendo el archivo ajustado registrado antes.
+  const reintentado = await invocar(enviarExpediente, "/api/documentos/enviar", {
+    metodo: "POST",
+    cookie: cookieAdmin,
+    cuerpo: { proyecto_id: proyectoGuardado.id },
+  });
+  assert.equal(reintentado.estado, 200);
+  assert.equal(reintentado.cuerpo.reutilizado, true);
+  pasar("409 ya_enviado, sin fila nueva y el reintento no manda un segundo correo");
 });
 
 probar("descarga: autenticada, con hash y evento de auditoría", async () => {
@@ -1125,7 +1382,7 @@ probar("documentos del cliente: ocho, firmados y con título", async () => {
   const r = await invocar(documentosCliente, "/api/cliente/documentos", { cookie });
   assert.equal(r.estado, 200);
   assert.equal(r.cuerpo.proyecto_id, proyectoGuardado.id);
-  assert.equal(r.cuerpo.proyecto.estado, "en_revision");
+  assert.equal(r.cuerpo.proyecto.estado, "entregado");
   assert.equal(r.cuerpo.documentos.length, 8);
   assert.ok(r.cuerpo.documentos.every((d) => d.firmado === true));
   assert.ok(r.cuerpo.documentos.every((d) => d.titulo.length > 0));
@@ -1311,6 +1568,19 @@ probar("admin: el panel reúne clientes, expedientes, pagos y plantillas", async
   assert.equal(proyectoAdmin.actos_representante, 8);
   assert.equal(proyectoAdmin.actos_cliente, 8);
   assert.equal(proyectoAdmin.envios, 8);
+  assert.equal(proyectoAdmin.estado, "entregado");
+
+  // El directorio comercial necesita saber si la cuenta está viva.
+  assert.match(r.cuerpo.clientes[0].ultimo_acceso ?? "", /^\d{4}-\d{2}-\d{2}T/);
+
+  // El panel también trae el documento a documento, con su último ajuste.
+  assert.equal(r.cuerpo.documentos.length, 8);
+  const enPanel = r.cuerpo.documentos.filter((d) => d.ajuste);
+  assert.equal(enPanel.length, 1);
+  assert.equal(enPanel[0].codigo, "BWS-REG-001");
+  assert.equal(enPanel[0].ajuste.sha256_ajustado, ajustePrueba.shaAjustado);
+  assert.equal(enPanel[0].ajuste.nota, "Firma manuscrita adjunta");
+  assert.ok(enPanel[0].ajuste.tamano > 1000);
 
   assert.equal(r.cuerpo.suscripciones.length, 1);
   assert.equal(r.cuerpo.suscripciones[0].pagos, 1);
@@ -1340,6 +1610,14 @@ probar("mora: a los treinta días la licencia termina y no hay vuelta", async ()
   });
   assert.equal(r.estado, 200);
   assert.equal(r.cuerpo.cambios[0].nuevo, "terminada");
+
+  // Terminada la suscripción termina el expediente: es la única forma de
+  // que el tablero diga lo mismo que la evidencia.
+  const cierre = await cliente.query(
+    "select estado from proyectos where id = $1",
+    [proyectoGuardado.id],
+  );
+  assert.equal(cierre.rows[0].estado, "terminado");
 
   const licencia = await cliente.query(
     "select estado from licencias where proyecto_id = $1",

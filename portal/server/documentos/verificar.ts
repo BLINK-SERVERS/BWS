@@ -10,6 +10,10 @@
    comprobación por documento y resume con `integro` (archivos y
    sellos) y `completo` (los dos actos). El cliente ve su propio
    expediente; la administración indica el proyecto.
+
+   Si el documento fue ajustado a mano se informa el ajuste con sus
+   dos hashes y se comprueba aparte: la cadena sigue siendo la del
+   archivo generado.
    ============================================================ */
 
 import { DOCUMENTO_POR_CODIGO } from "../../legal";
@@ -74,9 +78,18 @@ export default manejar(["GET"], async (peticion) => {
   const [documentos, actos] = await enTransaccion(sesion.usuarioId, sesion.rol, (txn) => [
     txn`select d.id, d.plantilla_codigo, d.plantilla_version, d.orden, d.pdf, d.sello,
                d.hash_archivo, d.hash_anterior, d.hash_cadena, d.estado, d.utc_sello,
-               p.sha256 as plantilla_sha, p.contenido as plantilla_contenido
+               p.sha256 as plantilla_sha, p.contenido as plantilla_contenido,
+               aj.id as ajuste_id, aj.sha256_original, aj.sha256_ajustado,
+               aj.pdf as pdf_ajustado, aj.nota, aj.utc as ajuste_utc
         from documentos d
         join plantillas p on p.codigo = d.plantilla_codigo and p.version = d.plantilla_version
+        left join lateral (
+          select a.id, a.sha256_original, a.sha256_ajustado, a.pdf, a.nota, a.utc
+          from documentos_ajustados a
+          where a.documento_id = d.id
+          order by a.utc desc, a.id
+          limit 1
+        ) aj on true
         where d.proyecto_id = ${proyectoId}
         order by d.orden`,
     txn`select a.documento_id, a.firmante, a.firma_id, a.representante_id, a.utc
@@ -153,12 +166,31 @@ export default manejar(["GET"], async (peticion) => {
     const eslabonOk = guardado.anteriorGuardado === anterior && guardado.cadena === eslabon;
     anterior = guardado.cadena;
 
+    // El ajuste a mano no entra en la cadena: se comprueba por su
+    // cuenta, que los bytes guardados sigan dando el hash registrado
+    // y que el hash original sea el del documento que dice ajustar.
+    const pdfAjustado = fila.pdf_ajustado ? (fila.pdf_ajustado as Uint8Array) : null;
+    const ajuste = pdfAjustado
+      ? {
+          id: String(fila.ajuste_id),
+          sha256_original: String(fila.sha256_original),
+          sha256_ajustado: String(fila.sha256_ajustado),
+          tamano: pdfAjustado.length,
+          nota: fila.nota ? String(fila.nota) : null,
+          utc: instante(fila.ajuste_utc).toISOString(),
+        }
+      : null;
+    const ajusteOk = ajuste
+      ? ajuste.sha256_original === guardado.archivo &&
+        sha256Hex(pdfAjustado as Uint8Array) === ajuste.sha256_ajustado
+      : true;
+
     const propios = actosPorDocumento.get(id) ?? [];
     const actoRepresentante = propios.find((a) => a.firmante === "representante");
     const actoCliente = propios.find((a) => a.firmante === "cliente");
     const documentoCompleto = Boolean(actoRepresentante && actoCliente);
 
-    if (!plantillaOk || !selloOk || !archivoOk || !eslabonOk) integro = false;
+    if (!plantillaOk || !selloOk || !archivoOk || !eslabonOk || !ajusteOk) integro = false;
     if (!eslabonOk) cadenaOk = false;
     if (!documentoCompleto) completo = false;
 
@@ -175,6 +207,8 @@ export default manejar(["GET"], async (peticion) => {
       sello_ok: selloOk,
       archivo_ok: archivoOk,
       cadena_ok: eslabonOk,
+      ajuste,
+      ajuste_ok: ajusteOk,
       actos: {
         representante: actoRepresentante
           ? { hecho: true, utc: instante(actoRepresentante.utc).toISOString() }

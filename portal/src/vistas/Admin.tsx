@@ -1,23 +1,33 @@
 /* ============================================================
    Panel de administración
    ------------------------------------------------------------
-   Una sola pantalla para la operación de Blink: la firma del
-   representante legal, el expediente de cada proyecto (generar,
-   verificar la cadena, enviar y descargar), la suscripción con sus
-   pagos y la mora, y las plantillas publicadas.
+   La operación de Blink, organizada en cinco módulos: el resumen
+   con la cola de lo que hay que hacer hoy, el directorio comercial
+   de los clientes, el expediente de cada proyecto (generar,
+   verificar la cadena, ajustar los PDF a mano, enviar y descargar)
+   con su historial de evidencia, la parte documental —firma del
+   representante, plantillas y ajustes— y las finanzas con sus
+   pagos y su mora.
 
+   La cola no es una lista de tareas guardada en una tabla: se
+   calcula sobre los actos, los envíos y las suscripciones que ya
+   existen, así que no se puede quedar desactualizada ni a medias.
    Ninguna acción escribe dos veces: generar y enviar son
-   idempotentes, y los pagos anulados se conservan con su motivo.
-   La administración nunca ve la clave de nadie ni puede reemplazar
-   la firma original de un cliente.
+   idempotentes, un mismo PDF ajustado registrado dos veces se
+   reconoce como repetido, y los pagos anulados se conservan con su
+   motivo. La administración nunca ve la clave de nadie ni puede
+   reemplazar la firma original de un cliente.
    ============================================================ */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   api,
   FalloApi,
+  guardarDataUrl,
   guardarDescarga,
   type ClienteAdmin,
+  type DocumentoAdmin,
+  type EventoAdmin,
   type PanelAdmin,
   type PagoAdmin,
   type ProyectoAdmin,
@@ -26,16 +36,40 @@ import {
   type SuscripcionAdmin,
   type Verificacion,
 } from "../datos/api";
+import {
+  colaDe,
+  DIAS_AVISO,
+  etapaPorProyecto,
+  ETAPAS,
+  ETIQUETA_ETAPA,
+  metricasDe,
+  textoDeBusqueda,
+  type Accion,
+  type Etapa,
+  type Pendiente,
+} from "../datos/cola";
 import { Campo } from "../componentes/Campo";
 import { LienzoFirma, type LienzoFirmaHandle } from "../componentes/LienzoFirma";
 
-const ESTADOS_PROYECTO: Record<string, string> = {
-  borrador: "Borrador",
-  enviado: "Enviado",
-  en_revision: "En revisión",
-  aprobado: "Aprobado",
-  entregado: "Entregado",
-  terminado: "Terminado",
+const PDF_MAXIMO = 8 * 1024 * 1024;
+
+function leerComoDataUrl(archivo: File): Promise<string> {
+  return new Promise((resolver, rechazar) => {
+    const lector = new FileReader();
+    lector.onload = () => resolver(String(lector.result));
+    lector.onerror = () => rechazar(new Error("El archivo no se pudo leer."));
+    lector.readAsDataURL(archivo);
+  });
+}
+
+/** El color de la etapa: cerrada por mora se ve distinta de entregada. */
+const TONO_ETAPA: Record<Etapa, string> = {
+  borrador: "po-etiqueta po-etiqueta-aviso",
+  ficha: "po-etiqueta po-etiqueta-aviso",
+  en_revision: "po-etiqueta po-etiqueta-aviso",
+  aprobado: "po-etiqueta po-etiqueta-ok",
+  entregado: "po-etiqueta po-etiqueta-ok",
+  terminado: "po-etiqueta po-etiqueta-error",
 };
 
 const ESTADOS_SUSCRIPCION: Record<string, string> = {
@@ -81,9 +115,34 @@ function SeccionRepresentante({
   const [correo, setCorreo] = useState("");
   const [trazo, setTrazo] = useState(false);
   const [guardando, setGuardando] = useState(false);
+  const [bajando, setBajando] = useState(false);
   const [fallo, setFallo] = useState<string | null>(null);
   const [aviso, setAviso] = useState<string | null>(null);
   const lienzo = useRef<LienzoFirmaHandle>(null);
+
+  /** La firma en PNG sale de su propio GET: el panel no baja la imagen. */
+  const descargarFirma = async () => {
+    setBajando(true);
+    setFallo(null);
+    setAviso(null);
+    try {
+      const respuesta = await api.representante();
+      const png = respuesta.representante?.png;
+      if (!png || !respuesta.representante) {
+        setFallo("Todavía no hay una firma del representante guardada.");
+        return;
+      }
+      guardarDataUrl(
+        `firma-representante-${respuesta.representante.sha256.slice(0, 16)}.png`,
+        png,
+      );
+      setAviso("Firma descargada en PNG. Adjúntala al PDF y súbelo en el expediente.");
+    } catch (error) {
+      setFallo(mensajeDe(error, "No pudimos descargar la firma."));
+    } finally {
+      setBajando(false);
+    }
+  };
 
   const guardar = async () => {
     const png = lienzo.current?.png();
@@ -170,7 +229,17 @@ function SeccionRepresentante({
           onClick={() => setAbierto((valor) => !valor)}
         >
           {abierto ? "Cerrar captura" : "Capturar otra firma"}
-        </button>
+        </button>{" "}
+        {representante ? (
+          <button
+            type="button"
+            className="po-boton po-boton-suave"
+            onClick={() => void descargarFirma()}
+            disabled={bajando}
+          >
+            {bajando ? "Descargando…" : "Descargar mi firma (PNG)"}
+          </button>
+        ) : null}
       </p>
 
       {abierto ? (
@@ -260,13 +329,121 @@ function SeccionRepresentante({
    Expedientes
    ------------------------------------------------------------ */
 
+/**
+ * Subida del PDF ajustado de un documento. El ajuste no reemplaza al
+ * generado: agrega una fila con los dos hashes, y es la que se sirve
+ * al cliente y la que viaja adjunta al correo.
+ */
+function ControlAjuste({
+  documento,
+  alCambiar,
+}: {
+  documento: DocumentoAdmin;
+  alCambiar: () => Promise<void>;
+}) {
+  const [archivo, setArchivo] = useState<File | null>(null);
+  const [nota, setNota] = useState("");
+  const [ocupado, setOcupado] = useState(false);
+  const [fallo, setFallo] = useState<string | null>(null);
+  const [aviso, setAviso] = useState<string | null>(null);
+  const entrada = useRef<HTMLInputElement>(null);
+
+  const subir = async () => {
+    if (!archivo) {
+      setFallo("Elige primero el PDF ajustado.");
+      return;
+    }
+    if (archivo.size > PDF_MAXIMO) {
+      setFallo("El PDF supera los 8 MB permitidos.");
+      return;
+    }
+    setOcupado(true);
+    setFallo(null);
+    setAviso(null);
+    try {
+      const respuesta = await api.ajustarDocumento({
+        documento_id: documento.id,
+        pdf: await leerComoDataUrl(archivo),
+        nota: nota.trim() || undefined,
+      });
+      setArchivo(null);
+      setNota("");
+      if (entrada.current) entrada.current.value = "";
+      setAviso(
+        respuesta.reutilizado
+          ? "Ese archivo ya estaba registrado en el expediente."
+          : "Ajuste registrado: ese es el PDF que descarga el cliente y el que sale adjunto.",
+      );
+      await alCambiar();
+    } catch (error) {
+      setFallo(mensajeDe(error, "No pudimos registrar el ajuste."));
+    } finally {
+      setOcupado(false);
+    }
+  };
+
+  return (
+    <div className="po-ajuste">
+      <div className="po-campo">
+        <label className="po-campo-titulo" htmlFor={`ajuste-${documento.id}`}>
+          Archivo ajustado
+        </label>
+        <input
+          ref={entrada}
+          id={`ajuste-${documento.id}`}
+          type="file"
+          accept="application/pdf"
+          onChange={(evento) => setArchivo(evento.target.files?.[0] ?? null)}
+          disabled={ocupado}
+        />
+      </div>
+      <div className="po-campo">
+        <label className="po-campo-titulo" htmlFor={`ajuste-nota-${documento.id}`}>
+          Qué se ajustó (opcional)
+        </label>
+        <input
+          id={`ajuste-nota-${documento.id}`}
+          type="text"
+          maxLength={500}
+          value={nota}
+          placeholder="Firma manuscrita escaneada, anexo 2 corregido…"
+          onChange={(evento) => setNota(evento.target.value)}
+          disabled={ocupado}
+        />
+      </div>
+      <button
+        type="button"
+        className="po-boton po-boton-suave po-boton-compacto"
+        onClick={() => void subir()}
+        disabled={ocupado || !archivo}
+      >
+        {ocupado ? "Registrando…" : "Registrar ajuste"}
+      </button>
+      {fallo ? (
+        <p className="po-campo-error" role="alert">
+          {fallo}
+        </p>
+      ) : null}
+      {aviso ? (
+        <p className="po-apagado" role="status">
+          {aviso}
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
 function TarjetaExpediente({
   proyecto,
   cliente,
+  documentos,
+  etapa,
   alCambiar,
 }: {
   proyecto: ProyectoAdmin;
   cliente: ClienteAdmin | undefined;
+  documentos: DocumentoAdmin[];
+  etapa: Etapa;
   alCambiar: () => Promise<void>;
 }) {
   const [verificacion, setVerificacion] = useState<Verificacion | null>(null);
@@ -329,7 +506,7 @@ function TarjetaExpediente({
     proyecto.actos_cliente === proyecto.documentos;
 
   return (
-    <div className="po-admin-bloque">
+    <div className="po-admin-bloque" id={`po-proyecto-${proyecto.id}`}>
       <header className="po-admin-bloque-cabecera">
         <div>
           <h3>{proyecto.nombre}</h3>
@@ -338,10 +515,7 @@ function TarjetaExpediente({
             {proyecto.dominio} · {proyecto.plan_clave}/{proyecto.plan_nivel}
           </p>
         </div>
-        <Etiqueta
-          estado={proyecto.estado}
-          texto={ESTADOS_PROYECTO[proyecto.estado] ?? proyecto.estado}
-        />
+        <span className={TONO_ETAPA[etapa]}>{ETIQUETA_ETAPA[etapa]}</span>
       </header>
 
       <dl className="po-datos">
@@ -367,6 +541,75 @@ function TarjetaExpediente({
           </dd>
         </div>
       </dl>
+
+      {documentos.length > 0 ? (
+        <div className="po-tabla-marco">
+          <table>
+            <caption className="po-apagado">
+              Ajuste a mano: descarga el archivo que está en uso —al principio el generado—,
+              revísalo y adjunta tu firma si hace falta, y vuelve a subirlo aquí. El cliente
+              descarga y recibe el archivo ajustado; el sello y la cadena del expediente
+              siguen siendo los del generado.
+            </caption>
+            <thead>
+              <tr>
+                <th scope="col">Documento</th>
+                <th scope="col">Archivo en uso</th>
+                <th scope="col">Subir el ajuste</th>
+              </tr>
+            </thead>
+            <tbody>
+              {documentos.map((documento) => (
+                <tr key={documento.id}>
+                  <th scope="row">
+                    {documento.codigo}
+                    <button
+                      type="button"
+                      className="po-boton po-boton-suave po-boton-compacto"
+                      onClick={() => void descargar(documento.codigo)}
+                      disabled={ocupado !== null}
+                    >
+                      Bajar archivo en uso
+                    </button>
+                  </th>
+                  <td>
+                    {documento.ajuste ? (
+                      <div className="po-ajuste-hecho">
+                        <span className="po-etiqueta po-etiqueta-ajuste">
+                          Ajustado a mano
+                        </span>
+                        {documento.ajuste.utc ? (
+                          <span className="po-apagado">
+                            {new Date(documento.ajuste.utc).toLocaleString("es-VE")} ·{" "}
+                            {Math.round(documento.ajuste.tamano / 1024)} KB
+                          </span>
+                        ) : null}
+                        {documento.ajuste.nota ? <p>{documento.ajuste.nota}</p> : null}
+                        <p className="po-hash">
+                          generado {documento.hash_archivo.slice(0, 16)}… · ajustado{" "}
+                          {documento.ajuste.sha256_ajustado.slice(0, 16)}…
+                        </p>
+                      </div>
+                    ) : (
+                      <p className="po-hash">Generado · {documento.hash_archivo.slice(0, 16)}…</p>
+                    )}
+                  </td>
+                  <td>
+                    {proyecto.actos_cliente > 0 || proyecto.envios > 0 ? (
+                      <p className="po-apagado">
+                        Cerrado: el cliente ya confirmó o el expediente ya salió. Lo que se
+                        firmó no se cambia.
+                      </p>
+                    ) : (
+                      <ControlAjuste documento={documento} alCambiar={alCambiar} />
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : null}
 
       <div className="po-firma-acciones">
         {proyecto.documentos === 0 && proyecto.estado === "enviado" ? (
@@ -419,6 +662,7 @@ function TarjetaExpediente({
               <tr>
                 <th scope="col">Documento</th>
                 <th scope="col">Archivo</th>
+                <th scope="col">Ajuste</th>
                 <th scope="col">Sello</th>
                 <th scope="col">Cadena</th>
                 <th scope="col">Firmas</th>
@@ -430,6 +674,13 @@ function TarjetaExpediente({
                 <tr key={doc.codigo}>
                   <th scope="row">{doc.codigo}</th>
                   <td>{doc.archivo_ok ? "OK" : "FALLA"}</td>
+                  <td>
+                    {doc.ajuste
+                      ? doc.ajuste_ok
+                        ? "OK"
+                        : "FALLA"
+                      : "—"}
+                  </td>
                   <td>{doc.sello_ok ? "OK" : "FALLA"}</td>
                   <td>{doc.cadena_ok ? "OK" : "FALLA"}</td>
                   <td>
@@ -453,6 +704,8 @@ function TarjetaExpediente({
         </div>
       ) : null}
 
+      <HistorialExpediente proyectoId={proyecto.id} />
+
       {fallo ? (
         <p className="po-campo-error" role="alert">
           {fallo}
@@ -469,34 +722,241 @@ function TarjetaExpediente({
 
 function SeccionExpedientes({
   panel,
+  busqueda,
   alCambiar,
 }: {
   panel: PanelAdmin;
+  busqueda: string;
   alCambiar: () => Promise<void>;
 }) {
+  const [etapa, setEtapa] = useState<Etapa | null>(null);
+
   const clientes = useMemo(
     () => new Map(panel.clientes.map((cliente) => [cliente.id, cliente])),
     [panel.clientes],
   );
+
+  const etapas = useMemo(() => etapaPorProyecto(panel), [panel]);
+
+  const porProyecto = useMemo(() => {
+    const mapa = new Map<string, DocumentoAdmin[]>();
+    for (const documento of panel.documentos) {
+      const lista = mapa.get(documento.proyecto_id);
+      if (lista) lista.push(documento);
+      else mapa.set(documento.proyecto_id, [documento]);
+    }
+    for (const lista of mapa.values()) lista.sort((a, b) => a.orden - b.orden);
+    return mapa;
+  }, [panel.documentos]);
+
+  const conteo = useMemo(() => {
+    const mapa = new Map<Etapa, number>();
+    for (const clave of etapas.values()) mapa.set(clave, (mapa.get(clave) ?? 0) + 1);
+    return mapa;
+  }, [etapas]);
+
+  const visibles = panel.proyectos.filter((proyecto) => {
+    if (etapa && etapas.get(proyecto.id) !== etapa) return false;
+    return coincide(
+      `${textoDeBusqueda(clientes.get(proyecto.cliente_id), proyecto)} ${ETIQUETA_ETAPA[etapas.get(proyecto.id) ?? "borrador"]}`,
+      busqueda,
+    );
+  });
 
   return (
     <section className="po-tarjeta" aria-labelledby="po-admin-expedientes">
       <h2 className="po-tarjeta-titulo" id="po-admin-expedientes">
         Expedientes
       </h2>
+      <p className="po-apagado">
+        La etapa sale de lo que ya está firmado y enviado, no de un botón que alguien
+        arrastró: por eso no se puede quedar diciendo una cosa que la evidencia desmiente.
+      </p>
+
+      <div className="po-admin-etapas" role="group" aria-label="Filtrar expedientes por etapa">
+        <button
+          type="button"
+          className={`po-admin-etapa${etapa === null ? " po-admin-etapa-activa" : ""}`}
+          aria-pressed={etapa === null}
+          onClick={() => setEtapa(null)}
+        >
+          Todos <span>{panel.proyectos.length}</span>
+        </button>
+        {ETAPAS.map((entrada) => (
+          <button
+            key={entrada.clave}
+            type="button"
+            className={`po-admin-etapa${etapa === entrada.clave ? " po-admin-etapa-activa" : ""}`}
+            aria-pressed={etapa === entrada.clave}
+            title={entrada.ayuda}
+            onClick={() => setEtapa(entrada.clave)}
+          >
+            {entrada.etiqueta} <span>{conteo.get(entrada.clave) ?? 0}</span>
+          </button>
+        ))}
+      </div>
+
       {panel.proyectos.length === 0 ? (
         <p className="po-apagado">Todavía no hay proyectos.</p>
+      ) : visibles.length === 0 ? (
+        <p className="po-apagado">Ningún expediente coincide con el filtro.</p>
       ) : (
-        panel.proyectos.map((proyecto) => (
+        visibles.map((proyecto) => (
           <TarjetaExpediente
             key={proyecto.id}
             proyecto={proyecto}
             cliente={clientes.get(proyecto.cliente_id)}
+            documentos={porProyecto.get(proyecto.id) ?? []}
+            etapa={etapas.get(proyecto.id) ?? "borrador"}
             alCambiar={alCambiar}
           />
         ))
       )}
     </section>
+  );
+}
+
+/* ------------------------------------------------------------
+   Historial de evidencia de un expediente
+   ------------------------------------------------------------ */
+
+const ACCIONES: Record<string, string> = {
+  "cuenta.creada": "Cuenta del cliente creada",
+  "documento.ajustado": "Documento ajustado a mano",
+  "documento.descargado": "Documento descargado",
+  "expediente.enviado": "Expediente enviado por correo",
+  "expediente.firmado": "El cliente confirmó el expediente",
+  "expediente.generado": "Expediente generado y sellado",
+  "firma.capturada": "Firma del cliente capturada",
+  "pago.anulado": "Pago anulado",
+  "pago.registrado": "Pago registrado",
+  "proyecto.enviado": "Ficha del proyecto enviada",
+  "representante.capturado": "Firma del representante capturada",
+  "sesion.cerrada": "Sesión cerrada",
+  "sesion.iniciada": "Inicio de sesión",
+  "suscripcion.creada": "Suscripción creada",
+  "suscripcion.reactivada": "Suscripción reactivada",
+  "suscripcion.recalculada": "Estado de la suscripción recalculado",
+  "suscripcion.suspendida": "Suscripción suspendida",
+  "verificacion.reenviada": "Enlace de verificación reenviado",
+};
+
+const CLAVES_DETALLE: Record<string, string> = {
+  actos: "actos",
+  ajustado: "ajustado",
+  ajustados: "ajustes",
+  anterior: "antes",
+  codigo: "documento",
+  copia: "copia",
+  correo: "correo",
+  hash_archivo: "archivo",
+  hash_final: "hash final",
+  hash_servido: "archivo servido",
+  mensaje_id: "mensaje",
+  moneda: "moneda",
+  monto: "monto",
+  motivo: "motivo",
+  nuevo: "ahora",
+  nota: "nota",
+  periodo: "período",
+  proyecto_id: "proyecto",
+  proveedor: "proveedor",
+  proximo_vencimiento: "vence",
+  sha256: "huella",
+};
+
+function detalleTexto(detalle: Record<string, unknown> | null): string {
+  if (!detalle) return "";
+  return Object.entries(detalle)
+    .map(([clave, valor]) => {
+      const texto =
+        valor && typeof valor === "object"
+          ? Array.isArray(valor)
+            ? String(valor.length)
+            : JSON.stringify(valor)
+          : String(valor);
+      const corto = texto.length > 24 ? `${texto.slice(0, 24)}…` : texto;
+      return `${CLAVES_DETALLE[clave] ?? clave}: ${corto}`;
+    })
+    .join(" · ");
+}
+
+function HistorialExpediente({ proyectoId }: { proyectoId: string }) {
+  const [eventos, setEventos] = useState<EventoAdmin[] | null>(null);
+  const [cargando, setCargando] = useState(false);
+  const [fallo, setFallo] = useState<string | null>(null);
+
+  const leer = async () => {
+    if (eventos || cargando) return;
+    setCargando(true);
+    setFallo(null);
+    try {
+      setEventos((await api.historialAdmin(proyectoId)).eventos);
+    } catch (error) {
+      setFallo(mensajeDe(error, "No pudimos leer el historial."));
+    } finally {
+      setCargando(false);
+    }
+  };
+
+  return (
+    <details
+      className="po-admin-detalle"
+      onToggle={(evento) => {
+        if (evento.currentTarget.open) void leer();
+      }}
+    >
+      <summary>Historial del expediente</summary>
+      {cargando ? (
+        <p className="po-apagado" aria-busy="true">
+          Consultando la evidencia…
+        </p>
+      ) : null}
+      {fallo ? (
+        <p className="po-campo-error" role="alert">
+          {fallo}
+        </p>
+      ) : null}
+      {eventos ? (
+        eventos.length === 0 ? (
+          <p className="po-apagado">Todavía no hay movimientos registrados en este proyecto.</p>
+        ) : (
+          <div className="po-tabla-marco" tabIndex={0}>
+            <table>
+              <caption className="po-apagado">
+                Los últimos {eventos.length} movimientos. La tabla es de solo agregar: aquí no
+                hay nada que editar.
+              </caption>
+              <thead>
+                <tr>
+                  <th scope="col">Cuándo</th>
+                  <th scope="col">Qué pasó</th>
+                  <th scope="col">Quién</th>
+                  <th scope="col">Detalle</th>
+                </tr>
+              </thead>
+              <tbody>
+                {eventos.map((evento) => (
+                  <tr key={evento.id}>
+                    <th scope="row">
+                      {evento.ocurrido ? new Date(evento.ocurrido).toLocaleString("es-VE") : "—"}
+                    </th>
+                    <td>{ACCIONES[evento.accion] ?? evento.accion}</td>
+                    <td>
+                      {evento.actor ?? "—"}
+                      {evento.rol ? ` · ${evento.rol}` : ""}
+                    </td>
+                    <td>
+                      <code className="po-hash">{detalleTexto(evento.detalle) || "—"}</code>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )
+      ) : null}
+    </details>
   );
 }
 
@@ -689,7 +1149,7 @@ function TarjetaSuscripcion({
     });
 
   return (
-    <div className="po-admin-bloque">
+    <div className="po-admin-bloque" id={`po-suscripcion-${suscripcion.id}`}>
       <header className="po-admin-bloque-cabecera">
         <div>
           <h3>{proyecto?.nombre ?? "Proyecto"}</h3>
@@ -909,7 +1369,7 @@ function FormularioSuscripcion({
   if (!proyectos.length) return null;
 
   return (
-    <details className="po-admin-detalle">
+    <details className="po-admin-detalle" id="po-alta-suscripcion">
       <summary>Crear una suscripción</summary>
       <div className="po-formulario">
         <Campo
@@ -990,12 +1450,15 @@ function FormularioSuscripcion({
 
 function SeccionSuscripciones({
   panel,
+  busqueda,
   alCambiar,
 }: {
   panel: PanelAdmin;
+  busqueda: string;
   alCambiar: () => Promise<void>;
 }) {
   const [recalculando, setRecalculando] = useState(false);
+  const [soloVencidos, setSoloVencidos] = useState(false);
   const [resultado, setResultado] = useState<string | null>(null);
   const [fallo, setFallo] = useState<string | null>(null);
 
@@ -1023,6 +1486,21 @@ function SeccionSuscripciones({
       !conSuscripcion.has(proyecto.id) && proyecto.estado !== "borrador" && proyecto.estado !== "terminado",
   );
 
+  const metricas = useMemo(() => metricasDe(panel), [panel]);
+  const porVencer = panel.suscripciones.filter(
+    (suscripcion) =>
+      suscripcion.estado !== "terminada" && suscripcion.dias_para_vencer <= DIAS_AVISO,
+  ).length;
+  const visibles = panel.suscripciones.filter((suscripcion) => {
+    const proyecto = proyectos.get(suscripcion.proyecto_id);
+    const cliente = proyecto ? clientes.get(proyecto.cliente_id) : undefined;
+    if (!coincide(textoDeBusqueda(cliente, proyecto), busqueda)) return false;
+    return (
+      !soloVencidos ||
+      (suscripcion.estado !== "terminada" && suscripcion.dias_para_vencer <= DIAS_AVISO)
+    );
+  });
+
   const recalcular = async () => {
     setRecalculando(true);
     setFallo(null);
@@ -1047,11 +1525,43 @@ function SeccionSuscripciones({
       <h2 className="po-tarjeta-titulo" id="po-admin-suscripciones">
         Suscripciones, pagos y mora
       </h2>
+      <div className="po-admin-metricas">
+        <Metrica
+          etiqueta="Cobrado este mes"
+          valor={`${monto(metricas.cobradoMesUsd, "USD")} · ${monto(metricas.cobradoMesVes, "VES")}`}
+          ayuda={`Pagos vigentes del periodo ${panel.hoy.slice(0, 7)}. Los dos montos se cuentan aparte: mezclarlos con una tasa inventada sería mentir.`}
+        />
+        <Metrica
+          etiqueta={`Por cobrar en ${DIAS_AVISO} días`}
+          valor={monto(metricas.porCobrarUsd, "USD")}
+          ayuda={`${metricas.porCobrarEn7} suscripción(es) vencen pronto.`}
+        />
+        <Metrica
+          etiqueta="En mora"
+          valor={String(metricas.enMora)}
+          ayuda="Pasaron el vencimiento y la gracia; la licencia sigue activa hasta la suspensión."
+          color={metricas.enMora ? "aviso" : "ok"}
+        />
+        <Metrica
+          etiqueta="Suspendidas"
+          valor={String(metricas.suspendidas)}
+          ayuda="Sin licencia: el expediente no se puede enviar."
+          color={metricas.suspendidas ? "error" : "ok"}
+        />
+      </div>
       <p className="po-apagado">
         El recálculo solo escala: quien pasa a mora o a suspensión no vuelve solo. La
         reactivación exige un pago o una decisión explícita.
       </p>
-      <div className="po-firma-acciones">
+      <div className="po-admin-filtros">
+        <button
+          type="button"
+          className={`po-boton po-boton-suave po-admin-chip${soloVencidos ? " po-admin-chip-activo" : ""}`}
+          aria-pressed={soloVencidos}
+          onClick={() => setSoloVencidos((anterior) => !anterior)}
+        >
+          Vencen en {DIAS_AVISO} días ({porVencer})
+        </button>
         <button
           type="button"
           className="po-boton po-boton-suave"
@@ -1072,12 +1582,30 @@ function SeccionSuscripciones({
         </p>
       ) : null}
 
+      {metricas.pagosAnulados > 0 ? (
+        <details className="po-admin-detalle">
+          <summary>{metricas.pagosAnulados} pago(s) anulado(s)</summary>
+          <ul className="po-admin-lista">
+            {panel.pagos
+              .filter((pago) => pago.anulado)
+              .map((pago) => (
+                <li key={pago.id}>
+                  Periodo {pago.periodo} · {monto(pago.monto, pago.moneda)} ·{" "}
+                  {pago.motivo ?? "sin motivo registrado"}
+                </li>
+              ))}
+          </ul>
+        </details>
+      ) : null}
+
       <FormularioSuscripcion proyectos={sinSuscripcion} alCambiar={alCambiar} />
 
       {panel.suscripciones.length === 0 ? (
         <p className="po-apagado">Todavía no hay suscripciones.</p>
+      ) : visibles.length === 0 ? (
+        <p className="po-apagado">Ninguna suscripción coincide con el filtro.</p>
       ) : (
-        panel.suscripciones.map((suscripcion) => {
+        visibles.map((suscripcion) => {
           const proyecto = proyectos.get(suscripcion.proyecto_id);
           return (
             <TarjetaSuscripcion
@@ -1099,7 +1627,21 @@ function SeccionSuscripciones({
    Plantillas
    ------------------------------------------------------------ */
 
-function SeccionPlantillas({ plantillas }: { plantillas: PanelAdmin["plantillas"] }) {
+function SeccionPlantillas({
+  plantillas,
+  busqueda,
+}: {
+  plantillas: PanelAdmin["plantillas"];
+  busqueda: string;
+}) {
+  const visibles = plantillas.filter((plantilla) =>
+    coincide(
+      `${plantilla.codigo} ${plantilla.titulo} ${plantilla.sha256} ${
+        plantilla.activa ? "activa" : "retirada"
+      }`.toLowerCase(),
+      busqueda,
+    ),
+  );
   return (
     <section className="po-tarjeta" aria-labelledby="po-admin-plantillas">
       <h2 className="po-tarjeta-titulo" id="po-admin-plantillas">
@@ -1108,42 +1650,636 @@ function SeccionPlantillas({ plantillas }: { plantillas: PanelAdmin["plantillas"
       <p className="po-apagado">
         Solo lectura. Un expediente ya generado conserva la versión que se le estampó.
       </p>
-      <div className="po-tabla-marco" tabIndex={0}>
-        <table>
-          <thead>
-            <tr>
-              <th scope="col">Código</th>
-              <th scope="col">Título</th>
-              <th scope="col">Versión</th>
-              <th scope="col">Estado</th>
-              <th scope="col">SHA-256</th>
-            </tr>
-          </thead>
-          <tbody>
-            {plantillas.map((plantilla) => (
-              <tr key={`${plantilla.codigo}-${plantilla.version}`}>
-                <th scope="row">{plantilla.codigo}</th>
-                <td>{plantilla.titulo}</td>
-                <td>{plantilla.version}</td>
-                <td>
-                  <span
-                    className={
-                      plantilla.activa
-                        ? "po-etiqueta po-etiqueta-ok"
-                        : "po-etiqueta po-etiqueta-aviso"
-                    }
-                  >
-                    {plantilla.activa ? "Activa" : "Retirada"}
-                  </span>
-                </td>
-                <td>
-                  <code className="po-hash">{plantilla.sha256}</code>
-                </td>
+      {visibles.length === 0 ? (
+        <p className="po-apagado">Ninguna plantilla coincide con la búsqueda.</p>
+      ) : (
+        <div className="po-tabla-marco" tabIndex={0}>
+          <table>
+            <thead>
+              <tr>
+                <th scope="col">Código</th>
+                <th scope="col">Título</th>
+                <th scope="col">Versión</th>
+                <th scope="col">Estado</th>
+                <th scope="col">SHA-256</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {visibles.map((plantilla) => (
+                <tr key={`${plantilla.codigo}-${plantilla.version}`}>
+                  <th scope="row">{plantilla.codigo}</th>
+                  <td>{plantilla.titulo}</td>
+                  <td>{plantilla.version}</td>
+                  <td>
+                    <span
+                      className={
+                        plantilla.activa
+                          ? "po-etiqueta po-etiqueta-ok"
+                          : "po-etiqueta po-etiqueta-aviso"
+                      }
+                    >
+                      {plantilla.activa ? "Activa" : "Retirada"}
+                    </span>
+                  </td>
+                  <td>
+                    <code className="po-hash">{plantilla.sha256}</code>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </section>
+  );
+}
+
+/* ------------------------------------------------------------
+   Módulos
+   ------------------------------------------------------------
+   La operación se recorre por función: resumen, comercial,
+   expedientes, documental y finanzas. El módulo se guarda en la
+   query (`/admin?modulo=finanzas`) para que el enlace se pueda
+   compartir y el recarga no te devuelva al principio. No se usa
+   `navegar()`: basta con `replaceState`, porque la ruta sigue
+   siendo `/admin` y no hay que volver a pedir la sesión.
+   ------------------------------------------------------------ */
+
+type Modulo = "resumen" | "comercial" | "expedientes" | "documental" | "finanzas";
+
+const MODULOS: { clave: Modulo; etiqueta: string; ayuda: string }[] = [
+  {
+    clave: "resumen",
+    etiqueta: "Resumen",
+    ayuda: "Qué hay que hacer hoy y cómo va la operación.",
+  },
+  {
+    clave: "comercial",
+    etiqueta: "Comercial",
+    ayuda: "Clientes, correos verificados y accesos.",
+  },
+  {
+    clave: "expedientes",
+    etiqueta: "Expedientes",
+    ayuda: "Generar, firmar, ajustar, enviar y descargar.",
+  },
+  {
+    clave: "documental",
+    etiqueta: "Documental",
+    ayuda: "Firma del representante, plantillas y registro de ajustes.",
+  },
+  {
+    clave: "finanzas",
+    etiqueta: "Finanzas",
+    ayuda: "Suscripciones, pagos, mora y licencias.",
+  },
+];
+
+const CLAVES_MODULO = MODULOS.map((modulo) => modulo.clave) as string[];
+
+/**
+ * La pantalla y el filtro viven en la dirección: `/admin?modulo=finanzas&q=clinica`
+ * se puede compartir, recargar o volver atrás sin perder lo que se estaba buscando.
+ */
+function parametrosDeQuery(): { modulo: Modulo; busqueda: string } {
+  const consulta = new URLSearchParams(window.location.search);
+  const crudo = consulta.get("modulo");
+  return {
+    modulo: crudo && CLAVES_MODULO.includes(crudo) ? (crudo as Modulo) : "resumen",
+    busqueda: consulta.get("q") ?? "",
+  };
+}
+
+function direccionDe(modulo: Modulo, busqueda: string): string {
+  const consulta = new URLSearchParams({ modulo });
+  if (busqueda.trim()) consulta.set("q", busqueda);
+  return `/admin?${consulta.toString()}`;
+}
+
+/** A dónde salta cada asunto de la cola. */
+const DESTINO: Record<
+  Exclude<Accion, null>,
+  { modulo: Modulo; ancla: string; conId: boolean; texto: string }
+> = {
+  representante: {
+    modulo: "documental",
+    ancla: "po-admin-representante",
+    conId: false,
+    texto: "Ver representante",
+  },
+  generar: {
+    modulo: "expedientes",
+    ancla: "po-proyecto-",
+    conId: true,
+    texto: "Ver expediente",
+  },
+  verificar: {
+    modulo: "expedientes",
+    ancla: "po-proyecto-",
+    conId: true,
+    texto: "Ver expediente",
+  },
+  enviar: {
+    modulo: "expedientes",
+    ancla: "po-proyecto-",
+    conId: true,
+    texto: "Ver expediente",
+  },
+  reenviar: {
+    modulo: "expedientes",
+    ancla: "po-proyecto-",
+    conId: true,
+    texto: "Ver expediente",
+  },
+  suscripcion: {
+    modulo: "finanzas",
+    ancla: "po-alta-suscripcion",
+    conId: false,
+    texto: "Abrir suscripción",
+  },
+  cobro: {
+    modulo: "finanzas",
+    ancla: "po-suscripcion-",
+    conId: true,
+    texto: "Ver cobro",
+  },
+  verificacion: {
+    modulo: "comercial",
+    ancla: "po-cliente-",
+    conId: true,
+    texto: "Ver cliente",
+  },
+};
+
+function saltoDe(pendiente: Pendiente): { modulo: Modulo; id: string; texto: string } | null {
+  if (!pendiente.accion) return null;
+  const base = DESTINO[pendiente.accion];
+  const identificador = pendiente.suscripcionId ?? pendiente.proyectoId ?? pendiente.clienteId;
+  if (base.conId && !identificador) return null;
+  return {
+    modulo: base.modulo,
+    id: base.conId ? `${base.ancla}${identificador}` : base.ancla,
+    texto: base.texto,
+  };
+}
+
+function contadoresDe(panel: PanelAdmin, pendientes: number): Record<Modulo, number> {
+  return {
+    resumen: pendientes,
+    comercial: panel.clientes.length,
+    expedientes: panel.proyectos.length,
+    documental: panel.plantillas.filter((plantilla) => plantilla.activa).length,
+    finanzas: panel.suscripciones.length,
+  };
+}
+
+/** Búsqueda tolerante: cada palabra tiene que aparecer, en cualquier orden. */
+function coincide(texto: string, busqueda: string): boolean {
+  const limpio = busqueda.trim().toLowerCase();
+  if (!limpio) return true;
+  return limpio.split(/\s+/).every((parte) => texto.includes(parte));
+}
+
+const NUMERO = new Intl.NumberFormat("es-VE", {
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
+});
+
+/** Los montos nunca se suman entre monedas: cada uno se muestra en la suya. */
+function monto(valor: number, moneda: string): string {
+  return `${moneda === "USD" ? "$" : "Bs"} ${NUMERO.format(valor)}`;
+}
+
+function tamano(bytes: number): string {
+  return bytes >= 1024 * 1024 ? `${(bytes / 1024 / 1024).toFixed(1)} MB` : `${Math.round(bytes / 1024)} KB`;
+}
+
+/** Un instante en la hora de Venezuela; el sello crudo sigue vivo en los eventos. */
+function instanteLegible(valor: string | null | undefined): string {
+  if (!valor) return "—";
+  const fecha = new Date(valor);
+  return Number.isNaN(fecha.getTime()) ? "—" : fecha.toLocaleString("es-VE");
+}
+
+function Metrica({
+  etiqueta,
+  valor,
+  ayuda,
+  color,
+}: {
+  etiqueta: string;
+  valor: string;
+  ayuda: string;
+  color?: "ok" | "aviso" | "error";
+}) {
+  return (
+    <div className={`po-admin-metrica${color ? ` po-admin-metrica-${color}` : ""}`}>
+      <p className="po-admin-metrica-etiqueta">{etiqueta}</p>
+      <p className="po-admin-metrica-valor">{valor}</p>
+      <p className="po-apagado">{ayuda}</p>
+    </div>
+  );
+}
+
+function BarraModulos({
+  activo,
+  contadores,
+  alCambiar,
+}: {
+  activo: Modulo;
+  contadores: Record<Modulo, number>;
+  alCambiar: (modulo: Modulo) => void;
+}) {
+  return (
+    <nav className="po-admin-modulos" aria-label="Módulos de administración">
+      {MODULOS.map((modulo) => (
+        <button
+          key={modulo.clave}
+          type="button"
+          className={`po-admin-modulo${activo === modulo.clave ? " po-admin-modulo-activo" : ""}`}
+          aria-current={activo === modulo.clave ? "page" : undefined}
+          title={modulo.ayuda}
+          onClick={() => alCambiar(modulo.clave)}
+        >
+          {modulo.etiqueta}
+          <span className="po-admin-modulo-contador">{contadores[modulo.clave]}</span>
+        </button>
+      ))}
+    </nav>
+  );
+}
+
+function Buscador({
+  valor,
+  alCambiar,
+}: {
+  valor: string;
+  alCambiar: (valor: string) => void;
+}) {
+  return (
+    <div className="po-admin-buscador">
+      <Campo
+        id="po-admin-busqueda"
+        etiqueta="Buscar cliente, proyecto, dominio o correo"
+        valor={valor}
+        alCambiar={alCambiar}
+        ayuda="Filtra dentro de todos los módulos. Acepta varias palabras: «Inversiones BWS bws.com.ve»."
+      />
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------
+   Resumen — la cola sale de la evidencia, no de una tabla
+   ------------------------------------------------------------ */
+
+function SeccionResumen({
+  panel,
+  busqueda,
+  alIr,
+}: {
+  panel: PanelAdmin;
+  busqueda: string;
+  alIr: (modulo: Modulo, id: string) => void;
+}) {
+  const pendientes = useMemo(() => colaDe(panel), [panel]);
+  const metricas = useMemo(() => metricasDe(panel, pendientes), [panel, pendientes]);
+  const visibles = pendientes.filter((pendiente) =>
+    coincide(`${pendiente.etiqueta} ${pendiente.detalle}`.toLowerCase(), busqueda),
+  );
+  // Solo cuenta lo que ya se puede mandar: un borrador sin ficha no es un
+  // expediente «sin enviar», es un expediente que todavía no existe, y el que
+  // está en revisión espera al cliente, no a Blink.
+  const listosSinEnviar = metricas.porEtapa.aprobado;
+
+  return (
+    <section className="po-tarjeta" aria-labelledby="po-admin-resumen">
+      <h2 className="po-tarjeta-titulo" id="po-admin-resumen">
+        Hoy
+      </h2>
+      <div className="po-admin-metricas">
+        <Metrica
+          etiqueta="Clientes"
+          valor={String(metricas.clientes)}
+          ayuda={
+            metricas.clientesSinVerificar
+              ? `${metricas.clientesSinVerificar} con el correo sin verificar.`
+              : "Todos con el correo confirmado."
+          }
+          color={metricas.clientesSinVerificar ? "aviso" : "ok"}
+        />
+        <Metrica
+          etiqueta="Proyectos"
+          valor={String(metricas.proyectos)}
+          ayuda={`${metricas.pendientes} asunto(s) abiertos en la cola.`}
+          color={metricas.pendientes ? "aviso" : "ok"}
+        />
+        <Metrica
+          etiqueta="Cobrado este mes"
+          valor={`${monto(metricas.cobradoMesUsd, "USD")} · ${monto(metricas.cobradoMesVes, "VES")}`}
+          ayuda={`Pagos vigentes del periodo ${panel.hoy.slice(0, 7)}.`}
+        />
+        <Metrica
+          etiqueta="En mora"
+          valor={String(metricas.enMora)}
+          ayuda={`${metricas.suspendidas} con la licencia suspendida.`}
+          color={metricas.suspendidas ? "error" : metricas.enMora ? "aviso" : "ok"}
+        />
+        <Metrica
+          etiqueta="Listos para entregar"
+          valor={String(listosSinEnviar)}
+          ayuda={`${metricas.porEtapa.en_revision} esperando que el cliente confirme · ${metricas.expedientesEntregados} ya salieron por correo.`}
+          color={listosSinEnviar ? "aviso" : "ok"}
+        />
+        <Metrica
+          etiqueta="Ajustados a mano"
+          valor={String(metricas.documentosAjustados)}
+          ayuda="PDF corregidos por Blink y registrados con su huella."
+        />
       </div>
+
+      {metricas.proyectos > 0 ? (
+        <div className="po-admin-tablero">
+          <p className="po-admin-tablero-titulo">Dónde están los expedientes</p>
+          <div className="po-barra" aria-hidden="true">
+            {ETAPAS.map((etapa) => {
+              const n = metricas.porEtapa[etapa.clave];
+              if (!n) return null;
+              return (
+                <span
+                  key={etapa.clave}
+                  className={`po-barra-segmento po-barra-${etapa.clave}`}
+                  style={{ width: `${(n / metricas.proyectos) * 100}%` }}
+                  title={`${etapa.etiqueta}: ${n}`}
+                />
+              );
+            })}
+          </div>
+          <p className="po-apagado">
+            {ETAPAS.filter((etapa) => metricas.porEtapa[etapa.clave] > 0)
+              .map((etapa) => `${etapa.etiqueta} ${metricas.porEtapa[etapa.clave]}`)
+              .join(" · ") || "Todavía no hay proyectos."}
+          </p>
+        </div>
+      ) : null}
+
+      <h3 className="po-admin-subtitulo">Cola de trabajo</h3>
+      {pendientes.length === 0 ? (
+        <p className="po-nota po-nota-ok">
+          No hay nada pendiente: cada expediente está enviado y cada cobro, al día.
+        </p>
+      ) : visibles.length === 0 ? (
+        <p className="po-apagado">Ningún asunto de la cola coincide con la búsqueda.</p>
+      ) : (
+        <ol className="po-admin-cola">
+          {visibles.map((pendiente) => {
+            const salto = saltoDe(pendiente);
+            return (
+              <li key={pendiente.id} className="po-admin-cola-item">
+                <div>
+                  <p className="po-admin-cola-etiqueta">{pendiente.etiqueta}</p>
+                  <p className="po-apagado">{pendiente.detalle}</p>
+                </div>
+                {salto ? (
+                  <button
+                    type="button"
+                    className="po-boton po-boton-suave"
+                    onClick={() => alIr(salto.modulo, salto.id)}
+                  >
+                    {salto.texto}
+                  </button>
+                ) : null}
+              </li>
+            );
+          })}
+        </ol>
+      )}
+    </section>
+  );
+}
+
+/* ------------------------------------------------------------
+   Comercial — el directorio de clientes
+   ------------------------------------------------------------ */
+
+function SeccionClientes({
+  panel,
+  busqueda,
+  alIr,
+}: {
+  panel: PanelAdmin;
+  busqueda: string;
+  alIr: (modulo: Modulo, id: string) => void;
+}) {
+  const porCliente = useMemo(() => {
+    const mapa = new Map<string, ProyectoAdmin[]>();
+    for (const proyecto of panel.proyectos) {
+      const lista = mapa.get(proyecto.cliente_id) ?? [];
+      lista.push(proyecto);
+      mapa.set(proyecto.cliente_id, lista);
+    }
+    return mapa;
+  }, [panel.proyectos]);
+
+  const visibles = panel.clientes.filter((cliente) => {
+    const proyectos = porCliente.get(cliente.id) ?? [];
+    const texto = [
+      textoDeBusqueda(cliente, null),
+      ...proyectos.map((proyecto) => textoDeBusqueda(null, proyecto)),
+    ].join(" ");
+    return coincide(texto, busqueda);
+  });
+
+  return (
+    <section className="po-tarjeta" aria-labelledby="po-admin-clientes">
+      <h2 className="po-tarjeta-titulo" id="po-admin-clientes">
+        Clientes
+      </h2>
+      <p className="po-apagado">
+        Ficha fiscal, correo y accesos. La administración no ve la clave de nadie: solo si
+        está verificada, cuándo entró por última vez y si la cuenta está bloqueada.
+      </p>
+      {panel.clientes.length === 0 ? (
+        <p className="po-apagado">Todavía no hay clientes dados de alta.</p>
+      ) : visibles.length === 0 ? (
+        <p className="po-apagado">Ningún cliente coincide con la búsqueda.</p>
+      ) : (
+        <div className="po-tabla-marco" tabIndex={0}>
+          <table>
+            <caption className="po-apagado">
+              {visibles.length} de {panel.clientes.length} cliente(s).
+            </caption>
+            <thead>
+              <tr>
+                <th scope="col">Cliente</th>
+                <th scope="col">Correo</th>
+                <th scope="col">Teléfono</th>
+                <th scope="col">Domicilio</th>
+                <th scope="col">Firma</th>
+                <th scope="col">Proyectos</th>
+                <th scope="col">Última actividad</th>
+              </tr>
+            </thead>
+            <tbody>
+              {visibles.map((cliente) => {
+                const proyectos = porCliente.get(cliente.id) ?? [];
+                return (
+                  <tr key={cliente.id} id={`po-cliente-${cliente.id}`}>
+                    <th scope="row">
+                      <span className="po-admin-celda-titulo">
+                        {cliente.razon_social ?? cliente.nombre}
+                      </span>
+                      <span className="po-apagado">
+                        {cliente.nombre}
+                        {cliente.documento_numero
+                          ? ` · ${cliente.documento_tipo ?? "documento"} ${cliente.documento_numero}`
+                          : ""}
+                      </span>
+                    </th>
+                    <td>
+                      {cliente.correo}
+                      <span
+                        className={
+                          cliente.verificado
+                            ? "po-etiqueta po-etiqueta-ok"
+                            : "po-etiqueta po-etiqueta-aviso"
+                        }
+                      >
+                        {cliente.verificado ? "Verificado" : "Sin verificar"}
+                      </span>
+                      {cliente.bloqueado ? (
+                        <span className="po-etiqueta po-etiqueta-error">Bloqueada</span>
+                      ) : null}
+                    </td>
+                    <td>{cliente.telefono}</td>
+                    <td>{cliente.domicilio ?? "—"}</td>
+                    <td>
+                      {cliente.tiene_firma
+                        ? `${cliente.firmas} firma(s)`
+                        : "Sin firma capturada"}
+                    </td>
+                    <td>
+                      {proyectos.length === 0 ? (
+                        <span className="po-apagado">Ninguno</span>
+                      ) : (
+                        proyectos.map((proyecto) => (
+                          <button
+                            key={proyecto.id}
+                            type="button"
+                            className="po-admin-enlace"
+                            onClick={() => alIr("expedientes", `po-proyecto-${proyecto.id}`)}
+                          >
+                            {proyecto.nombre}
+                          </button>
+                        ))
+                      )}
+                    </td>
+                    <td>
+                      {instanteLegible(cliente.ultimo_acceso ?? cliente.creado)}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </section>
+  );
+}
+
+/* ------------------------------------------------------------
+   Documental — registro de ajustes a mano
+   ------------------------------------------------------------ */
+
+const DIAS_REGISTRO = 90;
+
+function SeccionAjustes({ panel, busqueda }: { panel: PanelAdmin; busqueda: string }) {
+  const proyectos = useMemo(
+    () => new Map(panel.proyectos.map((proyecto) => [proyecto.id, proyecto])),
+    [panel.proyectos],
+  );
+  const clientes = useMemo(
+    () => new Map(panel.clientes.map((cliente) => [cliente.id, cliente])),
+    [panel.clientes],
+  );
+
+  const filas = panel.documentos
+    .filter((documento) => documento.ajuste)
+    .map((documento) => {
+      const proyecto = proyectos.get(documento.proyecto_id);
+      const ajuste = documento.ajuste as NonNullable<DocumentoAdmin["ajuste"]>;
+      return { documento, proyecto, ajuste };
+    })
+    .filter(({ ajuste }) => {
+      const desde = ajuste.utc ? Date.parse(`${ajuste.utc.slice(0, 10)}T00:00:00Z`) : Number.NaN;
+      const hoy = Date.parse(`${panel.hoy}T00:00:00Z`);
+      return Number.isFinite(desde) && hoy - desde <= DIAS_REGISTRO * 86_400_000;
+    })
+    .filter(({ documento, proyecto, ajuste }) =>
+      coincide(
+        `${textoDeBusqueda(
+          proyecto ? clientes.get(proyecto.cliente_id) : null,
+          proyecto,
+        )} ${documento.codigo} ${ajuste.nota ?? ""}`,
+        busqueda,
+      ),
+    )
+    .sort((a, b) => (b.ajuste.utc ?? "").localeCompare(a.ajuste.utc ?? ""));
+
+  return (
+    <section className="po-tarjeta" aria-labelledby="po-admin-ajustes">
+      <h2 className="po-tarjeta-titulo" id="po-admin-ajustes">
+        Ajustes a mano
+      </h2>
+      <p className="po-apagado">
+        Últimos {DIAS_REGISTRO} días. El PDF generado no se reemplaza: el archivo ajustado
+        se registra a lado, con las dos huellas, y es el que se sirve y el que sale por
+        correo. El sello y la cadena del expediente no se tocan. Quién lo subió está en el
+        historial del expediente.
+      </p>
+      {filas.length === 0 ? (
+        <p className="po-apagado">
+          Ningún documento tiene un ajuste registrado en estos días.
+        </p>
+      ) : (
+        <div className="po-tabla-marco" tabIndex={0}>
+          <table>
+            <caption className="po-apagado">{filas.length} ajuste(s).</caption>
+            <thead>
+              <tr>
+                <th scope="col">Documento</th>
+                <th scope="col">Generado (SHA-256)</th>
+                <th scope="col">Ajustado (SHA-256)</th>
+                <th scope="col">Peso</th>
+                <th scope="col">Nota</th>
+                <th scope="col">Cuándo</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filas.map(({ documento, proyecto, ajuste }) => (
+                <tr key={documento.id}>
+                  <th scope="row">
+                    <span className="po-admin-celda-titulo">
+                      {documento.codigo} v{documento.version}
+                    </span>
+                    <span className="po-apagado">{proyecto?.nombre ?? "Proyecto borrado"}</span>
+                  </th>
+                  <td>
+                    <code className="po-hash">{ajuste.sha256_original}</code>
+                  </td>
+                  <td>
+                    <code className="po-hash">{ajuste.sha256_ajustado}</code>
+                  </td>
+                  <td>{tamano(ajuste.tamano)}</td>
+                  <td>{ajuste.nota ?? "—"}</td>
+                  <td>{ajuste.utc ?? "—"}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </section>
   );
 }
@@ -1155,6 +2291,9 @@ function SeccionPlantillas({ plantillas }: { plantillas: PanelAdmin["plantillas"
 export function Admin({ sesion }: { sesion: SesionPortal | null | undefined }) {
   const [panel, setPanel] = useState<PanelAdmin | null>(null);
   const [fallo, setFallo] = useState<string | null>(null);
+  const [modulo, setModulo] = useState<Modulo>(() => parametrosDeQuery().modulo);
+  const [busqueda, setBusqueda] = useState<string>(() => parametrosDeQuery().busqueda);
+  const [enfocar, setEnfocar] = useState<string | null>(null);
 
   const cargar = useCallback(async () => {
     try {
@@ -1169,6 +2308,31 @@ export function Admin({ sesion }: { sesion: SesionPortal | null | undefined }) {
     if (sesion?.usuario.rol !== "admin") return;
     void cargar();
   }, [sesion, cargar]);
+
+  const pendientes = useMemo(() => (panel ? colaDe(panel) : []), [panel]);
+
+  const fijar = useCallback((nuevo: Modulo, texto: string) => {
+    setModulo(nuevo);
+    setBusqueda(texto);
+    window.history.replaceState(null, "", direccionDe(nuevo, texto));
+  }, []);
+
+  const irA = useCallback(
+    (nuevo: Modulo, id?: string) => {
+      fijar(nuevo, busqueda);
+      if (id) setEnfocar(id);
+    },
+    [busqueda, fijar],
+  );
+
+  useEffect(() => {
+    if (!enfocar) return;
+    setEnfocar(null);
+    const elemento = document.getElementById(enfocar);
+    if (!elemento) return;
+    if (elemento instanceof HTMLDetailsElement) elemento.open = true;
+    elemento.scrollIntoView({ block: "center" });
+  }, [enfocar]);
 
   if (sesion === undefined) {
     return (
@@ -1229,10 +2393,32 @@ export function Admin({ sesion }: { sesion: SesionPortal | null | undefined }) {
         </p>
       ) : null}
 
-      <SeccionRepresentante representante={panel.representante} alCambiar={cargar} />
-      <SeccionExpedientes panel={panel} alCambiar={cargar} />
-      <SeccionSuscripciones panel={panel} alCambiar={cargar} />
-      <SeccionPlantillas plantillas={panel.plantillas} />
+      <Buscador valor={busqueda} alCambiar={(texto) => fijar(modulo, texto)} />
+      <BarraModulos
+        activo={modulo}
+        contadores={contadoresDe(panel, pendientes.length)}
+        alCambiar={(nuevo) => irA(nuevo)}
+      />
+
+      {modulo === "resumen" ? (
+        <SeccionResumen panel={panel} busqueda={busqueda} alIr={irA} />
+      ) : null}
+      {modulo === "comercial" ? (
+        <SeccionClientes panel={panel} busqueda={busqueda} alIr={irA} />
+      ) : null}
+      {modulo === "expedientes" ? (
+        <SeccionExpedientes panel={panel} busqueda={busqueda} alCambiar={cargar} />
+      ) : null}
+      {modulo === "documental" ? (
+        <>
+          <SeccionRepresentante representante={panel.representante} alCambiar={cargar} />
+          <SeccionAjustes panel={panel} busqueda={busqueda} />
+          <SeccionPlantillas plantillas={panel.plantillas} busqueda={busqueda} />
+        </>
+      ) : null}
+      {modulo === "finanzas" ? (
+        <SeccionSuscripciones panel={panel} busqueda={busqueda} alCambiar={cargar} />
+      ) : null}
     </section>
   );
 }

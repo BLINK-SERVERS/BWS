@@ -2,9 +2,9 @@
    GET /api/admin/panel
    ------------------------------------------------------------
    Una sola lectura para el panel de administración: clientes con
-   su firma, proyectos con el avance del expediente, suscripciones
-   con su licencia y sus pagos, las plantillas publicadas y la
-   firma vigente del representante.
+   su firma, proyectos con el avance del expediente, los documentos
+   con su ajuste a mano vigente, suscripciones con su licencia y sus
+   pagos, las plantillas publicadas y la firma del representante.
 
    El pago «efectivo» es el registrado al que nadie anuló: los
    anulados se conservan y se devuelven marcados para que la
@@ -33,12 +33,14 @@ export default manejar(["GET"], async (peticion) => {
   const sesion = exigirAdmin(await leerSesion(peticion));
   const hoy = hoyUTC();
 
-  const [clientes, proyectos, suscripciones, pagos, plantillas, representantes] =
+  const [clientes, proyectos, suscripciones, pagos, plantillas, representantes, documentos] =
     await enTransaccion(sesion.usuarioId, sesion.rol, (txn) => [
       txn`select c.id, c.razon_social, c.documento_tipo, c.documento_numero,
                  c.domicilio_fiscal, c.telefono, c.correo_factura, c.creado,
                  c.firma_actual is not null as tiene_firma,
                  (select count(*)::int from firmas_cliente f where f.cliente_id = c.id) as firmas,
+                 (select max(e.ocurrido) from eventos e
+                   where e.actor = c.usuario_id and e.accion = 'sesion.iniciada') as ultimo_acceso,
                  u.nombre, u.correo, u.correo_verificado, u.bloqueado
           from clientes c
           join usuarios u on u.id = c.usuario_id
@@ -83,6 +85,19 @@ export default manejar(["GET"], async (peticion) => {
           order by codigo, version desc`,
       txn`select id, nombre, documento, domicilio, correo, sha256, utc
           from bws_representante()`,
+      txn`select d.id, d.proyecto_id, d.plantilla_codigo, d.plantilla_version, d.orden,
+                 d.hash_archivo, aj.sha256_original, aj.sha256_ajustado, aj.nota,
+                 aj.tamano, aj.utc as ajuste_utc
+          from documentos d
+          left join lateral (
+            select a.sha256_original, a.sha256_ajustado, a.nota, a.utc,
+                   octet_length(a.pdf) as tamano
+            from documentos_ajustados a
+            where a.documento_id = d.id
+            order by a.utc desc, a.id
+            limit 1
+          ) aj on true
+          order by d.proyecto_id, d.orden`,
     ]);
 
   const representanteFila = ((representantes ?? []) as Record<string, unknown>[])[0];
@@ -104,6 +119,7 @@ export default manejar(["GET"], async (peticion) => {
       bloqueado: Boolean(fila.bloqueado),
       tiene_firma: Boolean(fila.tiene_firma),
       firmas: Number(fila.firmas),
+      ultimo_acceso: instante(fila.ultimo_acceso),
       creado: instante(fila.creado),
     })),
     proyectos: ((proyectos ?? []) as Record<string, unknown>[]).map((fila) => ({
@@ -166,6 +182,23 @@ export default manejar(["GET"], async (peticion) => {
       sha256: String(fila.sha256),
       activa: Boolean(fila.activa),
       publicada: instante(fila.publicada),
+    })),
+    documentos: ((documentos ?? []) as Record<string, unknown>[]).map((fila) => ({
+      id: String(fila.id),
+      proyecto_id: String(fila.proyecto_id),
+      codigo: String(fila.plantilla_codigo),
+      version: Number(fila.plantilla_version),
+      orden: Number(fila.orden),
+      hash_archivo: String(fila.hash_archivo),
+      ajuste: fila.sha256_ajustado
+        ? {
+            sha256_original: String(fila.sha256_original),
+            sha256_ajustado: String(fila.sha256_ajustado),
+            tamano: Number(fila.tamano),
+            nota: opcional(fila.nota),
+            utc: instante(fila.ajuste_utc),
+          }
+        : null,
     })),
     representante: representanteFila
       ? {

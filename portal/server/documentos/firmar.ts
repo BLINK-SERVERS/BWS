@@ -117,6 +117,22 @@ export default manejar(["POST"], async (peticion) => {
             returning 1
           )
           select count(*)::int as actos from nuevos`,
+      // Confirmados todos los documentos, el expediente queda aprobado
+      // aunque el correo falle: ahí está la diferencia entre «el cliente
+      // dijo sí» y «Blink ya lo envió».
+      txn`update proyectos p
+              set estado = 'aprobado'
+            where p.id = ${proyectoId}::uuid
+              and p.estado in ('enviado', 'en_revision')
+              and exists (select 1 from documentos d where d.proyecto_id = p.id)
+              and not exists (
+                select 1 from documentos d
+                where d.proyecto_id = p.id
+                  and not exists (
+                    select 1 from actos_firma a
+                    where a.documento_id = d.id and a.firmante = 'cliente'
+                  )
+              )`,
     ]);
     firmados = Number((filas ?? [])[0]?.actos ?? 0);
   } catch (error) {

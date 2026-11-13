@@ -4,7 +4,7 @@
    Nunca se ejecuta contra `main`. Comprueba lo que el plan exige
    antes de publicar:
 
-   · aislamiento entre clientes (RLS) en las diecisiete tablas;
+   · aislamiento entre clientes (RLS) en las dieciocho tablas;
    · UPDATE y DELETE rechazados en las tablas de solo agregar;
    · cadena de documentos recalculable desde la base;
    · doble firma y segunda firma original rechazadas;
@@ -39,6 +39,7 @@ const TABLAS = [
   "proyectos",
   "plantillas",
   "documentos",
+  "documentos_ajustados",
   "actos_firma",
   "eventos",
   "envios",
@@ -266,6 +267,29 @@ async function sembrar() {
       ],
     );
 
+    // Ajuste a mano del PDF: uno por proyecto, para medir el RLS y la coherencia.
+    ids.ajusteA = randomUUID();
+    ids.ajusteB = randomUUID();
+    for (const [ajuste, documento, proyecto, original, ajustado] of [
+      [ids.ajusteA, ids.documentoA1, ids.proyectoA, "pdf-a-1", "ajuste-a-1"],
+      [ids.ajusteB, ids.documentoB, ids.proyectoB, "pdf-b-1", "ajuste-b-1"],
+    ]) {
+      await db.query(
+        `insert into documentos_ajustados
+           (id, documento_id, proyecto_id, pdf, sha256_original, sha256_ajustado, nota, actor)
+         values ($1, $2, $3, $4, $5, $6, 'Ajuste de prueba', $7)`,
+        [
+          ajuste,
+          documento,
+          proyecto,
+          Buffer.from(`%PDF-${ajustado}`),
+          sha(original),
+          sha(ajustado),
+          ids.usuarioAdmin,
+        ],
+      );
+    }
+
     await db.query(
       `insert into actos_firma (documento_id, firmante, representante_id, sello, utc)
        values ($1, 'representante', $2, $3, now())`,
@@ -446,10 +470,12 @@ async function principal() {
                 has_table_privilege(current_user, 'firmas_cliente', 'UPDATE') as firma_update,
                 has_table_privilege(current_user, 'usuarios', 'DELETE') as usuario_delete,
                 has_table_privilege(current_user, 'proyectos', 'UPDATE') as proyecto_update,
+                has_table_privilege(current_user, 'documentos_ajustados', 'UPDATE') as ajuste_update,
                 has_table_privilege(current_user, 'proyectos', 'DELETE') as proyecto_delete`,
       )).rows[0];
       afirmar(privilegios.firma_insert && privilegios.proyecto_update, "bws_app no puede escribir lo que debe");
       afirmar(!privilegios.firma_update, "bws_app puede editar firmas");
+      afirmar(!privilegios.ajuste_update, "bws_app puede editar un ajuste a mano");
       afirmar(!privilegios.usuario_delete, "bws_app puede borrar usuarios");
       afirmar(!privilegios.proyecto_delete, "bws_app puede borrar proyectos");
     });
@@ -472,6 +498,7 @@ async function principal() {
         await uno("select id from usuarios", 1, "usuarios");
         await uno("select id from firmas_cliente", 1, "firmas");
         await uno("select id from actos_firma", 2, "actos");
+        await uno("select id from documentos_ajustados", 1, "ajustes");
         await uno("select id from envios", 1, "envíos");
         await uno("select id from suscripciones", 1, "suscripciones");
         await uno("select id from pagos", 1, "pagos");
@@ -503,6 +530,11 @@ async function principal() {
         afirmar(documentos.length === 1 && documentos[0].id === ids.documentoB, "B ve documentos ajenos");
         const firmas = (await c.query("select id from firmas_cliente")).rows;
         afirmar(firmas.length === 1 && firmas[0].id === ids.firmaB, "B ve firmas ajenas");
+        const ajustes = (await c.query("select id from documentos_ajustados")).rows;
+        afirmar(
+          ajustes.length === 1 && ajustes[0].id === ids.ajusteB,
+          "B ve el ajuste a mano de otro cliente",
+        );
         const pagos = await c.query("select id from pagos");
         afirmar(pagos.rowCount === 0, "B ve pagos ajenos");
       });
@@ -517,6 +549,10 @@ async function principal() {
         afirmar((await c.query("select id from eventos")).rowCount >= 1, "admin no ve los eventos");
         afirmar((await c.query("select id from representantes")).rowCount === 1, "admin no ve al representante");
         afirmar((await c.query("select id from pagos")).rowCount === 1, "admin no ve los pagos");
+        afirmar(
+          (await c.query("select id from documentos_ajustados")).rowCount === 2,
+          "admin no ve los dos ajustes",
+        );
       });
     });
 
@@ -541,6 +577,11 @@ async function principal() {
         ["firmas_cliente", "update firmas_cliente set motivo = 'reintento' where id = $1", [ids.firmaA]],
         ["actos_firma", "update actos_firma set agente = 'otro' where documento_id = $1", [ids.documentoA1]],
         ["documentos", "update documentos set estado = 'enviado' where id = $1", [ids.documentoA1]],
+        [
+          "documentos_ajustados",
+          "update documentos_ajustados set nota = 'cambiada' where id = $1",
+          [ids.ajusteA],
+        ],
         ["envios", "update envios set estado = 'fallido' where documento_id = $1", [ids.documentoA1]],
         ["eventos", "update eventos set accion = 'alterada' where id = $1", [ids.eventoB]],
         ["representantes", "update representantes set nombre = 'Otro' where id = $1", [ids.representante]],
@@ -556,11 +597,93 @@ async function principal() {
       for (const [sql, parametros] of [
         ["delete from eventos where id = $1", [ids.eventoB]],
         ["delete from documentos where id = $1", [ids.documentoA1]],
+        ["delete from documentos_ajustados where id = $1", [ids.ajusteA]],
         ["delete from pagos where id = $1", [ids.pagoA]],
         ["delete from representantes where id = $1", [ids.representante]],
       ]) {
         await esperarError(db, "42501", sql, parametros);
       }
+    });
+
+    await prueba("el ajuste a mano queda amarrado al documento que declara", async () => {
+      const insertar = `insert into documentos_ajustados
+                          (documento_id, proyecto_id, pdf, sha256_original, sha256_ajustado, actor)
+                        values ($1, $2, $3, $4, $5, $6)`;
+      const original = sha("pdf-a-1");
+      // Proyecto distinto al del documento.
+      await esperarError(db, "23503", insertar, [
+        ids.documentoA1,
+        ids.proyectoB,
+        Buffer.from("%PDF-falso"),
+        original,
+        sha("ajuste-falso-1"),
+        ids.usuarioAdmin,
+      ]);
+      // Hash original que no es el del documento: el sello no cerraría.
+      await esperarError(db, "23503", insertar, [
+        ids.documentoA1,
+        ids.proyectoA,
+        Buffer.from("%PDF-falso"),
+        sha("otro-pdf"),
+        sha("ajuste-falso-2"),
+        ids.usuarioAdmin,
+      ]);
+      // El mismo PDF ajustado dos veces sobre el mismo documento.
+      await esperarError(db, "23505", insertar, [
+        ids.documentoA1,
+        ids.proyectoA,
+        Buffer.from("%PDF-repetido"),
+        original,
+        sha("ajuste-a-1"),
+        ids.usuarioAdmin,
+      ]);
+      await esperarError(db, "23514", insertar, [
+        ids.documentoA1,
+        ids.proyectoA,
+        Buffer.from("%PDF-mal-formado"),
+        original,
+        "no-es-un-hash",
+        ids.usuarioAdmin,
+      ]);
+      await esperarError(
+        db,
+        "23514",
+        `insert into documentos_ajustados
+           (documento_id, proyecto_id, pdf, sha256_original, sha256_ajustado, nota, actor)
+         values ($1, $2, $3, $4, $5, $6, $7)`,
+        [
+          ids.documentoA1,
+          ids.proyectoA,
+          Buffer.from("%PDF-mal-formado"),
+          original,
+          sha("ajuste-falso-3"),
+          "x".repeat(501),
+          ids.usuarioAdmin,
+        ],
+      );
+      // Un cliente no puede registrar ajustes: la alta es solo de administración.
+      await como(ids.usuarioA, "cliente", async (c) => {
+        await esperarErrorEn(c, "42501", insertar, [
+          ids.documentoA1,
+          ids.proyectoA,
+          Buffer.from("%PDF-de-cliente"),
+          original,
+          sha("ajuste-de-cliente"),
+          ids.usuarioA,
+        ]);
+      });
+      await como(ids.usuarioAdmin, "admin", async (c) => {
+        await c.query(insertar, [
+          ids.documentoA1,
+          ids.proyectoA,
+          Buffer.from("%PDF-de-admin"),
+          original,
+          sha("ajuste-de-admin"),
+          ids.usuarioAdmin,
+        ]);
+        const total = await c.query("select count(*)::int as n from documentos_ajustados");
+        afirmar(total.rows[0].n === 3, `el admin registró el ajuste y hay ${total.rows[0].n}`);
+      });
     });
 
     await prueba("una plantilla publicada no se edita ni se borra", async () => {
@@ -668,6 +791,19 @@ async function principal() {
           ids.proyectoA,
         ]);
         afirmar(aprobado.rowCount === 1, "un proyecto enviado debe poder avanzar de estado");
+
+        // La cadena que ahora escribe el panel: aprobado → entregado →
+        // terminado. Ninguna está prohibida por el congelamiento.
+        for (const estado of ["en_revision", "entregado", "terminado"]) {
+          const avance = await db.query(
+            "update proyectos set estado = $1 where id = $2",
+            [estado, ids.proyectoA],
+          );
+          afirmar(avance.rowCount === 1, `el proyecto debe poder pasar a ${estado}`);
+        }
+        await esperarErrorEn(db, "42501", "update proyectos set estado = 'borrador' where id = $1", [
+          ids.proyectoA,
+        ]);
       } finally {
         await db.query("rollback");
       }
@@ -740,10 +876,10 @@ async function principal() {
         env: { ...process.env, DATABASE_URL: urlDueno },
         encoding: "utf8",
       });
-      afirmar(/13 migraciones al día/.test(salida), `salida inesperada de db-migrar: ${salida.trim().slice(-200)}`);
+      afirmar(/14 migraciones al día/.test(salida), `salida inesperada de db-migrar: ${salida.trim().slice(-200)}`);
       afirmar(!/✗/.test(salida), "db-migrar reportó un fallo al reejecutarse");
       const aplicadas = await db.query("select count(*)::int as n from migraciones");
-      afirmar(aplicadas.rows[0].n === 13, `hay ${aplicadas.rows[0].n} migraciones registradas`);
+      afirmar(aplicadas.rows[0].n === 14, `hay ${aplicadas.rows[0].n} migraciones registradas`);
     });
   } finally {
     await limpiar().catch(() => {});

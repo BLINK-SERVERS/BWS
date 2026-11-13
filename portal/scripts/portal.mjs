@@ -16,6 +16,11 @@
      alcance sin ofrecer edición;
    · el expediente se genera, verifica, confirma y envía una sola
      vez, con ocho adjuntos y copia a Blink;
+   · un PDF se ajusta a mano y desde ese momento lo descargan y lo
+     reciben el cliente y la administración, con la etiqueta visible;
+   · el panel se recorre en cinco módulos guardados en la query, con
+     una cola que sale de la evidencia, un historial legible por
+     expediente y una búsqueda que atraviesa las vistas;
    · la licencia se suspende y se reactiva, y el cliente ve el
      bloqueo sin perder sus datos ni su dominio.
 
@@ -24,7 +29,7 @@
    ============================================================ */
 
 import { createRequire } from "node:module";
-import { readFile, rm, readdir } from "node:fs/promises";
+import { readFile, rm, readdir, writeFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -40,7 +45,9 @@ const AXE = createRequire(import.meta.url).resolve("axe-core/axe.min.js");
 // Se evalúa en el contexto de la página: inyectarlo como <script> choca
 // con la CSP de `public/_headers`, que no permite scripts en línea.
 const AXE_FUENTE = await readFile(AXE, "utf8");
-const CORREO = join(RAIZ, "tmp", "correo-portal");
+// Cada corrida puede aislar su bandeja con la misma variable que lee el
+// servidor; si no, usa la del repo.
+const CORREO = process.env.CORREO_ARCHIVO_DIR ?? join(RAIZ, "tmp", "correo-portal");
 
 const ADMIN = {
   correo: "admin@blink.test",
@@ -49,6 +56,8 @@ const ADMIN = {
 };
 
 const resultados = [];
+/** Última tanda de respuestas de la API, para diagnosticar un corte. */
+const API_VISTA = [];
 function comprobar(nombre, condicion, detalle = "") {
   resultados.push({ nombre, ok: Boolean(condicion), detalle });
   console.log(`${condicion ? "  ✓" : "  ✗"} ${nombre}${condicion || !detalle ? "" : `\n      ${detalle}`}`);
@@ -245,6 +254,15 @@ async function principal() {
       if (!url.startsWith(origen) && !url.startsWith("data:") && !url.startsWith("blob:")) {
         terceros.push(url);
       }
+    });
+    p.on("response", async (respuesta) => {
+      const url = respuesta.url();
+      if (!url.startsWith(`${origen}/api/`)) return;
+      let cuerpo = "";
+      if (respuesta.status() >= 400) {
+        cuerpo = ` :: ${(await respuesta.text().catch(() => "")).slice(0, 200)}`;
+      }
+      API_VISTA.push(`${respuesta.status()} ${url.replace(origen, "")}${cuerpo}`);
     });
     p.on("console", (mensaje) => {
       if (mensaje.type() === "error") erroresConsola.push(mensaje.text());
@@ -460,6 +478,20 @@ async function principal() {
     admin.setDefaultTimeout(30_000);
     vigilar(admin);
 
+    /** El módulo y la búsqueda viven en la dirección: se arrastran al cambiar de pantalla. */
+    const alModulo = async (clave, encabezado) => {
+      // Se deja terminar el panel que la pantalla anterior está pidiendo:
+      // una recarga con la petición en vuelo la aborta y cuenta como fallo de red.
+      await admin.waitForLoadState("networkidle");
+      const filtro = new URL(admin.url()).searchParams.get("q");
+      const cola = filtro ? `&q=${encodeURIComponent(filtro)}` : "";
+      await admin.goto(`${origen}/admin?modulo=${clave}${cola}`, {
+        waitUntil: "domcontentloaded",
+      });
+      await admin.getByRole("heading", { name: "Operación de Blink" }).waitFor();
+      await admin.getByRole("heading", { name: encabezado }).first().waitFor();
+    };
+
     await admin.goto(`${origen}/ingreso`, { waitUntil: "domcontentloaded" });
     await admin.getByLabel("Correo", { exact: true }).fill(ADMIN.correo);
     await admin.getByLabel("Clave", { exact: true }).fill(ADMIN.clave);
@@ -475,6 +507,29 @@ async function principal() {
       (await admin.getByText("1 clientes · 1 proyectos · 0 suscripciones").count()) === 1,
     );
     await medir(admin, "admin sin representante", 1440);
+
+    comprobar(
+      "el panel arranca en Resumen con su barra de cinco módulos",
+      (await admin.locator(".po-admin-modulo").count()) === 5 &&
+        (await admin.getByRole("heading", { name: "Hoy" }).count()) === 1 &&
+        (await admin
+          .getByRole("button", { name: /Resumen/ })
+          .getAttribute("aria-current")) === "page",
+    );
+
+    // Sin representante, la cola tiene que decir exactamente eso.
+    comprobar(
+      "la cola nombra el pendiente real",
+      (await admin.locator(".po-admin-cola li").count()) >= 1 &&
+        (await admin.getByText("Falta la firma del representante legal").count()) === 1,
+    );
+    await admin.getByRole("button", { name: "Ver representante" }).click();
+    await admin.getByRole("heading", { name: "Representante legal" }).waitFor();
+    comprobar(
+      "un asunto de la cola salta a su módulo",
+      admin.url().includes("modulo=documental"),
+      admin.url(),
+    );
 
     // Firma del representante sobre el mismo lienzo del cliente.
     await admin.getByLabel("Nombre completo").fill("Josué Blink");
@@ -494,9 +549,20 @@ async function principal() {
       /^[0-9a-f]{64}$/.test((await admin.locator("code.po-hash").first().textContent()) ?? ""),
     );
 
+    const [bajadaFirma] = await Promise.all([
+      admin.waitForEvent("download"),
+      admin.getByRole("button", { name: "Descargar mi firma (PNG)" }).click(),
+    ]);
+    comprobar(
+      "el representante baja su firma en PNG para adjuntarla al PDF",
+      /^firma-representante-[0-9a-f]{16}\.png$/.test(bajadaFirma.suggestedFilename()),
+      bajadaFirma.suggestedFilename(),
+    );
+
     const bloqueExpediente = () =>
       admin.locator(".po-admin-bloque").filter({ hasText: "App de citas" }).first();
 
+    await alModulo("expedientes", "Expedientes");
     await bloqueExpediente().getByRole("button", { name: "Asignar proyecto" }).click();
     // Ocho PDF con las seis fuentes incrustadas: en una máquina cargada
     // pasa de los 30 s del tiempo por omisión.
@@ -507,9 +573,11 @@ async function principal() {
     await bloqueExpediente()
       .getByText("Hay comprobaciones en falso: revisa cada fila.")
       .waitFor();
+    const tablaCadena = () =>
+      bloqueExpediente().locator("table").filter({ hasText: "Sello" }).first();
     comprobar(
       "la verificación previa al cliente marca archivo, sello y cadena en OK",
-      (await bloqueExpediente().locator("tbody tr").count()) === 8 &&
+      (await tablaCadena().locator("tbody tr").count()) === 8 &&
         (await bloqueExpediente().getByText("FALLA", { exact: true }).count()) === 0,
     );
 
@@ -523,7 +591,74 @@ async function principal() {
       descargaAdmin.suggestedFilename(),
     );
 
+    // Ajuste a mano: se toma el generado, se le añade una línea fuera del
+    // sistema y se sube por la fila de su documento.
+    const primero = (
+      await base.query(
+        `select d.id, d.plantilla_codigo, d.plantilla_version, d.hash_archivo, d.pdf
+         from documentos d order by d.proyecto_id, d.orden limit 1`,
+      )
+    ).rows[0];
+    const ajustado = Buffer.concat([
+      primero.pdf,
+      Buffer.from("\n% Ajuste a mano de prueba\n%%EOF\n"),
+    ]);
+    const archivoAjuste = join(RAIZ, "tmp", `ajuste-${primero.plantilla_codigo}.pdf`);
+    const nombreAjustado = `${primero.plantilla_codigo}-v${primero.plantilla_version}-ajustado.pdf`;
+    await writeFile(archivoAjuste, ajustado);
+
+    const tablaAjuste = bloqueExpediente()
+      .locator("table")
+      .filter({ hasText: "Ajuste a mano:" })
+      .first();
+    const filaAjuste = tablaAjuste.locator("tbody tr").first();
+    await filaAjuste.locator('input[type="file"]').setInputFiles(archivoAjuste);
+    await filaAjuste.getByLabel("Qué se ajustó (opcional)").fill("Firma manuscrita adjuntada");
+    await filaAjuste.getByRole("button", { name: "Registrar ajuste" }).click();
+    await tablaAjuste.getByText("Ajustado a mano", { exact: true }).waitFor({ timeout: 60_000 });
+    comprobar(
+      "el ajuste queda registrado y la fila lo muestra",
+      (await tablaAjuste.getByText("Ajustado a mano", { exact: true }).count()) === 1 &&
+        (await tablaAjuste.getByText("Firma manuscrita adjuntada").count()) === 1,
+    );
+
+    const [bajadaAjustada] = await Promise.all([
+      admin.waitForEvent("download"),
+      filaAjuste.getByRole("button", { name: "Bajar archivo en uso" }).click(),
+    ]);
+    comprobar(
+      "la descarga del documento ajustado sirve el archivo subido",
+      bajadaAjustada.suggestedFilename() === nombreAjustado,
+      bajadaAjustada.suggestedFilename(),
+    );
+
+    // El rastro de evidencia del expediente, sin salir del panel.
+    const historial = bloqueExpediente()
+      .locator("details")
+      .filter({ hasText: "Historial del expediente" });
+    await historial.getByText("Historial del expediente").click();
+    await historial.locator("tbody tr").first().waitFor();
+    comprobar(
+      "el historial trae la evidencia con su actor",
+      (await historial.getByText("Expediente generado y sellado").count()) === 1 &&
+        (await historial.getByText("Documento ajustado a mano").count()) === 1 &&
+        (await historial.getByText("Administración Blink").count()) >= 1,
+      await historial.locator("tbody tr").count(),
+    );
+
+    // El tablero filtra por la etapa que sale de los actos.
+    await admin.getByRole("button", { name: /Borrador/ }).click();
+    await admin.getByText("Ningún expediente coincide con el filtro").waitFor();
+    await admin.getByRole("button", { name: /En revisión/ }).click();
+    comprobar(
+      "la etapa se deriva de la evidencia y el filtro la aísla",
+      (await bloqueExpediente().count()) === 1,
+    );
+    await admin.getByRole("button", { name: /^Todos/ }).click();
+    await bloqueExpediente().waitFor();
+
     // Suscripción con el precio del plan Pro y un pago vigente.
+    await alModulo("finanzas", "Suscripciones, pagos y mora");
     await admin.getByText("Crear una suscripción", { exact: true }).click();
     await admin.getByRole("button", { name: "Crear suscripción" }).click();
     await admin.getByText("USD 30 al mes").waitFor();
@@ -558,13 +693,18 @@ async function principal() {
       "el cliente confirma los ocho documentos",
       (await seccionExpediente.getByText("Confirmado", { exact: true }).count()) === 8,
     );
+    comprobar(
+      "el cliente ve la etiqueta del ajuste a mano y sus dos hashes",
+      (await seccionExpediente.getByText("Ajustado a mano por Blink").count()) === 1 &&
+        (await seccionExpediente.getByText(/generado [0-9a-f]{16}…/).count()) === 1,
+    );
     const [descargaCliente] = await Promise.all([
       pagina.waitForEvent("download"),
       seccionExpediente.getByRole("button", { name: "PDF" }).first().click(),
     ]);
     comprobar(
-      "el cliente descarga su PDF auditado",
-      /^BWS-[A-Z]{3}-\d{3}-v\d+\.pdf$/.test(descargaCliente.suggestedFilename()),
+      "el cliente descarga su PDF auditado, con el ajuste en el nombre",
+      nombreAjustado === descargaCliente.suggestedFilename(),
       descargaCliente.suggestedFilename(),
     );
     await medir(pagina, "panel con expediente y licencia", 1440);
@@ -584,8 +724,7 @@ async function principal() {
     );
 
     // Envío único: el reintento no produce un segundo correo.
-    await admin.reload({ waitUntil: "domcontentloaded" });
-    await admin.getByRole("heading", { name: "Operación de Blink" }).waitFor();
+    await alModulo("expedientes", "Expedientes");
     const expedienteFinal = admin
       .locator(".po-admin-bloque")
       .filter({ hasText: "App de citas" })
@@ -617,6 +756,7 @@ async function principal() {
     );
 
     // Suspensión y reactivación con la licencia a la vista del cliente.
+    await alModulo("finanzas", "Suscripciones, pagos y mora");
     const tarjetaLicencia = admin
       .locator(".po-admin-bloque")
       .filter({ hasText: "USD 30 al mes" });
@@ -637,8 +777,7 @@ async function principal() {
     );
     await medir(pagina, "panel suspendido", 1440);
 
-    await admin.reload({ waitUntil: "domcontentloaded" });
-    await admin.getByRole("heading", { name: "Operación de Blink" }).waitFor();
+    await alModulo("finanzas", "Suscripciones, pagos y mora");
     const tarjetaSuspendida = admin
       .locator(".po-admin-bloque")
       .filter({ hasText: "USD 30 al mes" });
@@ -653,9 +792,59 @@ async function principal() {
         (await pagina.getByText("Activa", { exact: true }).count()) === 1,
     );
 
-    await medir(admin, "admin con expediente y pagos", 1440);
+    // Comercial: el directorio y la búsqueda que atraviesa los módulos.
+    await alModulo("comercial", "Clientes");
+    comprobar(
+      "el directorio comercial muestra el cliente, su correo y su último acceso",
+      (await admin.locator(".po-tabla-marco tbody tr").count()) === 1 &&
+        (await admin.getByText("Verificado", { exact: true }).count()) === 1 &&
+        (await admin.getByRole("columnheader", { name: "Última actividad" }).count()) === 1,
+    );
+    await admin.getByLabel("Buscar cliente, proyecto, dominio o correo").fill("clinica");
+    await admin.getByText("Ningún cliente coincide con la búsqueda").waitFor();
+    // Se cambia de módulo por la barra, como lo hace una persona: la
+    // búsqueda tiene que seguir viva en el otro módulo. Ir con `goto`
+    // recargaría la página y borraría el filtro, que no es el caso.
+    await admin.getByRole("button", { name: /Expedientes/ }).first().click();
+    await admin.getByText("Ningún expediente coincide con el filtro").waitFor();
+    comprobar(
+      "la búsqueda atraviesa los módulos",
+      (await admin.getByText("Ningún expediente coincide con el filtro").count()) === 1,
+    );
+    await admin.getByLabel("Buscar cliente, proyecto, dominio o correo").fill("");
+    await bloqueExpediente().waitFor();
+
+    const PANTALLAS = [
+      ["resumen", "Hoy"],
+      ["comercial", "Clientes"],
+      ["expedientes", "Expedientes"],
+      ["documental", "Representante legal"],
+      ["finanzas", "Suscripciones, pagos y mora"],
+    ];
+
+    // Resumen: con el ciclo cerrado, lo único que queda es el ajuste.
+    await alModulo("resumen", "Hoy");
+    comprobar(
+      "la cola cierra el ciclo sobre la evidencia",
+      (await admin.locator(".po-admin-cola li").count()) === 1 &&
+        (await admin.getByText(/Reenviar App de citas con el ajuste a mano/).count()) === 1 &&
+        (await admin.locator(".po-barra-segmento").count()) === 1,
+    );
+
+    for (const [clave, encabezado] of PANTALLAS) {
+      await alModulo(clave, encabezado);
+      await medir(admin, `admin ${clave}`, 1440);
+    }
     await admin.setViewportSize({ width: 390, height: 844 });
-    await medir(admin, "admin con expediente y pagos", 390);
+    for (const [clave, encabezado] of [
+      ["resumen", "Hoy"],
+      ["comercial", "Clientes"],
+      ["expedientes", "Expedientes"],
+    ]) {
+      await alModulo(clave, encabezado);
+      await medir(admin, `admin ${clave} móvil`, 390);
+    }
+    await admin.waitForLoadState("networkidle");
     await contextoAdmin.close();
 
     // 390: las mismas pantallas con la sesión abierta.
@@ -710,5 +899,8 @@ function variablesSinPisar(variables) {
 
 principal().catch((error) => {
   console.error(`\n✗ ${error instanceof Error ? error.message : error}`);
+  if (API_VISTA.length) {
+    console.error(`   últimas llamadas: ${API_VISTA.slice(-12).join(" | ")}`);
+  }
   process.exitCode = 1;
 });

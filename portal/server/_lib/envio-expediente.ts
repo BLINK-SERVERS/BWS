@@ -6,9 +6,14 @@
    Solo sale cuando las dos firmas están en los ocho documentos.
 
    Cada documento lleva su clave de idempotencia con el hash del
-   archivo: reintentar el envío no duplica correos ni filas. El
-   evento queda con el mensaje del proveedor y el hash final de la
-   cadena.
+   archivo que se adjunta: reintentar el envío no duplica correos ni
+   filas, y un documento ajustado a mano después de un envío sale en
+   un correo nuevo porque su hash cambió. El evento queda con el
+   mensaje del proveedor y el hash final de la cadena.
+
+   Cuando Blink ajustó algún PDF a mano, el correo lo dice y adjunta
+   el archivo ajustado: el sello y la cadena siguen siendo los del
+   generado, que es el que se verificó.
    ============================================================ */
 
 import { correoNormalizado } from "../../legal/identidad";
@@ -27,6 +32,7 @@ interface DocumentoEnvio {
   pdf: Uint8Array;
   hash_archivo: string;
   hash_cadena: string;
+  ajustado: boolean;
 }
 
 export interface ResultadoEnvio {
@@ -47,6 +53,10 @@ function copiaDeNegocio(): string[] {
     .filter(Boolean);
 }
 
+function claveDeEnvio(proyectoId: string, doc: DocumentoEnvio): string {
+  return `expediente/${proyectoId}/${doc.codigo}/v${doc.version}/${doc.hash_archivo}`;
+}
+
 export async function enviarExpediente(
   sesion: Sesion,
   proyectoId: string,
@@ -62,10 +72,20 @@ export async function enviarExpediente(
           join clientes c on c.id = p.cliente_id
           join usuarios u on u.id = c.usuario_id
           where p.id = ${proyectoId}`,
-      txn`select d.id, d.plantilla_codigo, d.plantilla_version, d.orden, d.pdf,
-                 d.hash_archivo, d.hash_cadena, p.contenido->>'titulo' as titulo
+      txn`select d.id, d.plantilla_codigo, d.plantilla_version, d.orden, d.hash_archivo,
+                 d.hash_cadena, p.contenido->>'titulo' as titulo,
+                 coalesce(a.pdf, d.pdf) as pdf,
+                 coalesce(a.sha256_ajustado, d.hash_archivo) as hash_servido,
+                 a.sha256_ajustado is not null as ajustado
           from documentos d
           join plantillas p on p.codigo = d.plantilla_codigo and p.version = d.plantilla_version
+          left join lateral (
+            select aj.pdf, aj.sha256_ajustado
+            from documentos_ajustados aj
+            where aj.documento_id = d.id
+            order by aj.utc desc, aj.id
+            limit 1
+          ) a on true
           where d.proyecto_id = ${proyectoId}
           order by d.orden`,
       txn`select count(*)::int as total,
@@ -97,8 +117,9 @@ export async function enviarExpediente(
     orden: Number(fila.orden),
     titulo: String(fila.titulo),
     pdf: fila.pdf as Uint8Array,
-    hash_archivo: String(fila.hash_archivo),
+    hash_archivo: String(fila.hash_servido),
     hash_cadena: String(fila.hash_cadena),
+    ajustado: Boolean(fila.ajustado),
   })) satisfies DocumentoEnvio[];
 
   if (!docs.length) {
@@ -118,8 +139,20 @@ export async function enviarExpediente(
     );
   }
 
-  const yaEnviados = ((envios ?? []) as Record<string, unknown>[]).length;
-  if (yaEnviados >= docs.length) {
+  // Se compara el archivo que saldría hoy, no solo cuántos salieron:
+  // un ajuste posterior cambia el hash y merece un correo nuevo.
+  const salidas = new Set(
+    ((envios ?? []) as Record<string, unknown>[]).map((fila) => String(fila.clave_idempotencia)),
+  );
+  if (docs.every((doc) => salidas.has(claveDeEnvio(proyectoId, doc)))) {
+    // Las filas de `envios` prueban que el correo salió: se pone al día la
+    // etapa por si el envío es anterior a este control.
+    await enTransaccion(sesion.usuarioId, sesion.rol, (txn) => [
+      txn`update proyectos
+              set estado = 'entregado'
+            where id = ${proyectoId}::uuid
+              and estado in ('enviado', 'en_revision', 'aprobado')`,
+    ]);
     return {
       ok: true,
       reutilizado: true,
@@ -147,8 +180,9 @@ export async function enviarExpediente(
 
   const final = docs.at(-1)?.hash_cadena ?? "";
   const enlacePortal = `${sitio()}/panel`;
+  const ajustados = docs.filter((doc) => doc.ajustado);
   const adjuntos = docs.map((doc) => ({
-    nombre: `${doc.codigo}-v${doc.version}.pdf`,
+    nombre: `${doc.codigo}-v${doc.version}${doc.ajustado ? "-ajustado" : ""}.pdf`,
     contenido: doc.pdf,
   }));
 
@@ -164,12 +198,21 @@ export async function enviarExpediente(
         `El expediente del proyecto «${String(filaProyecto.nombre)}» quedó firmado por las dos partes. Adjuntamos los ${docs.length} documentos en PDF:`,
         "",
         ...docs.map(
-          (doc) => `· ${doc.codigo} — ${doc.titulo} (v${doc.version}) · ${doc.hash_archivo.slice(0, 16)}…`,
+          (doc) =>
+            `· ${doc.codigo} — ${doc.titulo} (v${doc.version}) · ${doc.hash_archivo.slice(0, 16)}…${
+              doc.ajustado ? " · ajustado a mano por Blink" : ""
+            }`,
         ),
         "",
         `Hash final de la cadena: ${final}`,
         "",
         "La firma es electrónica simple, no certificada, con evidencia reforzada: trazo, fecha y hora en UTC, IP, agente y sello de contenido SHA-256. El PDF no es modificable dentro del sistema y cualquier alteración del archivo se detecta al compararlo con el hash guardado.",
+        ...(ajustados.length
+          ? [
+              "",
+              `${ajustados.length} de los ${docs.length} documentos fueron revisados y ajustados a mano por Blink antes de este envío; el adjunto marcado «ajustado» es el archivo que recibes. Su sello de contenido y su eslabón de cadena son los del documento generado, que es el que aparece en la verificación del portal; el hash informado arriba corresponde al adjunto.`,
+            ]
+          : []),
         "",
         `Puedes descargar el expediente y consultar su verificación desde tu panel: ${enlacePortal}`,
         "",
@@ -192,7 +235,7 @@ export async function enviarExpediente(
           txn`insert into envios
                 (documento_id, proveedor, mensaje_id, clave_idempotencia, estado, utc)
               values (${doc.id}::uuid, ${envio.proveedor}, ${envio.id},
-                      ${`expediente/${proyectoId}/${doc.codigo}/v${doc.version}/${doc.hash_archivo}`},
+                      ${claveDeEnvio(proyectoId, doc)},
                       'enviado', now())
               on conflict (clave_idempotencia) do nothing`,
       ),
@@ -201,6 +244,7 @@ export async function enviarExpediente(
                   ${proyectoId},
                   ${JSON.stringify({
                     documentos: docs.length,
+                    ajustados: ajustados.length,
                     correo: correoDestino,
                     copia: copiaDeNegocio(),
                     mensaje_id: envio.id,
@@ -208,6 +252,13 @@ export async function enviarExpediente(
                     hash_final: final,
                   })}::jsonb,
                   ${ip}, ${agente})`,
+      // El correo salió: el expediente queda entregado. El disparador de
+      // congelamiento solo prohíbe volver a borrador, así que avanzar la
+      // etapa está permitido.
+      txn`update proyectos
+              set estado = 'entregado'
+            where id = ${proyectoId}::uuid
+              and estado in ('enviado', 'en_revision', 'aprobado')`,
     ]);
   } catch (error) {
     throw new ErrorHttp(

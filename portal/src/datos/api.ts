@@ -182,6 +182,8 @@ export interface DocumentoExpediente {
   hash_cadena: string;
   estado: string;
   firmado: boolean;
+  /** Ajuste a mano registrado por Blink sobre el PDF generado. */
+  ajustado: { sha256: string | null; nota: string | null; utc: string | null };
 }
 
 export interface ListaDocumentos {
@@ -237,6 +239,15 @@ export interface VerificacionDocumento {
   sello_ok: boolean;
   archivo_ok: boolean;
   cadena_ok: boolean;
+  ajuste: {
+    id: string;
+    sha256_original: string;
+    sha256_ajustado: string;
+    tamano: number;
+    nota: string | null;
+    utc: string;
+  } | null;
+  ajuste_ok: boolean;
   actos: {
     representante: { hecho: boolean; utc: string | null };
     cliente: { hecho: boolean; utc: string | null };
@@ -287,6 +298,7 @@ export interface ClienteAdmin {
   bloqueado: boolean;
   tiene_firma: boolean;
   firmas: number;
+  ultimo_acceso: string | null;
   creado: string | null;
 }
 
@@ -344,11 +356,51 @@ export interface PlantillaAdmin {
   publicada: string | null;
 }
 
+export interface DocumentoAdmin {
+  id: string;
+  proyecto_id: string;
+  codigo: string;
+  version: number;
+  orden: number;
+  hash_archivo: string;
+  ajuste: {
+    sha256_original: string;
+    sha256_ajustado: string;
+    tamano: number;
+    nota: string | null;
+    utc: string | null;
+  } | null;
+}
+
+export interface AjusteRegistrado {
+  id: string;
+  documento_id: string;
+  sha256_original: string;
+  sha256_ajustado: string;
+  tamano: number;
+  utc: string;
+}
+
+/** Una fila del rastro de evidencia (`eventos`), leída por la administración. */
+export interface EventoAdmin {
+  id: string;
+  ocurrido: string | null;
+  accion: string;
+  entidad: string;
+  entidad_id: string | null;
+  rol: string | null;
+  actor: string | null;
+  ip: string | null;
+  agente: string | null;
+  detalle: Record<string, unknown> | null;
+}
+
 export interface PanelAdmin {
   ok: true;
   hoy: string;
   clientes: ClienteAdmin[];
   proyectos: ProyectoAdmin[];
+  documentos: DocumentoAdmin[];
   suscripciones: SuscripcionAdmin[];
   pagos: PagoAdmin[];
   plantillas: PlantillaAdmin[];
@@ -537,6 +589,26 @@ export const api = {
     return pedir("/api/admin/representante", { metodo: "POST", cuerpo: datos });
   },
 
+  /** Registra el PDF que Blink ajustó a mano sobre uno de los documentos. */
+  ajustarDocumento(datos: {
+    documento_id: string;
+    pdf: string;
+    nota?: string;
+  }): Promise<{ ok: true; reutilizado: boolean; sha256_ajustado?: string; ajuste?: AjusteRegistrado }> {
+    return pedir("/api/admin/documentos/ajustar", { metodo: "POST", cuerpo: datos });
+  },
+
+  /** El rastro de evidencia de un proyecto, o los últimos movimientos de toda la operación. */
+  historialAdmin(proyectoId?: string, limite = 120): Promise<{
+    ok: true;
+    proyecto_id: string | null;
+    eventos: EventoAdmin[];
+  }> {
+    const consulta = new URLSearchParams({ limite: String(limite) });
+    if (proyectoId) consulta.set("proyecto_id", proyectoId);
+    return pedir(`/api/admin/historial?${consulta.toString()}`);
+  },
+
   generarExpediente(proyectoId: string): Promise<{
     ok: true;
     reutilizado: boolean;
@@ -661,6 +733,16 @@ export function guardarDescarga(descarga: Descarga): void {
   enlace.click();
   enlace.remove();
   URL.revokeObjectURL(url);
+}
+
+/** Descarga un archivo que ya llega como data URL, como el PNG de la firma. */
+export function guardarDataUrl(nombre: string, dataUrl: string): void {
+  const [cabecera, base64] = dataUrl.split(",");
+  const tipo = /data:([^;]+)/.exec(cabecera ?? "")?.[1] ?? "application/octet-stream";
+  const binario = atob(base64 ?? "");
+  const bytes = new Uint8Array(binario.length);
+  for (let i = 0; i < binario.length; i += 1) bytes[i] = binario.charCodeAt(i);
+  guardarDescarga({ blob: new Blob([bytes], { type: tipo }), nombre, hash: null });
 }
 
 /** Parámetro de la ruta (`/verificar?token=...`). */

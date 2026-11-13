@@ -39,6 +39,8 @@ const PESADAS: Record<string, string> = {
   "/api/auth/ingreso": "auth",
   "/api/auth/restablecer": "auth",
   "/api/documentos/generar": "expediente",
+  // Decodificar y sellar un PDF de varios megas tampoco cabe en 10 ms.
+  "/api/admin/documentos/ajustar": "expediente",
 };
 
 const SEGURIDAD: Record<string, string> = {

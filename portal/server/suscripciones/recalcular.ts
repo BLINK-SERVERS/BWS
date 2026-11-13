@@ -73,6 +73,16 @@ export default manejar(["POST"], async (peticion) => {
             and ((k.estado = 'suspendida' and l.estado = 'activa')
               or (k.estado = 'terminada' and l.estado in ('activa', 'suspendida')))
           returning 1
+        ), cierre as (
+          -- Treinta días de mora cierran también el proyecto: la licencia
+          -- ya no existe y el expediente quedó entregado.
+          update proyectos p
+          set estado = 'terminado'
+          from cambios k
+          where p.id = k.proyecto_id
+            and k.estado = 'terminada'
+            and p.estado in ('enviado', 'en_revision', 'aprobado', 'entregado')
+          returning 1
         ), evento as (
           insert into eventos (actor, rol, accion, entidad, entidad_id, detalle, ip, agente)
           select ${sesion.usuarioId}::uuid, 'admin', 'suscripcion.recalculada',

@@ -6,9 +6,12 @@
    el proyecto. Cada descarga deja un evento con actor, IP y agente:
    el expediente se puede leer, y queda registrado quién lo hizo.
 
-   La respuesta no se cachea y declara el SHA-256 guardado en la
-   cabecera `x-bws-sha256`, para que el archivo descargado se pueda
-   comparar con el que se firmó.
+   Si Blink ajustó el documento a mano, se sirven esos bytes y no
+   los generados: la tabla de ajustes es de solo agregar y su fila
+   más reciente es la vigente. La respuesta no se cachea y declara
+   el SHA-256 del archivo que sale en `x-bws-sha256`; cuando hay
+   ajuste, `x-bws-ajuste` lleva el hash del archivo generado que
+   ese PDF reemplaza, para poder comparar los dos.
    ============================================================ */
 
 import { agenteDe, ipDe } from "../_lib/http";
@@ -44,8 +47,18 @@ export default manejar(["GET"], async (peticion) => {
   // si la auditoría falla, la descarga no sale.
   const [filas] = await enTransaccion(sesion.usuarioId, sesion.rol, (txn) => [
     txn`with doc as (
-          select d.id, d.pdf, d.hash_archivo, d.plantilla_version
+          select d.id, d.plantilla_version, d.hash_archivo,
+                 coalesce(a.pdf, d.pdf) as pdf,
+                 coalesce(a.sha256_ajustado, d.hash_archivo) as hash_servido,
+                 a.sha256_ajustado is not null as ajustado
           from documentos d
+          left join lateral (
+            select aj.pdf, aj.sha256_ajustado
+            from documentos_ajustados aj
+            where aj.documento_id = d.id
+            order by aj.utc desc, aj.id
+            limit 1
+          ) a on true
           where d.proyecto_id = ${proyectoId} and d.plantilla_codigo = ${codigo}
         ), evento as (
           insert into eventos (actor, rol, accion, entidad, entidad_id, detalle, ip, agente)
@@ -54,12 +67,14 @@ export default manejar(["GET"], async (peticion) => {
                  id::text,
                  jsonb_build_object('codigo', ${codigo}::text,
                                     'proyecto_id', ${proyectoId}::text,
-                                    'hash_archivo', hash_archivo),
+                                    'hash_archivo', hash_archivo,
+                                    'hash_servido', hash_servido,
+                                    'ajustado', ajustado),
                  ${ip}::inet, ${agente}::text
           from doc
           returning 1
         )
-        select id, pdf, hash_archivo, plantilla_version from doc`,
+        select id, pdf, hash_archivo, hash_servido, ajustado, plantilla_version from doc`,
   ]);
 
   const fila = (filas ?? [])[0] as Record<string, unknown> | undefined;
@@ -69,15 +84,17 @@ export default manejar(["GET"], async (peticion) => {
 
   const pdf = new Uint8Array(fila.pdf as Uint8Array);
   const version = Number(fila.plantilla_version);
-  const nombre = `${codigo}-v${version}.pdf`;
-  return new Response(pdf, {
-    headers: {
-      "content-type": "application/pdf",
-      "content-disposition": `attachment; filename="${nombre}"`,
-      "content-length": String(pdf.length),
-      "cache-control": "no-store",
-      "x-content-type-options": "nosniff",
-      "x-bws-sha256": String(fila.hash_archivo),
-    },
-  });
+  const ajustado = Boolean(fila.ajustado);
+  const nombre = `${codigo}-v${version}${ajustado ? "-ajustado" : ""}.pdf`;
+  const cabeceras: Record<string, string> = {
+    "content-type": "application/pdf",
+    "content-disposition": `attachment; filename="${nombre}"`,
+    "content-length": String(pdf.length),
+    "cache-control": "no-store",
+    "x-content-type-options": "nosniff",
+    "x-bws-sha256": String(fila.hash_servido),
+  };
+  if (ajustado) cabeceras["x-bws-ajuste"] = String(fila.hash_archivo ?? "");
+
+  return new Response(pdf, { headers: cabeceras });
 });
