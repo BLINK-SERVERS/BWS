@@ -802,9 +802,10 @@ async function principal() {
     );
     await admin.getByLabel("Buscar cliente, proyecto, dominio o correo").fill("clinica");
     await admin.getByText("Ningún cliente coincide con la búsqueda").waitFor();
-    // Se cambia de módulo por la barra, como lo hace una persona: la
-    // búsqueda tiene que seguir viva en el otro módulo. Ir con `goto`
-    // recargaría la página y borraría el filtro, que no es el caso.
+    // Se cambia de módulo por la barra, como lo hace una persona. El
+    // filtro sí viaja en la dirección (`?q=`), pero `alModulo` arma
+    // `/admin?modulo=…` sin conservarlo: navegar borraría justo lo que
+    // esta comprobación quiere ver atravesar la pantalla.
     await admin.getByRole("button", { name: /Expedientes/ }).first().click();
     await admin.getByText("Ningún expediente coincide con el filtro").waitFor();
     comprobar(
