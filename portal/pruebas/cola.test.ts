@@ -61,6 +61,7 @@ function cliente(extra: Partial<ClienteAdmin> = {}): ClienteAdmin {
     tiene_firma: true,
     firmas: 1,
     ultimo_acceso: "2026-11-11T08:00:00.000Z",
+    sesiones_vivas: 1,
     creado: "2026-10-30T10:00:00.000Z",
     ...extra,
   };
@@ -207,9 +208,37 @@ describe("colaDe: cada regla aparece sola", () => {
     assert.ok(pendientes.some((p) => p.id === "enviar-p1" && p.accion === "enviar"));
   });
 
-  it("pide abrir la suscripción de un proyecto sin cobro", () => {
-    const pendientes = colaDe(panel({ suscripciones: [] }));
-    assert.ok(pendientes.some((p) => p.id === "suscripcion-p1"));
+  it("pide abrir la suscripción desde que hay expediente, en cualquier etapa", () => {
+    const enRevision = colaDe(panel({ suscripciones: [] }));
+    assert.ok(enRevision.some((p) => p.id === "suscripcion-p1"));
+
+    const aprobado = colaDe(panel({ suscripciones: [], proyectos: [proyecto({ actos_cliente: 8 })] }));
+    assert.ok(aprobado.some((p) => p.id === "suscripcion-p1"));
+    assert.ok(aprobado.some((p) => p.id === "enviar-p1"));
+
+    const entregado = colaDe(panel({ suscripciones: [], proyectos: [proyecto({ envios: 8 })] }));
+    assert.ok(entregado.some((p) => p.id === "suscripcion-p1"));
+  });
+
+  it("no pide cobro donde todavía no hay expediente, ni donde ya cerró", () => {
+    const ficha = colaDe(
+      panel({ suscripciones: [], proyectos: [proyecto({ documentos: 0, actos_representante: 0 })] }),
+    );
+    assert.ok(ficha.some((p) => p.id === "generar-p1"));
+    assert.ok(!ficha.some((p) => p.id === "suscripcion-p1"));
+
+    const borrador = colaDe(
+      panel({
+        suscripciones: [],
+        proyectos: [proyecto({ estado: "borrador", documentos: 0, actos_representante: 0 })],
+      }),
+    );
+    assert.ok(!borrador.some((p) => p.id === "suscripcion-p1"));
+
+    const terminado = colaDe(
+      panel({ suscripciones: [], proyectos: [proyecto({ estado: "terminado", envios: 8 })] }),
+    );
+    assert.ok(!terminado.some((p) => p.id === "suscripcion-p1"));
   });
 
   it("separa la mora de la suspensión y ambas llevan al cobro", () => {

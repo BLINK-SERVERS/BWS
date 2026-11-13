@@ -218,6 +218,20 @@ export function colaDe(panel: PanelAdmin): Pendiente[] {
     const suscripcion = suscripciones.get(proyecto.id) ?? null;
     const etapa = etapaDe(proyecto, suscripcion);
     const aQuien = cliente?.razon_social || cliente?.nombre || proyecto.nombre;
+    // Desde que hay expediente ya hay algo que cobrar: el hueco se avisa
+    // en cualquier etapa posterior, no solo mientras el cliente revisa.
+    const conExpediente =
+      etapa === "en_revision" || etapa === "aprobado" || etapa === "entregado";
+    if (conExpediente && !suscripcion) {
+      salida.push({
+        id: `suscripcion-${proyecto.id}`,
+        prioridad: 2,
+        etiqueta: `Abrir la suscripción de ${proyecto.nombre}`,
+        detalle: "El proyecto ya tiene expediente y no tiene cobro asociado.",
+        accion: "suscripcion",
+        proyectoId: proyecto.id,
+      });
+    }
 
     if (etapa === "ficha") {
       salida.push({
@@ -254,16 +268,6 @@ export function colaDe(panel: PanelAdmin): Pendiente[] {
             clienteId: proyecto.cliente_id,
           });
         }
-      }
-      if (!suscripcion) {
-        salida.push({
-          id: `suscripcion-${proyecto.id}`,
-          prioridad: 2,
-          etiqueta: `Abrir la suscripción de ${proyecto.nombre}`,
-          detalle: "El proyecto ya tiene expediente y no tiene cobro asociado.",
-          accion: "suscripcion",
-          proyectoId: proyecto.id,
-        });
       }
       continue;
     }
