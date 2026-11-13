@@ -2097,7 +2097,8 @@ function SeccionClientes({
       </h2>
       <p className="po-apagado">
         Ficha fiscal, correo y accesos. La administración no ve la clave de nadie: solo si
-        está verificada, cuándo entró por última vez y si la cuenta está bloqueada.
+        el correo está verificado, si la cuenta tiene una sesión abierta ahora mismo,
+        cuándo entró por última vez y si está bloqueada.
       </p>
       {panel.clientes.length === 0 ? (
         <p className="po-apagado">Todavía no hay clientes dados de alta.</p>
@@ -2176,6 +2177,15 @@ function SeccionClientes({
                     </td>
                     <td>
                       {instanteLegible(cliente.ultimo_acceso ?? cliente.creado)}
+                      {cliente.sesiones_vivas > 0 ? (
+                        <span className="po-etiqueta po-etiqueta-ok">
+                          {cliente.sesiones_vivas > 1
+                            ? `${cliente.sesiones_vivas} sesiones abiertas`
+                            : "Sesión abierta"}
+                        </span>
+                      ) : (
+                        <span className="po-etiqueta">Sin sesión abierta</span>
+                      )}
                     </td>
                   </tr>
                 );

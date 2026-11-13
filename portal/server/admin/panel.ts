@@ -2,9 +2,10 @@
    GET /api/admin/panel
    ------------------------------------------------------------
    Una sola lectura para el panel de administración: clientes con
-   su firma, proyectos con el avance del expediente, los documentos
-   con su ajuste a mano vigente, suscripciones con su licencia y sus
-   pagos, las plantillas publicadas y la firma del representante.
+   su firma y sus sesiones vivas, proyectos con el avance del
+   expediente, los documentos con su ajuste a mano vigente,
+   suscripciones con su licencia y sus pagos, las plantillas
+   publicadas y la firma del representante.
 
    El pago «efectivo» es el registrado al que nadie anuló: los
    anulados se conservan y se devuelven marcados para que la
@@ -41,6 +42,9 @@ export default manejar(["GET"], async (peticion) => {
                  (select count(*)::int from firmas_cliente f where f.cliente_id = c.id) as firmas,
                  (select max(e.ocurrido) from eventos e
                    where e.actor = c.usuario_id and e.accion = 'sesion.iniciada') as ultimo_acceso,
+                 (select count(*)::int from sesiones s
+                   where s.usuario_id = c.usuario_id and s.revocada = false
+                     and s.expira > now()) as sesiones_vivas,
                  u.nombre, u.correo, u.correo_verificado, u.bloqueado
           from clientes c
           join usuarios u on u.id = c.usuario_id
@@ -120,6 +124,7 @@ export default manejar(["GET"], async (peticion) => {
       tiene_firma: Boolean(fila.tiene_firma),
       firmas: Number(fila.firmas),
       ultimo_acceso: instante(fila.ultimo_acceso),
+      sesiones_vivas: Number(fila.sesiones_vivas),
       creado: instante(fila.creado),
     })),
     proyectos: ((proyectos ?? []) as Record<string, unknown>[]).map((fila) => ({

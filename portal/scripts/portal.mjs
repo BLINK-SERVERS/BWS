@@ -800,6 +800,18 @@ async function principal() {
         (await admin.getByText("Verificado", { exact: true }).count()) === 1 &&
         (await admin.getByRole("columnheader", { name: "Última actividad" }).count()) === 1,
     );
+    // La ficha de accesos responde sin preguntar: ¿está alguien dentro?
+    const etiquetaAccesos = admin
+      .locator("section:has(#po-admin-clientes) tbody tr td")
+      .last()
+      .locator(".po-etiqueta");
+    const textoAccesos =
+      (await etiquetaAccesos.count()) === 1 ? await etiquetaAccesos.innerText() : "";
+    comprobar(
+      "la ficha de accesos dice si el cliente tiene la sesión abierta",
+      /sesi[oó]n(es)? abierta(s)?/i.test(textoAccesos),
+      textoAccesos || "no se vio la etiqueta de sesión",
+    );
     await admin.getByLabel("Buscar cliente, proyecto, dominio o correo").fill("clinica");
     await admin.getByText("Ningún cliente coincide con la búsqueda").waitFor();
     // Se cambia de módulo por la barra, como lo hace una persona. El

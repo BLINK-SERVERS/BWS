@@ -299,6 +299,7 @@ export interface ClienteAdmin {
   tiene_firma: boolean;
   firmas: number;
   ultimo_acceso: string | null;
+  sesiones_vivas: number;
   creado: string | null;
 }
 

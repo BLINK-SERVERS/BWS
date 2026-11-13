@@ -1573,6 +1573,26 @@ probar("admin: el panel reúne clientes, expedientes, pagos y plantillas", async
   // El directorio comercial necesita saber si la cuenta está viva.
   assert.match(r.cuerpo.clientes[0].ultimo_acceso ?? "", /^\d{4}-\d{2}-\d{2}T/);
 
+  // «Sesión abierta» es la sesión de verdad: sube con un ingreso y baja
+  // con su salida, sin tocar la cookie con la que sigue esta corrida.
+  const vivas = await cliente.query(
+    `select count(*)::int as n from sesiones s
+       join clientes c on c.usuario_id = s.usuario_id
+      where s.revocada = false and s.expira > now()`,
+  );
+  assert.equal(r.cuerpo.clientes[0].sesiones_vivas, vivas.rows[0].n);
+  assert.ok(vivas.rows[0].n >= 1, "la cuenta del cliente tiene su sesión de la corrida");
+
+  const segunda = await invocar(ingreso, "/api/auth/ingreso", {
+    metodo: "POST",
+    cuerpo: { correo: CUENTA.correo, clave: CUENTA.clave },
+  });
+  const conDos = await invocar(panelAdmin, "/api/admin/panel", { cookie: cookieAdmin });
+  assert.equal(conDos.cuerpo.clientes[0].sesiones_vivas, vivas.rows[0].n + 1);
+  await invocar(salir, "/api/auth/salir", { metodo: "POST", cookie: galleta(segunda) });
+  const deVuelta = await invocar(panelAdmin, "/api/admin/panel", { cookie: cookieAdmin });
+  assert.equal(deVuelta.cuerpo.clientes[0].sesiones_vivas, vivas.rows[0].n);
+
   // El panel también trae el documento a documento, con su último ajuste.
   assert.equal(r.cuerpo.documentos.length, 8);
   const enPanel = r.cuerpo.documentos.filter((d) => d.ajuste);
