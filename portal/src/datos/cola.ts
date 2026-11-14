@@ -111,6 +111,20 @@ export interface Metricas {
 /** Ventana con la que el panel avisa: hoy, y lo que cae en estos días. */
 export const DIAS_AVISO = 7;
 
+/**
+ * Lo que vence dentro de la ventana de aviso. Lo ya vencido no entra:
+ * eso lo dicen la mora y la suspensión, cada una con su propia fila.
+ */
+export function porVencer(
+  suscripcion: Pick<SuscripcionAdmin, "estado" | "dias_para_vencer">,
+): boolean {
+  return (
+    suscripcion.estado !== "terminada" &&
+    suscripcion.dias_para_vencer >= 0 &&
+    suscripcion.dias_para_vencer <= DIAS_AVISO
+  );
+}
+
 function etapaDeObras(proyecto: ProyectoAdmin): Etapa {
   if (proyecto.envios > 0) return "entregado";
   if (
@@ -169,9 +183,7 @@ export function metricasDe(panel: PanelAdmin, pendientes: Pendiente[] = colaDe(p
 
   const periodo = periodoActual(panel.hoy);
   const cobrados = panel.pagos.filter((pago) => pago.vigente && pago.periodo === periodo);
-  const porCobrar = panel.suscripciones.filter(
-    (s) => s.dias_para_vencer >= 0 && s.dias_para_vencer <= DIAS_AVISO && s.estado !== "terminada",
-  );
+  const porCobrar = panel.suscripciones.filter(porVencer);
 
   return {
     clientes: panel.clientes.length,
@@ -197,10 +209,20 @@ export function colaDe(panel: PanelAdmin): Pendiente[] {
   const suscripciones = new Map(panel.suscripciones.map((s) => [s.proyecto_id, s]));
   const clientes = new Map(panel.clientes.map((c) => [c.id, c]));
   const ajustesPorProyecto = new Map<string, number>();
+  const envioPorProyecto = new Map(
+    panel.proyectos.map((proyecto) => [proyecto.id, proyecto.ultimo_envio]),
+  );
   for (const documento of panel.documentos) {
-    if (documento.ajuste) {
-      ajustesPorProyecto.set(documento.proyecto_id, (ajustesPorProyecto.get(documento.proyecto_id) ?? 0) + 1);
-    }
+    const utc = documento.ajuste?.utc;
+    if (!utc) continue;
+    // El ajuste ya salió en el último correo si es anterior: si no, el
+    // aviso de reenvío no se cierra nunca y la cola queda mentirosa.
+    const enviado = envioPorProyecto.get(documento.proyecto_id);
+    if (enviado && Date.parse(utc) <= Date.parse(enviado)) continue;
+    ajustesPorProyecto.set(
+      documento.proyecto_id,
+      (ajustesPorProyecto.get(documento.proyecto_id) ?? 0) + 1,
+    );
   }
 
   if (!panel.representante) {
@@ -290,7 +312,7 @@ export function colaDe(panel: PanelAdmin): Pendiente[] {
         id: `reenviar-${proyecto.id}`,
         prioridad: 2,
         etiqueta: `Reenviar ${proyecto.nombre} con el ajuste a mano`,
-        detalle: `${ajustes} documento(s) ajustado(s). Reenviar es gratis: lo que no cambió no vuelve a salir.`,
+        detalle: `${ajustes} documento(s) ajustado(s) después del último envío. Reenviar es gratis: lo que no cambió no vuelve a salir.`,
         accion: "reenviar",
         proyectoId: proyecto.id,
       });
@@ -329,7 +351,7 @@ export function colaDe(panel: PanelAdmin): Pendiente[] {
       id: `verificacion-${cliente.id}`,
       prioridad: 2,
       etiqueta: `Confirmar el correo de ${cliente.razon_social ?? cliente.nombre}`,
-      detalle: `${cliente.correo} sigue sin verificar; el enlace lo pide el propio cliente desde «Recuperar acceso».`,
+      detalle: `${cliente.correo} sigue sin verificar; el enlace lo pide el propio cliente desde su «Cuenta».`,
       accion: "verificacion",
       clienteId: cliente.id,
     });

@@ -12,13 +12,16 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
   colaDe,
+  DIAS_AVISO,
   etapaDe,
   metricasDe,
+  porVencer,
   textoDeBusqueda,
   type Etapa,
 } from "../src/datos/cola.ts";
 import type {
   ClienteAdmin,
+  DocumentoAdmin,
   PanelAdmin,
   PagoAdmin,
   ProyectoAdmin,
@@ -105,6 +108,24 @@ function pago(extra: Partial<PagoAdmin> = {}): PagoAdmin {
     vigente: true,
     creado: "2026-11-05T10:00:00.000Z",
     ...extra,
+  };
+}
+
+function documentoAjustado(utc: string, proyectoId = "p1"): DocumentoAdmin {
+  return {
+    id: `d-${proyectoId}-${utc.slice(0, 19).replace(/\D/g, "")}`,
+    proyecto_id: proyectoId,
+    codigo: "BWS-CON-004",
+    version: 1,
+    orden: 4,
+    hash_archivo: "b".repeat(64),
+    ajuste: {
+      sha256_original: "b".repeat(64),
+      sha256_ajustado: "c".repeat(64),
+      tamano: 200_000,
+      nota: "Firma en papel adjuntada",
+      utc,
+    },
   };
 }
 
@@ -253,29 +274,48 @@ describe("colaDe: cada regla aparece sola", () => {
     const conAjuste = colaDe(
       panel({
         proyectos: [ajustado],
-        documentos: [
-          {
-            id: "d1",
-            proyecto_id: "p1",
-            codigo: "BWS-CON-004",
-            version: 1,
-            orden: 4,
-            hash_archivo: "b".repeat(64),
-            ajuste: {
-              sha256_original: "b".repeat(64),
-              sha256_ajustado: "c".repeat(64),
-              tamano: 200_000,
-              nota: "Firma en papel adjuntada",
-              utc: "2026-11-11T10:00:00.000Z",
-            },
-          },
-        ],
+        documentos: [documentoAjustado("2026-11-11T10:00:00.000Z")],
       }),
     );
     assert.ok(conAjuste.some((p) => p.id === "reenviar-p1" && p.accion === "reenviar"));
 
     const sinAjuste = colaDe(panel({ proyectos: [ajustado] }));
     assert.ok(!sinAjuste.some((p) => p.accion === "reenviar"));
+  });
+
+  it("el reenvío se cierra cuando el ajuste ya salió en el último correo", () => {
+    const enviado = proyecto({ envios: 8, ultimo_envio: "2026-11-12T09:00:00.000Z" });
+    const despues = colaDe(
+      panel({ proyectos: [enviado], documentos: [documentoAjustado("2026-11-12T10:00:00.000Z")] }),
+    );
+    assert.ok(despues.some((p) => p.id === "reenviar-p1"));
+
+    const antes = colaDe(
+      panel({ proyectos: [enviado], documentos: [documentoAjustado("2026-11-11T10:00:00.000Z")] }),
+    );
+    assert.ok(!antes.some((p) => p.id === "reenviar-p1"));
+
+    // Exactamente en el instante del envío ya estaba dentro del correo.
+    const justo = colaDe(
+      panel({ proyectos: [enviado], documentos: [documentoAjustado("2026-11-12T09:00:00.000Z")] }),
+    );
+    assert.ok(!justo.some((p) => p.accion === "reenviar"));
+
+    // Cada proyecto se mide contra su propio envío.
+    const otro = colaDe(
+      panel({
+        proyectos: [
+          enviado,
+          proyecto({ id: "p2", nombre: "Otro", envios: 8, ultimo_envio: "2026-11-12T11:00:00.000Z" }),
+        ],
+        documentos: [
+          documentoAjustado("2026-11-12T10:00:00.000Z", "p1"),
+          documentoAjustado("2026-11-12T10:30:00.000Z", "p2"),
+        ],
+      }),
+    );
+    assert.ok(otro.some((p) => p.id === "reenviar-p1"));
+    assert.ok(!otro.some((p) => p.id === "reenviar-p2"));
   });
 
   it("deja ver el correo sin verificar del cliente", () => {
@@ -295,6 +335,21 @@ describe("colaDe: cada regla aparece sola", () => {
     );
     assert.deepEqual(pendientes.map((p) => p.prioridad), pendientes.map((p) => p.prioridad).sort((a, b) => a - b));
     assert.ok(pendientes.every((p) => p.etiqueta.length > 0 && p.detalle.length > 0));
+  });
+});
+
+describe("porVencer: la ventana de aviso, con sus dos bordes", () => {
+  const dentro = [-1, 0, DIAS_AVISO, DIAS_AVISO + 1];
+
+  it("empieza hoy y termina a los siete días", () => {
+    assert.deepEqual(
+      dentro.map((dias) => porVencer(suscripcion({ dias_para_vencer: dias }))),
+      [false, true, true, false],
+    );
+  });
+
+  it("una terminada ya no se avisa, aunque la fecha siga cerca", () => {
+    assert.equal(porVencer(suscripcion({ dias_para_vencer: 2, estado: "terminada" })), false);
   });
 });
 
@@ -330,6 +385,21 @@ describe("metricasDe: lo que entra y lo que falta", () => {
     );
     assert.equal(metricas.porCobrarEn7, 1);
     assert.equal(metricas.porCobrarUsd, 25);
+  });
+
+  it("no cuenta como «por vencer» lo que ya venció ni lo terminado", () => {
+    const metricas = metricasDe(
+      panel({
+        suscripciones: [
+          suscripcion({ id: "s1", dias_para_vencer: 0 }),
+          suscripcion({ id: "s2", dias_para_vencer: DIAS_AVISO }),
+          suscripcion({ id: "s3", dias_para_vencer: -1, estado: "mora", estado_calculado: "mora" }),
+          suscripcion({ id: "s4", dias_para_vencer: 3, estado: "terminada", monto_usd: 99 }),
+        ],
+      }),
+    );
+    assert.equal(metricas.porCobrarEn7, 2);
+    assert.equal(metricas.porCobrarUsd, 50);
   });
 
   it("separa mora, suspensión y documentos ajustados", () => {

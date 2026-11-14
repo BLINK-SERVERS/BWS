@@ -283,6 +283,10 @@ async function principal() {
     const ir = async (ruta) => {
       const respuesta = await pagina.goto(`${origen}/${ruta}`, { waitUntil: "domcontentloaded" });
       await pagina.waitForSelector("main");
+      // La pantalla hijo dispara su propia `/api/auth/sesion`: si el salto
+      // siguiente llega con esa petición en vuelo, el navegador la aborta y
+      // el registro lo cuenta como fallo de red. Se deja terminar.
+      await pagina.waitForLoadState("networkidle");
       return respuesta;
     };
 
@@ -835,13 +839,17 @@ async function principal() {
       ["finanzas", "Suscripciones, pagos y mora"],
     ];
 
-    // Resumen: con el ciclo cerrado, lo único que queda es el ajuste.
+    // Resumen: el ajuste se registró antes de que el cliente confirmara, así
+    // que ya viajó en el correo del envío. La cola tiene que quedar vacía;
+    // ofrecer un reenvío por un PDF que ya salió sería mentir.
     await alModulo("resumen", "Hoy");
     comprobar(
       "la cola cierra el ciclo sobre la evidencia",
-      (await admin.locator(".po-admin-cola li").count()) === 1 &&
-        (await admin.getByText(/Reenviar App de citas con el ajuste a mano/).count()) === 1 &&
+      (await admin.locator(".po-admin-cola li").count()) === 0 &&
+        (await admin.getByText(/Reenviar .* con el ajuste a mano/).count()) === 0 &&
+        (await admin.getByText("No hay nada pendiente").count()) === 1 &&
         (await admin.locator(".po-barra-segmento").count()) === 1,
+      await admin.locator(".po-admin-cola-etiqueta").allInnerTexts(),
     );
 
     for (const [clave, encabezado] of PANTALLAS) {
