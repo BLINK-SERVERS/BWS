@@ -137,8 +137,15 @@ async function atenderApi(req, res, url) {
     if (Array.isArray(valor)) valor.forEach((v) => headers.append(nombre, v));
     else if (valor !== undefined) headers.set(nombre, valor);
   }
-  if (!headers.has("x-forwarded-for") && req.socket.remoteAddress) {
-    headers.set("x-forwarded-for", req.socket.remoteAddress.replace(/^::ffff:/, ""));
+  // El último salto de `x-forwarded-for` es el que `ipDe` cree fiable, así
+  // que aquí también lo ponemos nosotros: la dirección del socket va al
+  // final, pase lo que haya inventado el cliente antes de llegar.
+  const salto = req.socket.remoteAddress
+    ? req.socket.remoteAddress.replace(/^::ffff:/, "")
+    : null;
+  if (salto) {
+    const previo = headers.get("x-forwarded-for");
+    headers.set("x-forwarded-for", previo ? `${previo}, ${salto}` : salto);
   }
 
   const cuerpo = req.method === "GET" || req.method === "HEAD" ? undefined : await leerCuerpo(req);

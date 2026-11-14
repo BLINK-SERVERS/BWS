@@ -3,8 +3,10 @@
    ------------------------------------------------------------
    La sesión viaja en una cookie `SameSite=Lax`. Aun así, toda
    escritura exige un `Origin` que coincida con el origen publicado.
-   Si `APP_ORIGEN` no está definido, solo se aceptan los orígenes
-   locales de desarrollo: en producción eso cierra la puerta, no la
+   Los orígenes de desarrollo solo se aceptan fuera de producción:
+   si no, cualquiera que sepa la URL podría firmar desde un
+   `localhost` propio. Si `APP_ORIGEN` no está definido en
+   producción, la lista queda vacía y eso cierra la puerta, no la
    abre.
    ============================================================ */
 
@@ -19,7 +21,8 @@ export function origenPermitido(peticion: Request): boolean {
     .split(",")
     .map((valor) => valor.trim())
     .filter(Boolean);
-  return [...LOCALES, ...configurados].includes(origen);
+  const locales = process.env.ENTORNO === "produccion" ? [] : LOCALES;
+  return [...locales, ...configurados].includes(origen);
 }
 
 export function exigirOrigen(peticion: Request): void {

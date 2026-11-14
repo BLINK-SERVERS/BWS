@@ -54,6 +54,25 @@ const SEGURIDAD: Record<string, string> = {
   "cross-origin-opener-policy": "same-origin",
 };
 
+interface IPdelCliente {
+  cf?: { clientIp?: string; ip?: string };
+}
+
+/**
+ * La IP del cliente solo es fiable en `request.cf`: el primer salto de
+ * `x-forwarded-for` lo escribe quien llama. Se fija en `cf-connecting-ip`
+ * para que las rutas la lean igual dentro y fuera del Durable Object,
+ * donde `request.cf` no llega.
+ */
+function conIP(peticion: Request): Request {
+  const ip = (peticion as IPdelCliente).cf?.clientIp ?? (peticion as IPdelCliente).cf?.ip;
+  if (!ip) return peticion;
+  const cabeceras = new Headers(peticion.headers);
+  cabeceras.set("cf-connecting-ip", ip);
+  cabeceras.delete("x-real-ip");
+  return new Request(peticion, { headers: cabeceras });
+}
+
 function conCabeceras(respuesta: Response, api: boolean, ruta: string): Response {
   const cabeceras = new Headers(respuesta.headers);
   for (const [nombre, valor] of Object.entries(SEGURIDAD)) cabeceras.set(nombre, valor);
@@ -85,13 +104,14 @@ export default {
   async fetch(peticion: Request, entorno: Entorno): Promise<Response> {
     const { pathname } = new URL(peticion.url);
     const api = pathname === "/api" || pathname.startsWith("/api/");
+    const llamada = api ? conIP(peticion) : peticion;
     try {
       const pesada = PESADAS[pathname];
       if (pesada) {
         const id = entorno.CARGA.idFromName(pesada);
-        return conCabeceras(await entorno.CARGA.get(id).fetch(peticion), true, pathname);
+        return conCabeceras(await entorno.CARGA.get(id).fetch(llamada), true, pathname);
       }
-      const respuesta = api ? await despachar(peticion) : await entorno.ASSETS.fetch(peticion);
+      const respuesta = api ? await despachar(llamada) : await entorno.ASSETS.fetch(peticion);
       return conCabeceras(respuesta, api, pathname);
     } catch (error) {
       console.error("Error en el Worker:", error instanceof Error ? error.message : error);

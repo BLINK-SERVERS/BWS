@@ -17,8 +17,13 @@ import {
 
 let cache: NeonQueryFunction<false, false> | null = null;
 
+/**
+ * Solo `DATABASE_URL_APP`, el rol `bws_app` sujeto a RLS. Caer a
+ * `DATABASE_URL` sería abrir la puerta: el dueño ve todas las filas y
+ * los filtros por cliente dejarían de significar nada.
+ */
 function cadena(): string {
-  const url = process.env.DATABASE_URL_APP ?? process.env.DATABASE_URL;
+  const url = process.env.DATABASE_URL_APP;
   if (!url) throw new Error("Falta DATABASE_URL_APP: la API no tiene base.");
   return url;
 }

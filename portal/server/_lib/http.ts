@@ -33,19 +33,60 @@ export async function leerJson<T>(peticion: Request): Promise<T | null> {
 }
 
 /**
- * Primer salto de `x-forwarded-for`; en Cloudflare es la IP del cliente.
- * Solo se acepta una forma de IPv4 o IPv6: la columna es `inet` y un
- * valor inventado en la cabecera no debe romper la petición.
+ * IP real del cliente. En producción el Worker la pone en
+ * `cf-connecting-ip` leyéndola de `request.cf`, que es lo único que el
+ * cliente no puede fingir; la cabecera viaja hasta el Durable Object.
+ * El respaldo es el último salto de `x-forwarded-for`, que lo añade el
+ * servidor local desde el socket.
+ *
+ * Se valida la forma exacta: la columna es `inet`, y un valor inventado
+ * rompería la petición con un error de Postgres.
  */
+const IPV4 =
+  /^(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(?:\.(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}$/;
+const HEX = /^[0-9a-fA-F]{1,4}$/;
+
+/** Cuántos grupos de 16 bits ocupa ese trozo; `null` si está mal formado. */
+function contarGrupos(trozo: string): number | null {
+  if (trozo === "") return 0;
+  const partes = trozo.split(":");
+  let n = 0;
+  for (const [indice, parte] of partes.entries()) {
+    if (parte.includes(".")) {
+      // Un IPv4 incrustado solo vale al final y ocupa dos grupos.
+      if (indice !== partes.length - 1 || !IPV4.test(parte)) return null;
+      n += 2;
+    } else if (parte === "" || !HEX.test(parte)) return null;
+    else n += 1;
+  }
+  return n;
+}
+
+function esIPv6(valor: string): boolean {
+  if (valor.length > 45 || valor.includes("%")) return false;
+  const doble = valor.indexOf("::");
+  if (doble !== -1 && valor.indexOf("::", doble + 1) !== -1) return false;
+  if (doble === -1) {
+    // Sin `::` los ocho grupos tienen que estar todos, sin huecos.
+    if (valor.startsWith(":") || valor.endsWith(":")) return false;
+    return contarGrupos(valor) === 8;
+  }
+  const izq = contarGrupos(valor.slice(0, doble));
+  const der = contarGrupos(valor.slice(doble + 2));
+  // El `::` guarda al menos un grupo de ceros, así que nunca llega a ocho.
+  return izq !== null && der !== null && izq + der <= 7;
+}
+
+function formaDeIP(cruda: string | null): string | null {
+  const bruto = (cruda ?? "").trim();
+  const ip = bruto.startsWith("[") && bruto.endsWith("]") ? bruto.slice(1, -1) : bruto;
+  if (!ip) return null;
+  return IPV4.test(ip) || esIPv6(ip) ? ip : null;
+}
+
 export function ipDe(peticion: Request): string | null {
-  const reenviada = peticion.headers.get("x-forwarded-for");
-  const ip = reenviada?.split(",")[0]?.trim() || peticion.headers.get("x-real-ip")?.trim();
-  if (!ip || ip.length > 45) return null;
-  const sinCorchetes = ip.replace(/^\[|\]$/g, "");
-  const sinPuerto = /^\d{1,3}(?:\.\d{1,3}){3}:\d+$/.test(sinCorchetes)
-    ? sinCorchetes.replace(/:\d+$/, "")
-    : sinCorchetes;
-  return /^[0-9a-fA-F:.]+$/.test(sinPuerto) ? sinPuerto : null;
+  const reenviada = peticion.headers.get("x-forwarded-for")?.split(",").at(-1) ?? null;
+  return formaDeIP(peticion.headers.get("cf-connecting-ip")) ?? formaDeIP(reenviada);
 }
 
 export function agenteDe(peticion: Request): string | null {

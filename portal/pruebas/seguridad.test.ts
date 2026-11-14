@@ -1,9 +1,9 @@
 /* ============================================================
-   Contraseñas, tokens, cookies y trazo de firma
+   Contraseñas, tokens, cookies, IP, origen y trazo de firma
    ------------------------------------------------------------
    Estas pruebas no tocan la base: comprueban las piezas que
-   deciden si una credencial vale o si una imagen puede entrar en
-   `firmas_cliente`.
+   deciden si una credencial vale, qué dirección se apunta en la
+   auditoría y qué origen puede escribir.
    ============================================================ */
 
 import assert from "node:assert/strict";
@@ -12,6 +12,8 @@ import { ErrorHttp } from "../server/_lib/respuestas.ts";
 import { hashearClave, verificarClave, verificarConRelleno } from "../server/_lib/clave.ts";
 import { cookieBorrada, cookieDeSesion, hashToken, tokenNuevo } from "../server/_lib/sesion.ts";
 import { validarFirmaPNG } from "../server/_lib/imagen.ts";
+import { ipDe } from "../server/_lib/http.ts";
+import { origenPermitido } from "../server/_lib/csrf.ts";
 
 describe("claves con scrypt", () => {
   it("guarda el formato con parámetros y una sal distinta cada vez", async () => {
@@ -137,5 +139,120 @@ describe("trazo de firma", () => {
     assert.equal(rechazo(() => validarFirmaPNG(pngDe(100, 200))).estado, 400);
     assert.equal(rechazo(() => validarFirmaPNG(pngDe(600, 20))).estado, 400);
     assert.equal(rechazo(() => validarFirmaPNG(pngDe(5000, 200))).estado, 400);
+  });
+});
+
+function peticionCon(cabeceras: Record<string, string>): Request {
+  return new Request("http://localhost/api/auth/ingreso", { headers: cabeceras });
+}
+
+describe("IP que se audita", () => {
+  it("usa la del borde por encima de cualquier cabecera inventada", () => {
+    const r = ipDe(
+      peticionCon({
+        "cf-connecting-ip": "203.0.113.9",
+        "x-forwarded-for": "1.1.1.1, 8.8.8.8, 198.51.100.7",
+      }),
+    );
+    assert.equal(r, "203.0.113.9");
+  });
+
+  it("sin la del borde toma el último salto, no el que puso el cliente", () => {
+    assert.equal(
+      ipDe(peticionCon({ "x-forwarded-for": "1.2.3.4, 198.51.100.7" })),
+      "198.51.100.7",
+    );
+    assert.equal(ipDe(peticionCon({ "x-forwarded-for": "198.51.100.7" })), "198.51.100.7");
+  });
+
+  it("acepta las formas que caben en una columna inet", () => {
+    for (const valor of [
+      "203.0.113.9",
+      "0.0.0.0",
+      "255.255.255.255",
+      "2001:db8::1",
+      "::1",
+      "::",
+      "fe80:0:0:0:0:0:0:1",
+      "64:ff9b::203.0.113.9",
+      "1:2:3:4:5:6:1.2.3.4",
+      "[2001:db8::1]",
+    ]) {
+      assert.equal(ipDe(peticionCon({ "cf-connecting-ip": valor })), valor.replace(/^\[|\]$/g, ""), valor);
+    }
+  });
+
+  it("devuelve null antes de que la basura llegue a Postgres", () => {
+    const descartables = [
+      "",
+      "no-es-una-ip",
+      "999.1.1.1",
+      "1.2.3",
+      "1.2.3.4, 5.6.7.8",
+      "1.2.3.4/24",
+      "1.2.3.4:5678",
+      "2001:db8:::1",
+      "1:2:3:4:5:6:7:8:9",
+      "abcd:1.2.3.4",
+      "dead:beef",
+      "1:2:3:4:5:6:7",
+      "fe80::1%eth0",
+      "12345::1",
+    ];
+    for (const valor of descartables) {
+      assert.equal(ipDe(peticionCon({ "cf-connecting-ip": valor })), null, valor);
+    }
+    // Sin ninguna de las dos cabeceras tampoco hay IP.
+    assert.equal(ipDe(peticionCon({})), null);
+    assert.equal(ipDe(peticionCon({ "cf-connecting-ip": "", "x-forwarded-for": "" })), null);
+  });
+
+  it("la basura del borde no tapa un último salto válido", () => {
+    const r = ipDe(
+      peticionCon({ "cf-connecting-ip": "nada", "x-forwarded-for": "198.51.100.7" }),
+    );
+    assert.equal(r, "198.51.100.7");
+  });
+});
+
+describe("origen de las mutaciones", () => {
+  const entorno = process.env.ENTORNO;
+  const appOrigen = process.env.APP_ORIGEN;
+
+  afterEach(() => {
+    if (entorno === undefined) delete process.env.ENTORNO;
+    else process.env.ENTORNO = entorno;
+    if (appOrigen === undefined) delete process.env.APP_ORIGEN;
+    else process.env.APP_ORIGEN = appOrigen;
+  });
+
+  it("en producción localhost solo vale si alguien lo declara", () => {
+    process.env.ENTORNO = "produccion";
+    process.env.APP_ORIGEN = "https://bws.blink.com.ve";
+    assert.equal(origenPermitido(peticionCon({ origin: "https://bws.blink.com.ve" })), true);
+    assert.equal(origenPermitido(peticionCon({ origin: "http://localhost:5177" })), false);
+    assert.equal(origenPermitido(peticionCon({ origin: "http://127.0.0.1:5177" })), false);
+  });
+
+  it("sin APP_ORIGEN en producción no hay origen que valga", () => {
+    process.env.ENTORNO = "produccion";
+    delete process.env.APP_ORIGEN;
+    assert.equal(origenPermitido(peticionCon({ origin: "https://bws.blink.com.ve" })), false);
+    assert.equal(origenPermitido(peticionCon({})), false);
+  });
+
+  it("fuera de producción el desarrollo sigue entrando", () => {
+    process.env.ENTORNO = "local";
+    assert.equal(origenPermitido(peticionCon({ origin: "http://localhost:5177" })), true);
+    assert.equal(origenPermitido(peticionCon({ origin: "http://127.0.0.1:5177" })), true);
+    assert.equal(origenPermitido(peticionCon({ origin: "https://victimia.example" })), false);
+  });
+
+  it("los orígenes declarados se leen con espacios y sin entrar en el vacío", () => {
+    process.env.ENTORNO = "produccion";
+    process.env.APP_ORIGEN = " https://a.example ,, https://b.example ";
+    assert.equal(origenPermitido(peticionCon({ origin: "https://a.example" })), true);
+    assert.equal(origenPermitido(peticionCon({ origin: "https://b.example" })), true);
+    assert.equal(origenPermitido(peticionCon({ origin: "" })), false);
   });
 });
