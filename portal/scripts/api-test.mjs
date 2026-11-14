@@ -88,6 +88,7 @@ const { default: recalcular } = await import("../server/suscripciones/recalcular
 const { default: suspender } = await import("../server/suscripciones/suspender.ts");
 const { default: reactivar } = await import("../server/suscripciones/reactivar.ts");
 const { hashearClave } = await import("../server/_lib/clave.ts");
+const { hoyUTC, sumarDias } = await import("../server/_lib/suscripcion.ts");
 const { hashCadena, sha256Hex } = await import("../render/hash.ts");
 const { sembrarPlantillas } = await import("./sembrar-plantillas.mjs");
 
@@ -1616,6 +1617,62 @@ probar("admin: el panel reúne clientes, expedientes, pagos y plantillas", async
   assert.match(r.cuerpo.representante.sha256, /^[0-9a-f]{64}$/);
   assert.equal(r.cuerpo.representante.png, undefined);
   pasar("401/403, avance del expediente, pago efectivo, ocho plantillas y sin PNG del representante");
+});
+
+probar("pago: un periodo viejo adelanta la fecha pero no borra la mora", async () => {
+  const hoy = hoyUTC();
+  const vencido = sumarDias(hoy, -20);
+  // Con la gracia de cinco días, veinte días de mora caen en la banda de
+  // suspensión: la licencia está caída y el cliente no puede enviar.
+  const haceCuatro = new Date(
+    Date.UTC(Number(hoy.slice(0, 4)), Number(hoy.slice(5, 7)) - 4, 1),
+  );
+  const periodoViejo = `${haceCuatro.getUTCFullYear()}-${String(
+    haceCuatro.getUTCMonth() + 1,
+  ).padStart(2, "0")}`;
+
+  await cliente.query(
+    `update suscripciones
+        set estado = 'suspendida', proximo_vencimiento = $2::date
+      where id = $1`,
+    [suscripcionId, vencido],
+  );
+  await cliente.query(
+    `update licencias set estado = 'suspendida' where proyecto_id = $1`,
+    [proyectoGuardado.id],
+  );
+
+  const r = await invocar(registrarPago, "/api/suscripciones/pago", {
+    metodo: "POST",
+    cookie: cookieAdmin,
+    cuerpo: {
+      suscripcion_id: suscripcionId,
+      periodo: periodoViejo,
+      monto: 30,
+      moneda: "USD",
+      referencia: "REF-PERIODO-VIEJO",
+    },
+  });
+  assert.equal(r.estado, 201);
+  // El pago entró, pero cubrir un mes antiguo no borra veinte días de mora:
+  // decir `al_dia` aquí sería reabrir la licencia sin cobro real.
+  assert.equal(r.cuerpo.suscripcion.estado, "suspendida");
+  assert.equal(r.cuerpo.suscripcion.proximo_vencimiento, vencido);
+
+  const licencia = await cliente.query(
+    "select estado from licencias where proyecto_id = $1",
+    [proyectoGuardado.id],
+  );
+  assert.equal(licencia.rows[0].estado, "suspendida");
+
+  const detalle = await cliente.query(
+    `select detalle ->> 'estado_nuevo' as nuevo, detalle ->> 'periodo' as periodo
+       from eventos where accion = 'pago.registrado'
+      order by ocurrido desc limit 1`,
+  );
+  assert.equal(detalle.rows[0].nuevo, "suspendida");
+  assert.equal(detalle.rows[0].periodo, periodoViejo);
+  pasar("periodo viejo pagado: la mora queda a la vista y la licencia sigue suspendida");
 });
 
 probar("mora: a los treinta días la licencia termina y no hay vuelta", async () => {

@@ -5,10 +5,12 @@
    es una fila nueva e inmutable: una corrección se hace anulando y
    registrando otro, nunca editando.
 
-   Registrar el pago adelanta el vencimiento (solo hacia adelante),
-   devuelve la suscripción a `al_dia` y reactiva la licencia. Dos
-   altas del mismo periodo no caben: el disparador de la base
-   responde 23505 y aquí se convierte en un 409 legible.
+   Registrar el pago adelanta el vencimiento (solo hacia adelante) y le
+   devuelve el estado que le corresponde a esa fecha nueva: `al_dia` si
+   hoy no la pasó, `mora` o `suspendida` si sigue pendiente. La licencia
+   se reactiva solo con esos dos estados. Dos altas del mismo periodo no
+   caben: el disparador de la base responde 23505 y aquí se convierte en
+   un 409 legible.
 
    Con moneda VES la tasa BCV es obligatoria y queda guardada con
    el pago: sin ella no se puede reconstruir el monto en bolívares.
@@ -21,6 +23,7 @@ import { manejar } from "../_lib/manejador";
 import { codigoPostgres, ErrorHttp } from "../_lib/respuestas";
 import { exigirAdmin, leerSesion } from "../_lib/sesion";
 import {
+  estadoPorFecha,
   fechaISO,
   fechaTexto,
   hoyUTC,
@@ -75,6 +78,7 @@ export default manejar(["POST"], async (peticion) => {
   if (!fecha) {
     throw new ErrorHttp(400, "La fecha del pago no es válida.", "fecha");
   }
+  const hoy = hoyUTC();
 
   const [filas] = await enTransaccion(sesion.usuarioId, sesion.rol, (txn) => [
     txn`select id, proyecto_id, estado, dia_cobro, dias_gracia, proximo_vencimiento
@@ -90,7 +94,16 @@ export default manejar(["POST"], async (peticion) => {
 
   const proyectoId = String(suscripcion.proyecto_id);
   const anterior = String(suscripcion.estado);
+  const gracia = Number(suscripcion.dias_gracia);
   const nuevoVencimiento = vencimientoTrasPeriodo(periodo, Number(suscripcion.dia_cobro));
+  // El pago no declara `al_dia` por sí solo: adelanta el vencimiento y el
+  // estado es el que resulta de comparar esa fecha con hoy. Si se paga un
+  // periodo viejo, la suscripción sigue en mora o suspendida con su fecha
+  // corregida; decirle `al_dia` sería tapar la mora y reabrir la licencia.
+  const vigente = fechaTexto(suscripcion.proximo_vencimiento);
+  const vencimientoFinal = vigente >= nuevoVencimiento ? vigente : nuevoVencimiento;
+  const estadoTrasPago = estadoPorFecha(vencimientoFinal, gracia, hoy);
+  const levantaLicencia = estadoTrasPago === "al_dia" || estadoTrasPago === "mora";
   const ip = ipDe(peticion);
   const agente = agenteDe(peticion);
 
@@ -102,14 +115,15 @@ export default manejar(["POST"], async (peticion) => {
                   ${tasa}, ${referencia}, ${fecha}::date)
           returning id, periodo, monto, moneda, tasa_bcv, referencia, fecha, estado, creado`,
       txn`update suscripciones
-          set estado = 'al_dia',
+          set estado = ${estadoTrasPago},
               proximo_vencimiento = greatest(proximo_vencimiento, ${nuevoVencimiento}::date),
               actualizada = now()
           where id = ${suscripcionId} and estado <> 'terminada'
           returning proyecto_id, estado, proximo_vencimiento, dias_gracia`,
       txn`update licencias
           set estado = 'activa'
-          where proyecto_id = ${proyectoId}::uuid and estado = 'suspendida'`,
+          where proyecto_id = ${proyectoId}::uuid and estado = 'suspendida'
+            and ${levantaLicencia}::boolean`,
       txn`insert into eventos (actor, rol, accion, entidad, entidad_id, detalle, ip, agente)
           values (${sesion.usuarioId}, 'admin', 'pago.registrado', 'suscripciones',
                   ${suscripcionId},
@@ -121,7 +135,7 @@ export default manejar(["POST"], async (peticion) => {
                     referencia,
                     fecha,
                     estado_anterior: anterior,
-                    estado_nuevo: "al_dia",
+                    estado_nuevo: estadoTrasPago,
                   })}::jsonb,
                   ${ip}, ${agente})`,
       txn`select estado, proximo_vencimiento, dias_gracia
@@ -147,7 +161,7 @@ export default manejar(["POST"], async (peticion) => {
             }
           : null,
         suscripcion: {
-          estado: fila ? String(fila.estado) : "al_dia",
+          estado: fila ? String(fila.estado) : estadoTrasPago,
           proximo_vencimiento: fila
             ? fechaTexto(fila.proximo_vencimiento)
             : nuevoVencimiento,
