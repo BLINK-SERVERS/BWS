@@ -220,7 +220,7 @@ function TarjetaLicencia() {
             </div>
           ) : null}
           {vista.pagos.length > 0 ? (
-            <div className="po-tabla-marco">
+            <div className="po-tabla-marco" tabIndex={0}>
               <table>
                 <caption className="po-apagado">Pagos registrados</caption>
                 <thead>
@@ -338,7 +338,7 @@ function TarjetaExpediente() {
       <p className="po-entrada">
         Tu expediente reúne el contrato y sus anexos. Cada descarga queda auditada.
       </p>
-      <div className="po-tabla-marco">
+      <div className="po-tabla-marco" tabIndex={0}>
         <table>
           <thead>
             <tr>

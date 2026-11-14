@@ -43,6 +43,7 @@ import {
   ETAPAS,
   ETIQUETA_ETAPA,
   metricasDe,
+  porVencer,
   textoDeBusqueda,
   type Accion,
   type Etapa,
@@ -309,12 +310,14 @@ function SeccionRepresentante({
               {guardando ? "Guardando…" : "Guardar firma"}
             </button>
           </div>
-          {fallo ? (
-            <p className="po-campo-error" role="alert">
-              {fallo}
-            </p>
-          ) : null}
         </form>
+      ) : null}
+      {/* Fuera del formulario: el fallo al descargar la firma también
+          tiene que verse cuando el panel de captura está cerrado. */}
+      {fallo ? (
+        <p className="po-campo-error" role="alert">
+          {fallo}
+        </p>
       ) : null}
       {aviso ? (
         <p className="po-nota po-nota-ok" role="status">
@@ -386,7 +389,7 @@ function ControlAjuste({
     <div className="po-ajuste">
       <div className="po-campo">
         <label className="po-campo-titulo" htmlFor={`ajuste-${documento.id}`}>
-          Archivo ajustado
+          Archivo ajustado — {documento.codigo}
         </label>
         <input
           ref={entrada}
@@ -543,7 +546,7 @@ function TarjetaExpediente({
       </dl>
 
       {documentos.length > 0 ? (
-        <div className="po-tabla-marco">
+        <div className="po-tabla-marco" tabIndex={0}>
           <table>
             <caption className="po-apagado">
               Ajuste a mano: descarga el archivo que está en uso —al principio el generado—,
@@ -651,7 +654,7 @@ function TarjetaExpediente({
       ) : null}
 
       {verificacion ? (
-        <div className="po-tabla-marco">
+        <div className="po-tabla-marco" tabIndex={0}>
           <table>
             <caption className="po-apagado">
               {verificacion.integro && verificacion.completo
@@ -869,12 +872,15 @@ function detalleTexto(detalle: Record<string, unknown> | null): string {
   if (!detalle) return "";
   return Object.entries(detalle)
     .map(([clave, valor]) => {
+      // Un `null` en la evidencia significa «sin dato», no la palabra null.
       const texto =
-        valor && typeof valor === "object"
-          ? Array.isArray(valor)
-            ? String(valor.length)
-            : JSON.stringify(valor)
-          : String(valor);
+        valor === null || valor === undefined
+          ? "—"
+          : typeof valor === "object"
+            ? Array.isArray(valor)
+              ? String(valor.length)
+              : JSON.stringify(valor)
+            : String(valor);
       const corto = texto.length > 24 ? `${texto.slice(0, 24)}…` : texto;
       return `${CLAVES_DETALLE[clave] ?? clave}: ${corto}`;
     })
@@ -887,7 +893,7 @@ function HistorialExpediente({ proyectoId }: { proyectoId: string }) {
   const [fallo, setFallo] = useState<string | null>(null);
 
   const leer = async () => {
-    if (eventos || cargando) return;
+    if (cargando) return;
     setCargando(true);
     setFallo(null);
     try {
@@ -939,7 +945,7 @@ function HistorialExpediente({ proyectoId }: { proyectoId: string }) {
                 {eventos.map((evento) => (
                   <tr key={evento.id}>
                     <th scope="row">
-                      {evento.ocurrido ? new Date(evento.ocurrido).toLocaleString("es-VE") : "—"}
+                      {instanteLegible(evento.ocurrido)}
                     </th>
                     <td>{ACCIONES[evento.accion] ?? evento.accion}</td>
                     <td>
@@ -999,6 +1005,9 @@ function FormularioPago({
         `Pago registrado. La suscripción pasó de «${respuesta.anterior}» a «${respuesta.suscripcion.estado}».`,
       );
       setReferencia("");
+      // El campo periodo se quedó en el mes recién cobrado: volver a pulsar
+      // daría 409. Se alinea con la fecha que acabamos de mover.
+      setPeriodo(respuesta.suscripcion.proximo_vencimiento.slice(0, 7));
       await alCambiar();
     } catch (error) {
       setFallo(mensajeDe(error, "No pudimos registrar el pago."));
@@ -1227,7 +1236,7 @@ function TarjetaSuscripcion({
 
       <FormularioPago suscripcion={suscripcion} alCambiar={alCambiar} />
 
-      <div className="po-tabla-marco">
+      <div className="po-tabla-marco" tabIndex={0}>
         <table>
           <caption className="po-apagado">Pagos registrados y anulados</caption>
           <thead>
@@ -1487,18 +1496,12 @@ function SeccionSuscripciones({
   );
 
   const metricas = useMemo(() => metricasDe(panel), [panel]);
-  const porVencer = panel.suscripciones.filter(
-    (suscripcion) =>
-      suscripcion.estado !== "terminada" && suscripcion.dias_para_vencer <= DIAS_AVISO,
-  ).length;
+  const porVencer7 = panel.suscripciones.filter(porVencer).length;
   const visibles = panel.suscripciones.filter((suscripcion) => {
     const proyecto = proyectos.get(suscripcion.proyecto_id);
     const cliente = proyecto ? clientes.get(proyecto.cliente_id) : undefined;
     if (!coincide(textoDeBusqueda(cliente, proyecto), busqueda)) return false;
-    return (
-      !soloVencidos ||
-      (suscripcion.estado !== "terminada" && suscripcion.dias_para_vencer <= DIAS_AVISO)
-    );
+    return !soloVencidos || porVencer(suscripcion);
   });
 
   const recalcular = async () => {
@@ -1534,7 +1537,7 @@ function SeccionSuscripciones({
         <Metrica
           etiqueta={`Por cobrar en ${DIAS_AVISO} días`}
           valor={monto(metricas.porCobrarUsd, "USD")}
-          ayuda={`${metricas.porCobrarEn7} suscripción(es) vencen pronto.`}
+          ayuda={`${metricas.porCobrarEn7} suscripción(es) vencen pronto. Es el monto de referencia en USD; el cobro en bolívares se cierra con la tasa del día en el propio pago.`}
         />
         <Metrica
           etiqueta="En mora"
@@ -1560,7 +1563,7 @@ function SeccionSuscripciones({
           aria-pressed={soloVencidos}
           onClick={() => setSoloVencidos((anterior) => !anterior)}
         >
-          Vencen en {DIAS_AVISO} días ({porVencer})
+          Vencen en {DIAS_AVISO} días ({porVencer7})
         </button>
         <button
           type="button"
@@ -2305,11 +2308,18 @@ export function Admin({ sesion }: { sesion: SesionPortal | null | undefined }) {
   const [busqueda, setBusqueda] = useState<string>(() => parametrosDeQuery().busqueda);
   const [enfocar, setEnfocar] = useState<string | null>(null);
 
+  // Dos `cargar()` seguidos —un refresco mientras el anterior termina—
+  // pueden volver desordenados: gana siempre el último que se pidió.
+  const ultimaCarga = useRef(0);
   const cargar = useCallback(async () => {
+    const numero = ++ultimaCarga.current;
     try {
-      setPanel(await api.panelAdmin());
+      const datos = await api.panelAdmin();
+      if (numero !== ultimaCarga.current) return;
+      setPanel(datos);
       setFallo(null);
     } catch (error) {
+      if (numero !== ultimaCarga.current) return;
       setFallo(mensajeDe(error, "No pudimos cargar el panel de administración."));
     }
   }, []);
@@ -2329,7 +2339,9 @@ export function Admin({ sesion }: { sesion: SesionPortal | null | undefined }) {
 
   const irA = useCallback(
     (nuevo: Modulo, id?: string) => {
-      fijar(nuevo, busqueda);
+      // Un salto tiene que encontrar su destino: el filtro activo puede
+      // taparlo. Cambiar de módulo a secas sí conserva la búsqueda.
+      fijar(nuevo, id ? "" : busqueda);
       if (id) setEnfocar(id);
     },
     [busqueda, fijar],

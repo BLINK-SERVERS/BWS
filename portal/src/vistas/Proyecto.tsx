@@ -54,7 +54,7 @@ function AnexoB({ plan }: { plan: PlanVista }) {
           ? "sin costo mensual"
           : `USD ${plan.precio_usd} al mes`}
       </p>
-      <div className="po-tabla-marco">
+      <div className="po-tabla-marco" tabIndex={0}>
         <table>
           <thead>
             <tr>

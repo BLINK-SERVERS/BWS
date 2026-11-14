@@ -37,7 +37,7 @@ export function TextoLegal({ bloques }: { bloques: Bloque[] }) {
             );
           case "tabla":
             return (
-              <div className="po-tabla-marco" key={clave}>
+              <div className="po-tabla-marco" key={clave} tabIndex={0}>
                 <table>
                   <thead>
                     <tr>
