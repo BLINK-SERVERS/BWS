@@ -45,19 +45,17 @@ export default manejar(["POST"], async (peticion) => {
   const clienteId = String(proyecto.fila.cliente_id);
   const firma = await firmaDeExpediente(sesion, clienteId);
 
+  // Todo se acota al proyecto que se está confirmando: una cuenta puede
+  // tener más de un proyecto, y firmar el de al lado no vale.
   const [documentos, actos] = await enTransaccion(sesion.usuarioId, sesion.rol, (txn) => [
     txn`select d.id, d.sello
         from documentos d
-        join proyectos p on p.id = d.proyecto_id
-        join clientes c on c.id = p.cliente_id
-        where c.usuario_id = ${sesion.usuarioId}
+        where d.proyecto_id = ${proyectoId}::uuid
         order by d.orden`,
     txn`select a.documento_id, a.firmante
         from actos_firma a
         join documentos d on d.id = a.documento_id
-        join proyectos p on p.id = d.proyecto_id
-        join clientes c on c.id = p.cliente_id
-        where c.usuario_id = ${sesion.usuarioId}`,
+        where d.proyecto_id = ${proyectoId}::uuid`,
   ]);
 
   const docs = (documentos ?? []) as Record<string, unknown>[];
@@ -98,9 +96,7 @@ export default manejar(["POST"], async (peticion) => {
             insert into actos_firma (documento_id, firmante, firma_id, sello, ip, agente, utc)
             select d.id, 'cliente', ${firma.id}::uuid, d.sello, ${ip}, ${agente}, now()
             from documentos d
-            join proyectos p on p.id = d.proyecto_id
-            join clientes c on c.id = p.cliente_id
-            where c.usuario_id = ${sesion.usuarioId}
+            where d.proyecto_id = ${proyectoId}::uuid
               and not exists (
                 select 1 from actos_firma a
                 where a.documento_id = d.id and a.firmante = 'cliente'
