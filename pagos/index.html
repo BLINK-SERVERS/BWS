@@ -1,0 +1,464 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Formas de pago — Blink Web Services</title>
+    <meta name="robots" content="index, follow" />
+    <meta name="theme-color" content="#f2f2f7" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="icon" type="image/png" sizes="512x512" href="/favicon.png" />
+    <style>
+      /* La misma decisión que en el 404: hoja en línea, sin arrancar el
+         bundle, para que una página de estas se abra aunque el JS no
+         exista. Los tokens van copiados a mano, como en el 404: si
+         dependieran de la hoja del sitio, la página legal se caería con
+         ella. */
+      :root {
+        --azul: #007aff;
+        --tinta: #1d1d1f;
+        --tinta-2: #424242;
+        --fondo: #f2f2f7;
+        --papel: #ffffff;
+        --linea: rgba(66, 66, 66, 0.16);
+        --enlace: #0066cc; /* --color-action-fill: el blanco encima pasa AA */
+        --medida: 70ch; /* 65–75 caracteres por línea */
+        --pila: "SF Pro", "SF Pro Text", "SF Pro Display", "Inter", -apple-system,
+          BlinkMacSystemFont, "Segoe UI", Roboto, system-ui, "Helvetica Neue", Arial,
+          sans-serif;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: var(--fondo);
+        color: var(--tinta);
+        font-family: var(--pila);
+        font-optical-sizing: auto;
+        font-size: 1.0625rem;
+        line-height: 1.6;
+        -webkit-text-size-adjust: 100%;
+      }
+      .caja {
+        max-width: 40rem;
+        margin: 0 auto;
+        padding: 24px 20px 8px;
+      }
+      .marca {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 14px 18px;
+      }
+      .marca svg {
+        width: 104px;
+        height: auto;
+        display: block;
+        color: var(--azul);
+      }
+      h1 {
+        font-size: clamp(2rem, 7vw, 2.75rem);
+        line-height: 1.08;
+        letter-spacing: -0.03em;
+        margin: 30px 0 12px;
+      }
+      h2 {
+        font-size: clamp(1.25rem, 2.6vw, 1.5rem);
+        line-height: 1.25;
+        letter-spacing: -0.02em;
+        margin: 40px 0 10px;
+      }
+      h3 {
+        font-size: 1.0625rem;
+        font-weight: 700;
+        line-height: 1.35;
+        letter-spacing: -0.01em;
+        margin: 26px 0 6px;
+      }
+      .bajada {
+        font-size: clamp(1.0625rem, 1.55vw, 1.25rem);
+        color: var(--tinta-2);
+        margin: 0 0 10px;
+      }
+      p {
+        margin: 0 0 16px;
+        max-width: var(--medida);
+      }
+      ul {
+        margin: 0 0 18px;
+        padding-left: 22px;
+        max-width: var(--medida);
+      }
+      li {
+        margin: 0 0 8px;
+        max-width: var(--medida);
+      }
+      /* Enlace en prosa: el relleno no se ve, pero abre el blanco táctil
+         hasta los 44 px sin mover una sola línea del párrafo. */
+      main a:not(.pastilla) {
+        color: var(--enlace);
+        padding: 9px 2px;
+        text-decoration: underline;
+        text-underline-offset: 3px;
+      }
+      /* Nav y pie: objetivo táctil de 48 px, el mismo criterio del 404. */
+      .pastilla {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 48px;
+        padding: 12px 20px;
+        border: 1px solid var(--linea);
+        border-radius: 999px;
+        background: var(--papel);
+        color: var(--enlace);
+        font-weight: 600;
+        font-size: 0.9375rem;
+        text-decoration: none;
+        white-space: nowrap;
+      }
+      .pastilla--accion {
+        background: #0066cc;
+        border-color: transparent;
+        color: #fff;
+      }
+      .pastilla:hover {
+        filter: brightness(1.04);
+      }
+      .pastilla--accion:hover {
+        filter: brightness(1.08);
+      }
+      a:focus-visible {
+        outline: 2px solid var(--azul);
+        outline-offset: 2px;
+      }
+      .paginas ul {
+        list-style: none;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin: 26px 0 0;
+        padding: 0;
+        max-width: none;
+      }
+      .nota {
+        background: var(--papel);
+        border: 1px solid var(--linea);
+        border-radius: 18px;
+        padding: 20px 22px;
+        margin: 36px 0 0;
+      }
+      .nota h2 {
+        margin: 0 0 8px;
+        font-size: 1.0625rem;
+      }
+      .nota p {
+        margin: 0;
+        color: var(--tinta-2);
+      }
+      .pie {
+        border-top: 1px solid var(--linea);
+        margin: 44px 0 0;
+        padding: 22px 0 46px;
+      }
+      .pie ul {
+        list-style: none;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin: 0 0 14px;
+        padding: 0;
+        max-width: none;
+      }
+      .pie p {
+        margin: 0;
+        color: var(--tinta-2);
+        font-size: 0.9375rem;
+      }
+      [translate="no"] {
+        font-style: normal;
+      }
+      @media (prefers-reduced-motion: reduce) {
+        a,
+        .pastilla {
+          transition: none;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="caja">
+      <header class="marca">
+        <svg
+          viewBox="76 114 360 284"
+          fill="currentColor"
+          role="img"
+          aria-label="Blink"
+        >
+          <path
+            d="M 122 164 H 178 C 198 164 224 164 224 198 C 224 232 198 232 178 232 H 122 C 102 232 76 232 76 198 C 76 164 102 164 122 164 Z"
+          />
+          <path d="M 436 182 A 68 68 0 1 1 299.99 182 A 68 68 0 1 1 436 182 Z" />
+          <path
+            d="M 212 286 H 300 C 331.55 286 340.42 286 337.5 314 C 332.064081 366.125250 298 398 256 398 C 214 398 179.935919 366.125250 174.5 314 C 171.58 286 180.45 286 212 286 Z"
+          />
+        </svg>
+        <a class="pastilla" href="/">Volver al sitio</a>
+      </header>
+
+      <main>
+        <h1>Formas de pago.</h1>
+        <p class="bajada">
+          Cuatro canales, lo que haces en cada uno y cómo se apunta tu pago. No
+          tienes que esperar respuesta para pagar.
+        </p>
+        <p>
+          Aceptamos <span translate="no">Binance</span>,
+          <span translate="no">Mastercard</span>,
+          <span translate="no">Pago&nbsp;Móvil</span> y
+          <span translate="no">Zinli</span>. Lo que no publicamos en ninguna página
+          son los datos de destino: el número, la billetera, el banco y la tarjeta
+          viajan por escrito con la cotización de tu proyecto, que es donde quedan
+          las condiciones. Si ya tienes tu cotización, elige un canal abajo, paga
+          con los datos que te dimos y mándanos la referencia.
+        </p>
+
+        <nav class="paginas" aria-label="Otras páginas legales">
+          <ul>
+            <li><a class="pastilla" href="/privacidad/">Privacidad</a></li>
+            <li><a class="pastilla" href="/terminos/">Términos de servicio</a></li>
+          </ul>
+        </nav>
+
+        <section>
+          <h2>De qué dinero hablamos</h2>
+          <p>
+            La cifra de referencia está en dólares. El pago se hace en bolívares a
+            la tasa oficial del BCV del día en que pagas, y esa tasa queda guardada
+            junto con el pago: sin ella no se puede reconstruir de qué cifra
+            hablamos.
+          </p>
+          <p>
+            El registro o la renovación anual del nombre en Internet se cotiza en
+            euros y se cobra al costo. Si un día el bolívar vale otro, se ajusta la
+            tasa del siguiente pago; el monto que ya aceptaste no cambia.
+          </p>
+        </section>
+
+        <section>
+          <h2>Cuánto y cuándo</h2>
+          <p>
+            El precio se cotiza por proyecto, con nombres y apellidos: una sola
+            cifra, por escrito, antes de empezar. En la cotización están los montos;
+            aquí está la regla.
+          </p>
+          <ul>
+            <li>
+              <strong>Desarrollo:</strong> se factura por mes. El primer mes se paga
+              al recibir la primera demo funcional; los meses siguientes, por
+              adelantado al empezar cada mes.
+            </li>
+            <li>
+              <strong>Nombre en Internet:</strong> en euros, al costo, pagadero en
+              bolívares a la tasa del día. El trámite, una vez hecho, no se
+              devuelve.
+            </li>
+            <li>
+              <strong>Plan de servicio:</strong> el plan Pro es opcional, no se
+              activa solo y se factura aparte del desarrollo. Si no lo contratas, no
+              lo pagas.
+            </li>
+            <li>
+              <strong>Funciones adicionales:</strong> se cotizan y se pagan antes de
+              ejecutarse.
+            </li>
+            <li>
+              <strong>Impuestos:</strong> los que correspondan según la ley van
+              discriminados en la factura.
+            </li>
+          </ul>
+          <p>
+            Todo esto, con cifras, queda en el anexo de condiciones de tu contrato.
+          </p>
+        </section>
+
+        <section>
+          <h2>Los cuatro canales</h2>
+          <h3><span translate="no">Binance</span></h3>
+          <p>
+            Transferencia de USDT a la billetera que va escrita en tu cotización.
+            Junto con la dirección te decimos por qué red sale: hay más de una y por
+            eso el detalle de la red siempre viene por escrito. Es la versión que
+            cruzamos cuando llega el aviso.
+          </p>
+          <ul>
+            <li>Abre <span translate="no">Binance</span> y elige enviar USDT.</li>
+            <li>
+              Usa la red y la dirección que están en tu cotización, no las de un
+              mensaje suelto.
+            </li>
+            <li>Guarda el número de operación o el comprobante de la salida.</li>
+          </ul>
+
+          <h3><span translate="no">Mastercard</span></h3>
+          <p>
+            Con tarjeta, a través de un enlace de pago que te mandamos cuando el
+            proyecto queda aprobado. Las páginas de este sitio no piden ni guardan
+            datos de tarjeta: en el portal no hay campos de tarjeta.
+          </p>
+          <ul>
+            <li>
+              Te llega el enlace al aprobarse el proyecto, o los datos del destino
+              si prefieres pagar de otra forma.
+            </li>
+            <li>Pagas en el enlace y guardas la confirmación que te muestra.</li>
+            <li>Si te aparece un cobro que no reconoces, avísanos ese mismo día.</li>
+          </ul>
+
+          <h3><span translate="no">Pago&nbsp;Móvil</span></h3>
+          <p>
+            Es una transferencia por teléfono, desde la app de tu banco. El banco
+            receptor, el número y los datos del titular te los confirmamos en la
+            cotización: aquí no se publican.
+          </p>
+          <ul>
+            <li>
+              Abre la app de tu banco y haz un <span translate="no">Pago&nbsp;Móvil</span>
+              normal y corriente.
+            </li>
+            <li>
+              Pon el banco y el número que están en tu cotización, y revisa que el
+              nombre del titular coincida.
+            </li>
+            <li>Guarda la referencia que te da la app al confirmar.</li>
+          </ul>
+
+          <h3><span translate="no">Zinli</span></h3>
+          <p>
+            Desde tu cuenta <span translate="no">Zinli</span>, al destino que te
+            enviamos cuando el proyecto queda aprobado. Ese destino va escrito en la
+            misma cotización, y se repite en el aviso de cada periodo.
+          </p>
+          <ul>
+            <li>Abre la app de <span translate="no">Zinli</span> y transfiere.</li>
+            <li>Usa el destino que está en tu cotización, no uno que te llegue suelto.</li>
+            <li>Guarda la referencia que muestra la app al terminar.</li>
+          </ul>
+
+          <p>
+            En los cuatro canales manda siempre la referencia: es lo que permite
+            cruzar tu pago el mismo día.
+          </p>
+        </section>
+
+        <section>
+          <h2>Avísanos para poder cruzarlo</h2>
+          <p>
+            El comprobante o la referencia va al WhatsApp que está en el pie de este
+            sitio o al correo que consta en tu cuenta y en tu contrato,
+            <a href="mailto:business@blink.com.ve">business@blink.com.ve</a>. Con
+            cinco datos el cruce sale en un minuto:
+          </p>
+          <ul>
+            <li>Tu nombre o el nombre del proyecto.</li>
+            <li>El periodo que estás pagando.</li>
+            <li>El canal que usaste.</li>
+            <li>El monto.</li>
+            <li>La referencia, el número de operación o la captura.</li>
+          </ul>
+          <p>
+            Si te llega un número o una dirección distintos a los de tu cotización,
+            no pagues: escribe primero a
+            <a href="mailto:business@blink.com.ve">business@blink.com.ve</a> y
+            confirma. Un destino que no está en el papel no es un destino de Blink.
+          </p>
+        </section>
+
+        <section>
+          <h2>Cómo se apunta un pago</h2>
+          <p>
+            Cada pago registrado lleva el periodo al que entra, el monto, la moneda,
+            la tasa del día y la referencia. Un periodo admite un solo pago
+            efectivo.
+          </p>
+          <p>
+            Si algo se cobró mal, no se corrige encima: se anula con un registro
+            nuevo y su motivo, y la anulación vuelve a abrir el periodo. Por eso la
+            referencia importa tanto, y por eso te pedimos que nos la mandes.
+          </p>
+        </section>
+
+        <section>
+          <h2>Si un periodo queda sin pagar</h2>
+          <p>
+            Hay cinco días continuos de gracia desde el vencimiento: en ese tiempo
+            todo sigue al día. Pasada la gracia empieza la mora. A los diez días de
+            mora el servicio se suspende, y antes te avisamos. A los treinta, la
+            suscripción termina.
+          </p>
+          <p>
+            Suspender no es quedarse con nada tuyo: tu información y tu nombre en
+            Internet siguen siendo tuyos. Los guardamos noventa días para que puedas
+            exportarlos una vez pagada la deuda, y después se eliminan o se vuelven
+            anónimos, con aviso. Si no se paga el registro del nombre en Internet,
+            puede no renovarse, y eso te lo avisamos por escrito. Para reactivar
+            hace falta un pago registrado, y queda constancia de él.
+          </p>
+          <p>
+            La explicación completa de la mora está en los
+            <a href="/terminos/">términos de servicio</a>.
+          </p>
+        </section>
+
+        <section>
+          <h2>Los datos de Blink, los justos</h2>
+          <p>
+            En este sitio Blink se identifica con su correo y su ciudad:
+            <a href="mailto:business@blink.com.ve">business@blink.com.ve</a>,
+            Maracaibo, Zulia. Los datos completos para facturar van en la cotización
+            y en el contrato, que es donde se firman. Si necesitas que tu comprobante
+            salga con otros datos o a otro correo, avísanos antes de pagar y lo
+            dejamos anotado.
+          </p>
+        </section>
+
+        <section class="nota">
+          <h2>Antes de pagar, una regla simple</h2>
+          <p>
+            Paga solo con los datos que estén escritos en tu cotización. Nunca con
+            los de un mensaje que te llegue suelto. Si dudas, una línea a
+            <a href="mailto:business@blink.com.ve">business@blink.com.ve</a> resuelve
+            la duda y no te deja esperando.
+          </p>
+        </section>
+
+        <section class="nota">
+          <h2>Esta página la escribe Blink</h2>
+          <p>
+            Describe cómo se cobra hoy y cómo se apunta cada pago. Todavía no la ha
+            revisado un abogado, y no es asesoría fiscal: los impuestos se aplican
+            según la ley vigente al momento del pago, y el anexo de condiciones de tu
+            contrato es lo que manda.
+          </p>
+        </section>
+      </main>
+
+      <footer class="pie">
+        <ul>
+          <li>
+            <a class="pastilla" href="mailto:business@blink.com.ve">business@blink.com.ve</a>
+          </li>
+          <li>
+            <a class="pastilla pastilla--accion" href="https://wa.me/16318211938">
+              Escribir por WhatsApp
+            </a>
+          </li>
+          <li><a class="pastilla" href="/">Volver al sitio</a></li>
+        </ul>
+        <p>Blink&nbsp;Web&nbsp;Services · Maracaibo, Zulia · Página de noviembre de 2026</p>
+      </footer>
+    </div>
+  </body>
+</html>
