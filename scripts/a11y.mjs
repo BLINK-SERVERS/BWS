@@ -22,6 +22,10 @@ import { chromium } from "playwright-core";
 import { fileURLToPath } from "node:url";
 
 const DESTINO = process.env.CAPTURAS_URL ?? "http://127.0.0.1:4176/";
+/* El barrido es de todo lo que se publica, no solo del bundle: las tres
+   páginas de políticas son HTML escrito a mano, y un `<h1>` saltado o un
+   blanco de 30 px ahí no lo iba a detectar ningún otro script. */
+const RUTAS = ["/", "/privacidad/", "/terminos/", "/pagos/"];
 const AXE = fileURLToPath(new URL("../node_modules/axe-core/axe.min.js", import.meta.url));
 
 const navegador = await chromium.launch({
@@ -31,10 +35,11 @@ const navegador = await chromium.launch({
 
 let totalViolaciones = 0;
 
+for (const ruta of RUTAS) {
 for (const ancho of [1440, 390]) {
   const pagina = await navegador.newPage({ viewport: { width: ancho, height: 900 } });
   await pagina.setDefaultTimeout(300_000);
-  await pagina.goto(DESTINO, { waitUntil: "domcontentloaded", timeout: 300_000 });
+  await pagina.goto(new URL(ruta, DESTINO).href, { waitUntil: "domcontentloaded", timeout: 300_000 });
   await pagina.evaluate(() => document.fonts.ready);
   await pagina.waitForTimeout(500);
   await pagina.addScriptTag({ path: AXE });
@@ -112,6 +117,9 @@ for (const ancho of [1440, 390]) {
           .map((s) => s.textContent.trim());
         return [titulo, ...sub].filter(Boolean).join(" ");
       };
+      /* Las páginas de políticas no tienen barra ni lockup del hero: son
+         documentos a mano, y aquí eso no es un fallo, es la ausencia. */
+      if (!document.querySelector(".lp-nav__marca")) return null;
       return {
         barra: nombreDe(document.querySelector(".lp-nav__marca")),
         hero: nombreDe(document.querySelector(".lp-hero__marca")),
@@ -124,7 +132,7 @@ for (const ancho of [1440, 390]) {
   }));
 
   totalViolaciones += axe.length;
-  console.log(`\n########## ${ancho}px ##########`);
+  console.log(`\n########## ${ruta} · ${ancho}px ##########`);
   console.log(`axe: ${axe.length} violaciones`);
   axe.forEach((v) => {
     console.log(`  · ${v.id} (${v.impacto}) ×${v.n} → ${v.donde.join(" | ")}`);
@@ -143,13 +151,20 @@ for (const ancho of [1440, 390]) {
   console.log("\nencabezados:", JSON.stringify(estructura.encabezados, null, 1));
   console.log("regiones:", estructura.regiones.join(", "));
   console.log("contacto:", JSON.stringify(estructura.enlacesContacto));
-  console.log(
-    `lockup · barra «${estructura.nombres.barra}» · visible «${estructura.nombres.visibleBarra}» · ` +
-      `hero «${estructura.nombres.hero}»`,
-  );
+  /* `nombres` es null donde no hay barra: en las páginas de políticas el
+     lockup no está, y eso no es un fallo que haya que imprimir. */
+  if (estructura.nombres) {
+    console.log(
+      `lockup · barra «${estructura.nombres.barra}» · visible «${estructura.nombres.visibleBarra}» · ` +
+        `hero «${estructura.nombres.hero}»`,
+    );
+  }
 
   await pagina.close();
 }
+}
 
 await navegador.close();
-console.log(`\n=== total de violaciones axe en ambos anchos: ${totalViolaciones} ===`);
+console.log(
+  `\n=== total de violaciones axe en ${RUTAS.length} páginas × 2 anchos: ${totalViolaciones} ===`,
+);

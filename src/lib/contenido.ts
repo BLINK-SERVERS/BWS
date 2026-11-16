@@ -42,9 +42,15 @@ export const CONTACTO = {
   telefonoMarca: "+16318211938",
   correo: "business@blink.com.ve",
   whatsapp: "https://wa.me/16318211938",
-  /** El mensaje que ya viene escrito cuando alguien toca «Hablemos». */
+  /** El mensaje que ya viene escrito cuando alguien toca el botón del
+      pie, que es el único sitio del sitio donde vive el canal. */
   whatsappSaludo: "https://wa.me/16318211938?text=" + encodeURIComponent("Hola BWS: quiero montar una página"),
-  ciudad: "Maracaibo, Venezuela",
+  /** El horario no es una promesa de reparto: es el aviso de que el
+      canal está abierto cuando el cliente puede hablar, que en la
+      diáspora suele ser de madrugada. */
+  horario: "24/7",
+  ciudad: "Maracaibo",
+  region: "Zulia",
 };
 
 export const ENLACES_FABRICA = {
@@ -65,10 +71,11 @@ export const HERO = {
   /** La bajada es una sola línea y no repite el titular: dice qué pasa
       con todo lo que el cliente no trae. */
   sub: "Nosotros nos encargamos del resto.",
-  /* El botón no baja a un formulario: abre la conversación. El sitio no
-     captura datos, así que el camino más corto entre la idea y nosotros
-     es el WhatsApp que ya contestamos. */
-  ctaPrimaria: { texto: "Hablemos", url: CONTACTO.whatsappSaludo },
+  /* Arriba no se abre el canal: arriba se abre la cuenta. El que llega
+     y todavía no leyó nada no tiene nada que preguntar, y el WhatsApp
+     vive solo en el pie — así el recorrido es la página entera, y el
+     canal aparece cuando ya sabe qué le están ofreciendo. */
+  ctaPrimaria: { texto: "Crear cuenta", url: "/registro" },
   ctaSecundaria: { texto: "Ver qué hacemos", ancla: "#que-hacemos" },
 };
 
@@ -191,7 +198,24 @@ export const CIERRE = {
 };
 
 export const PIE = {
-  legal: `© 2026 Blink · ${CONTACTO.ciudad}`,
+  /* El pie se lee en el orden en que se decide: primero el canal, con
+     el horario y el sitio para que nadie crea que va a esperar un
+     correo que llega al día siguiente; después cómo se paga, en logos
+     y no como una pregunta; al final las páginas que alguien va a
+     buscar una vez que ya dijo que sí. La marca y los enlaces de la
+     familia cierran, que es donde siempre estuvieron. */
+  canal: {
+    texto: "Escribir por WhatsApp",
+    url: CONTACTO.whatsappSaludo,
+    horario: `Atención ${CONTACTO.horario}`,
+    lugar: `${CONTACTO.ciudad}, ${CONTACTO.region}`,
+  },
+  politicas: [
+    { texto: "Privacidad", url: "/privacidad/" },
+    { texto: "Términos de servicio", url: "/terminos/" },
+    { texto: "Cómo se paga", url: "/pagos/" },
+  ],
+  legal: `© 2026 Blink · ${CONTACTO.ciudad}, ${CONTACTO.region}`,
   enlaces: [
     { texto: "Portal de clientes", url: "/ingreso" },
     { texto: "blink.com.ve", url: ENLACES_FABRICA.blink },

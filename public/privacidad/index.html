@@ -1,0 +1,472 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Privacidad — Blink Web Services</title>
+    <meta name="robots" content="index, follow" />
+    <meta name="theme-color" content="#f2f2f7" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="icon" type="image/png" sizes="512x512" href="/favicon.png" />
+    <style>
+      /* La misma decisión que en el 404: hoja en línea, sin arrancar el
+         bundle, para que una página de estas se abra aunque el JS no
+         exista. Los tokens van copiados a mano, como en el 404: si
+         dependieran de la hoja del sitio, la página legal se caería con
+         ella. */
+      :root {
+        --azul: #007aff;
+        --tinta: #1d1d1f;
+        --tinta-2: #424242;
+        --fondo: #f2f2f7;
+        --papel: #ffffff;
+        --linea: rgba(66, 66, 66, 0.16);
+        --enlace: #0066cc; /* --color-action-fill: el blanco encima pasa AA */
+        --medida: 70ch; /* 65–75 caracteres por línea */
+        --pila: "SF Pro", "SF Pro Text", "SF Pro Display", "Inter", -apple-system,
+          BlinkMacSystemFont, "Segoe UI", Roboto, system-ui, "Helvetica Neue", Arial,
+          sans-serif;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: var(--fondo);
+        color: var(--tinta);
+        font-family: var(--pila);
+        font-optical-sizing: auto;
+        font-size: 1.0625rem;
+        line-height: 1.6;
+        -webkit-text-size-adjust: 100%;
+      }
+      .caja {
+        max-width: 40rem;
+        margin: 0 auto;
+        padding: 24px 20px 8px;
+      }
+      .marca {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 14px 18px;
+      }
+      .marca svg {
+        width: 104px;
+        height: auto;
+        display: block;
+        color: var(--azul);
+      }
+      h1 {
+        font-size: clamp(2rem, 7vw, 2.75rem);
+        line-height: 1.08;
+        letter-spacing: -0.03em;
+        margin: 30px 0 12px;
+      }
+      h2 {
+        font-size: clamp(1.25rem, 2.6vw, 1.5rem);
+        line-height: 1.25;
+        letter-spacing: -0.02em;
+        margin: 40px 0 10px;
+      }
+      h3 {
+        font-size: 1.0625rem;
+        font-weight: 700;
+        line-height: 1.35;
+        letter-spacing: -0.01em;
+        margin: 26px 0 6px;
+      }
+      .bajada {
+        font-size: clamp(1.0625rem, 1.55vw, 1.25rem);
+        color: var(--tinta-2);
+        margin: 0 0 10px;
+      }
+      p {
+        margin: 0 0 16px;
+        max-width: var(--medida);
+      }
+      ul {
+        margin: 0 0 18px;
+        padding-left: 22px;
+        max-width: var(--medida);
+      }
+      li {
+        margin: 0 0 8px;
+        max-width: var(--medida);
+      }
+      /* Enlace en prosa: el relleno no se ve, pero abre el blanco táctil
+         hasta los 44 px sin mover una sola línea del párrafo. */
+      main a:not(.pastilla) {
+        color: var(--enlace);
+        padding: 9px 2px;
+        text-decoration: underline;
+        text-underline-offset: 3px;
+      }
+      /* Nav y pie: objetivo táctil de 48 px, el mismo criterio del 404. */
+      .pastilla {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 48px;
+        padding: 12px 20px;
+        border: 1px solid var(--linea);
+        border-radius: 999px;
+        background: var(--papel);
+        color: var(--enlace);
+        font-weight: 600;
+        font-size: 0.9375rem;
+        text-decoration: none;
+        white-space: nowrap;
+      }
+      .pastilla--accion {
+        background: #0066cc;
+        border-color: transparent;
+        color: #fff;
+      }
+      .pastilla:hover {
+        filter: brightness(1.04);
+      }
+      .pastilla--accion:hover {
+        filter: brightness(1.08);
+      }
+      a:focus-visible {
+        outline: 2px solid var(--azul);
+        outline-offset: 2px;
+      }
+      .paginas ul {
+        list-style: none;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin: 26px 0 0;
+        padding: 0;
+        max-width: none;
+      }
+      .nota {
+        background: var(--papel);
+        border: 1px solid var(--linea);
+        border-radius: 18px;
+        padding: 20px 22px;
+        margin: 36px 0 0;
+      }
+      .nota h2 {
+        margin: 0 0 8px;
+        font-size: 1.0625rem;
+      }
+      .nota p {
+        margin: 0;
+        color: var(--tinta-2);
+      }
+      .pie {
+        border-top: 1px solid var(--linea);
+        margin: 44px 0 0;
+        padding: 22px 0 46px;
+      }
+      .pie ul {
+        list-style: none;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin: 0 0 14px;
+        padding: 0;
+        max-width: none;
+      }
+      .pie p {
+        margin: 0;
+        color: var(--tinta-2);
+        font-size: 0.9375rem;
+      }
+      [translate="no"] {
+        font-style: normal;
+      }
+      @media (prefers-reduced-motion: reduce) {
+        a,
+        .pastilla {
+          transition: none;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="caja">
+      <header class="marca">
+        <svg
+          viewBox="76 114 360 284"
+          fill="currentColor"
+          role="img"
+          aria-label="Blink"
+        >
+          <path
+            d="M 122 164 H 178 C 198 164 224 164 224 198 C 224 232 198 232 178 232 H 122 C 102 232 76 232 76 198 C 76 164 102 164 122 164 Z"
+          />
+          <path d="M 436 182 A 68 68 0 1 1 299.99 182 A 68 68 0 1 1 436 182 Z" />
+          <path
+            d="M 212 286 H 300 C 331.55 286 340.42 286 337.5 314 C 332.064081 366.125250 298 398 256 398 C 214 398 179.935919 366.125250 174.5 314 C 171.58 286 180.45 286 212 286 Z"
+          />
+        </svg>
+        <a class="pastilla" href="/">Volver al sitio</a>
+      </header>
+
+      <main>
+        <h1>Privacidad.</h1>
+        <p class="bajada">
+          Qué guardamos de ti, por qué lo guardamos, con quién lo compartimos y
+          hasta cuándo. Sin letra pequeña.
+        </p>
+        <p>
+          El responsable es Blink&nbsp;Web&nbsp;Services (BWS), un estudio de
+          páginas web de Maracaibo, Zulia. Esta política acompaña al contrato de
+          tu proyecto y se acepta al crear la cuenta. Para cualquier asunto de
+          datos, el canal es <a href="mailto:business@blink.com.ve">business@blink.com.ve</a>.
+          Los datos completos para facturar, y la dirección si un trámite la
+          pide, van en la cotización y en el contrato que firmas: no se publican
+          aquí.
+        </p>
+
+        <nav class="paginas" aria-label="Otras páginas legales">
+          <ul>
+            <li><a class="pastilla" href="/terminos/">Términos de servicio</a></li>
+            <li><a class="pastilla" href="/pagos/">Formas de pago</a></li>
+          </ul>
+        </nav>
+
+        <section>
+          <h2>Qué datos recogemos y en qué momento</h2>
+          <ul>
+            <li>
+              <strong>Al crear la cuenta:</strong> tu nombre o razón social, tu
+              documento, tu domicilio, tu correo, tu teléfono y el correo donde
+              quieres la factura.
+            </li>
+            <li>
+              <strong>Al enviar el formulario del proyecto:</strong> el nombre
+              del proyecto, de qué trata, el nombre en Internet, qué quieres que
+              haga, los correos con tu marca y el plan de servicio que elegiste.
+            </li>
+            <li>
+              <strong>Al firmar:</strong> la imagen del trazo que haces en el
+              portal y el sello que lo acompaña. Es un dato personal. No lo usamos
+              para reconocerte por rasgos biométricos ni lo comparamos con otros
+              trazos: vale como muestra de tu voluntad y como prueba de que
+              firmaste.
+            </li>
+            <li>
+              <strong>Sin que tú hagas nada:</strong> la fecha y la hora en UTC,
+              la dirección IP, el navegador desde el que entraste y los sellos de
+              cada documento, que sirven para detectar cualquier alteración.
+            </li>
+            <li>
+              <strong>De la facturación:</strong> los pagos registrados, sus
+              referencias y la tasa del día que se aplicó.
+            </li>
+            <li>
+              <strong>De soporte:</strong> los mensajes y los datos que nos mandas
+              cuando pides ayuda.
+            </li>
+          </ul>
+          <p>
+            No pedimos datos de tarjeta en ninguna página, y no guardamos claves
+            en texto legible.
+          </p>
+        </section>
+
+        <section>
+          <h2>Para qué los usamos</h2>
+          <ul>
+            <li>
+              Crear y administrar tu cuenta, verificar quién eres y gestionar el
+              acceso: tu consentimiento y el contrato.
+            </li>
+            <li>
+              Preparar, firmar, sellar y conservar el expediente de tu proyecto:
+              el contrato y tu consentimiento.
+            </li>
+            <li>
+              Dejar listo el nombre en Internet, los correos con tu marca y el
+              sitio publicado: el contrato.
+            </li>
+            <li>Facturar, cobrar y cumplir las obligaciones de ley: el contrato.</li>
+            <li>
+              Atender consultas, reclamos y solicitudes de derechos: tu
+              consentimiento y la ley.
+            </li>
+            <li>
+              Prevenir fraude, abuso y accesos no autorizados: el interés legítimo
+              en que el servicio sea seguro.
+            </li>
+            <li>
+              Enviarte avisos del servicio y de tu expediente: el contrato.
+            </li>
+          </ul>
+          <p>
+            Nada de esto se usa para venderte nada ni para armarte un perfil.
+          </p>
+        </section>
+
+        <section>
+          <h2>Con quién se comparte</h2>
+          <p>
+            Con los servicios que usamos para que el sitio exista: donde vive la
+            información, por donde entra la gente al sitio y desde donde te salen
+            los correos. Trabajan por cuenta de Blink, con la misma obligación de
+            reserva, y pueden procesar datos fuera de Venezuela. Al aceptar esta
+            política autorizas ese traslado, que es parte de tener un sitio en
+            Internet. Si tu aplicación guarda datos de tus clientes, tú también
+            debes informárselo.
+          </p>
+          <p>
+            No vendemos datos ni los cedemos a nadie para publicidad. Solo los
+            mostramos a quien necesita tratarlos para prestar el servicio, a una
+            autoridad cuando la ley obliga, o a un tercero si tú lo autorizas. Tu
+            expediente sale al correo que diste y a la copia interna de Blink; no
+            va a destinatarios adicionales.
+          </p>
+        </section>
+
+        <section>
+          <h2>Cuánto tiempo lo guardamos</h2>
+          <ul>
+            <li>
+              <strong>Cuenta y proyecto:</strong> mientras el servicio esté activo
+              y noventa días más, para que puedas exportar todo antes de que se
+              cierre.
+            </li>
+            <li>
+              <strong>Firma, documentos y actos de firma:</strong> mientras dure la
+              relación y hasta diez años después de la última firma, porque son la
+              prueba de lo acordado. Si un plazo legal pide más, manda ese plazo.
+            </li>
+            <li>
+              <strong>Facturación:</strong> los plazos contables y fiscales que
+              correspondan.
+            </li>
+          </ul>
+          <p>
+            Cumplido el plazo, se elimina o se vuelve anónimo, con aviso cuando se
+            puede avisar.
+          </p>
+        </section>
+
+        <section>
+          <h2>Tus derechos y cómo ejercerlos</h2>
+          <p>
+            Puedes pedir acceso a tus datos, corregir los que estén mal,
+            actualizarlos, llevártelos en un formato estándar, oponerte a un uso
+            que no haga falta y pedir que se borren cuando no exista una
+            obligación de conservarlos.
+          </p>
+          <p>
+            La solicitud se escribe a <a href="mailto:business@blink.com.ve">business@blink.com.ve</a>
+            desde el correo que está en tu cuenta, o con una identificación
+            clara. Respondemos dentro de los quince días hábiles siguientes. A
+            veces pedimos un dato más para confirmar que eres tú.
+          </p>
+          <p>
+            Lo que no podemos es borrar el acto de firma de un expediente
+            firmado: ahí se conserva la evidencia y se anota la corrección.
+          </p>
+        </section>
+
+        <section>
+          <h2>Las cookies de este sitio</h2>
+          <p>
+            El portal de clientes usa una sola cookie: la esencial de sesión, que
+            te mantiene dentro y protege la cuenta. Dura hasta doce horas, o hasta
+            que cierras la sesión. No hay cookies de publicidad, de medición ni de
+            redes sociales, y el portal no carga nada desde otros lugares en tu
+            navegador. Las páginas públicas de este sitio tampoco ponen cookies.
+          </p>
+          <p>
+            Tu formulario puede quedarse guardado un momento en el navegador, para
+            que no pierdas lo escrito si se cae la conexión. Eso no sirve para
+            identificarte y no se comparte con nadie.
+          </p>
+          <p>
+            Puedes borrar o bloquear las cookies desde los ajustes de tu
+            navegador. Si bloqueas la de sesión, no podrás entrar ni firmar. No
+            hay panel de preferencias porque no hay nada opcional que elegir.
+          </p>
+        </section>
+
+        <section>
+          <h2>El marco legal, dicho sin inventarlo</h2>
+          <p>
+            Venezuela no tiene, a la fecha de esta página, una ley general de
+            protección de datos personales en vigor. No citamos una ley que no
+            existe ni decimos estar certificados por norma alguna. Nos apoyamos en
+            el derecho a la privacidad y al buen nombre que reconoce la
+            Constitución, en las reglas del Código Civil sobre obligaciones y
+            buena fe, y en la Ley Especial contra los Delitos Informáticos.
+          </p>
+        </section>
+
+        <section>
+          <h2>Seguridad, sin prometer lo imposible</h2>
+          <p>
+            Aplicamos medidas razonables: la información viaja cifrada, las claves
+            se guardan transformadas y nunca en texto legible, la sesión vive en
+            una cookie protegida, cada cuenta solo ve lo suyo, hay límite de
+            intentos, registro de lo que ocurre y un sello en cada documento para
+            que una alteración se note al comparar.
+          </p>
+          <p>
+            Ningún sistema es completamente seguro y no prometemos una seguridad
+            del cien por ciento ni conformidad con norma ISO alguna: describimos
+            medidas y sus límites. Si algo afectara tus datos, avisamos a quien
+            corresponda dentro de las setenta y dos horas de enterarnos, con la
+            información disponible a esa hora.
+          </p>
+        </section>
+
+        <section>
+          <h2>Los menores de edad</h2>
+          <p>
+            El portal es para personas mayores de edad que pueden contratar. No
+            recogemos datos de menores a propósito. Si la aplicación que
+            construimos guarda datos de menores, conseguir el permiso de quien
+            ejerza la patria potestad te toca a ti, que eres quien decide qué hace
+            tu aplicación.
+          </p>
+        </section>
+
+        <section>
+          <h2>Si esto cambia</h2>
+          <p>
+            Por un cambio de ley, de técnica o de los servicios que usamos, esta
+            política puede actualizarse. La versión nueva se publica con su fecha
+            y, si el cambio es sustancial, te avisamos por correo. Seguir usando
+            el servicio después de la fecha nueva significa aceptar; si no
+            aceptas, puedes pedir terminar el servicio.
+          </p>
+        </section>
+
+        <section class="nota">
+          <h2>Esta página la escribe Blink</h2>
+          <p>
+            Resume lo que el sistema hace hoy. Todavía no la ha revisado un
+            abogado, así que no afirmamos que un juez sostenga cada palabra, ni
+            decimos que nuestros documentos sean válidos por sí solos. Si algo de
+            aquí choca con el contrato que firmaste en el portal, manda el
+            contrato.
+          </p>
+        </section>
+      </main>
+
+      <footer class="pie">
+        <ul>
+          <li>
+            <a class="pastilla" href="mailto:business@blink.com.ve">business@blink.com.ve</a>
+          </li>
+          <li>
+            <a class="pastilla pastilla--accion" href="https://wa.me/16318211938">
+              Escribir por WhatsApp
+            </a>
+          </li>
+          <li><a class="pastilla" href="/">Volver al sitio</a></li>
+        </ul>
+        <p>Blink&nbsp;Web&nbsp;Services · Maracaibo, Zulia · Página de noviembre de 2026</p>
+      </footer>
+    </div>
+  </body>
+</html>

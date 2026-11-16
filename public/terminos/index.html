@@ -1,0 +1,530 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Términos de servicio — Blink Web Services</title>
+    <meta name="robots" content="index, follow" />
+    <meta name="theme-color" content="#f2f2f7" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="icon" type="image/png" sizes="512x512" href="/favicon.png" />
+    <style>
+      /* La misma decisión que en el 404: hoja en línea, sin arrancar el
+         bundle, para que una página de estas se abra aunque el JS no
+         exista. Los tokens van copiados a mano, como en el 404: si
+         dependieran de la hoja del sitio, la página legal se caería con
+         ella. */
+      :root {
+        --azul: #007aff;
+        --tinta: #1d1d1f;
+        --tinta-2: #424242;
+        --fondo: #f2f2f7;
+        --papel: #ffffff;
+        --linea: rgba(66, 66, 66, 0.16);
+        --enlace: #0066cc; /* --color-action-fill: el blanco encima pasa AA */
+        --medida: 70ch; /* 65–75 caracteres por línea */
+        --pila: "SF Pro", "SF Pro Text", "SF Pro Display", "Inter", -apple-system,
+          BlinkMacSystemFont, "Segoe UI", Roboto, system-ui, "Helvetica Neue", Arial,
+          sans-serif;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: var(--fondo);
+        color: var(--tinta);
+        font-family: var(--pila);
+        font-optical-sizing: auto;
+        font-size: 1.0625rem;
+        line-height: 1.6;
+        -webkit-text-size-adjust: 100%;
+      }
+      .caja {
+        max-width: 40rem;
+        margin: 0 auto;
+        padding: 24px 20px 8px;
+      }
+      .marca {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 14px 18px;
+      }
+      .marca svg {
+        width: 104px;
+        height: auto;
+        display: block;
+        color: var(--azul);
+      }
+      h1 {
+        font-size: clamp(2rem, 7vw, 2.75rem);
+        line-height: 1.08;
+        letter-spacing: -0.03em;
+        margin: 30px 0 12px;
+      }
+      h2 {
+        font-size: clamp(1.25rem, 2.6vw, 1.5rem);
+        line-height: 1.25;
+        letter-spacing: -0.02em;
+        margin: 40px 0 10px;
+      }
+      h3 {
+        font-size: 1.0625rem;
+        font-weight: 700;
+        line-height: 1.35;
+        letter-spacing: -0.01em;
+        margin: 26px 0 6px;
+      }
+      .bajada {
+        font-size: clamp(1.0625rem, 1.55vw, 1.25rem);
+        color: var(--tinta-2);
+        margin: 0 0 10px;
+      }
+      p {
+        margin: 0 0 16px;
+        max-width: var(--medida);
+      }
+      ul {
+        margin: 0 0 18px;
+        padding-left: 22px;
+        max-width: var(--medida);
+      }
+      li {
+        margin: 0 0 8px;
+        max-width: var(--medida);
+      }
+      /* Enlace en prosa: el relleno no se ve, pero abre el blanco táctil
+         hasta los 44 px sin mover una sola línea del párrafo. */
+      main a:not(.pastilla) {
+        color: var(--enlace);
+        padding: 9px 2px;
+        text-decoration: underline;
+        text-underline-offset: 3px;
+      }
+      /* Nav y pie: objetivo táctil de 48 px, el mismo criterio del 404. */
+      .pastilla {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 48px;
+        padding: 12px 20px;
+        border: 1px solid var(--linea);
+        border-radius: 999px;
+        background: var(--papel);
+        color: var(--enlace);
+        font-weight: 600;
+        font-size: 0.9375rem;
+        text-decoration: none;
+        white-space: nowrap;
+      }
+      .pastilla--accion {
+        background: #0066cc;
+        border-color: transparent;
+        color: #fff;
+      }
+      .pastilla:hover {
+        filter: brightness(1.04);
+      }
+      .pastilla--accion:hover {
+        filter: brightness(1.08);
+      }
+      a:focus-visible {
+        outline: 2px solid var(--azul);
+        outline-offset: 2px;
+      }
+      .paginas ul {
+        list-style: none;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin: 26px 0 0;
+        padding: 0;
+        max-width: none;
+      }
+      .nota {
+        background: var(--papel);
+        border: 1px solid var(--linea);
+        border-radius: 18px;
+        padding: 20px 22px;
+        margin: 36px 0 0;
+      }
+      .nota h2 {
+        margin: 0 0 8px;
+        font-size: 1.0625rem;
+      }
+      .nota p {
+        margin: 0;
+        color: var(--tinta-2);
+      }
+      .pie {
+        border-top: 1px solid var(--linea);
+        margin: 44px 0 0;
+        padding: 22px 0 46px;
+      }
+      .pie ul {
+        list-style: none;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin: 0 0 14px;
+        padding: 0;
+        max-width: none;
+      }
+      .pie p {
+        margin: 0;
+        color: var(--tinta-2);
+        font-size: 0.9375rem;
+      }
+      [translate="no"] {
+        font-style: normal;
+      }
+      @media (prefers-reduced-motion: reduce) {
+        a,
+        .pastilla {
+          transition: none;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="caja">
+      <header class="marca">
+        <svg
+          viewBox="76 114 360 284"
+          fill="currentColor"
+          role="img"
+          aria-label="Blink"
+        >
+          <path
+            d="M 122 164 H 178 C 198 164 224 164 224 198 C 224 232 198 232 178 232 H 122 C 102 232 76 232 76 198 C 76 164 102 164 122 164 Z"
+          />
+          <path d="M 436 182 A 68 68 0 1 1 299.99 182 A 68 68 0 1 1 436 182 Z" />
+          <path
+            d="M 212 286 H 300 C 331.55 286 340.42 286 337.5 314 C 332.064081 366.125250 298 398 256 398 C 214 398 179.935919 366.125250 174.5 314 C 171.58 286 180.45 286 212 286 Z"
+          />
+        </svg>
+        <a class="pastilla" href="/">Volver al sitio</a>
+      </header>
+
+      <main>
+        <h1>Términos de servicio.</h1>
+        <p class="bajada">
+          Lo que Blink se compromete a hacer, lo que tienes que aportar tú y qué
+          pasa cuando algo se atrasa.
+        </p>
+        <p>
+          Estas son las condiciones de todo lo que hacemos. Se aceptan al crear la
+          cuenta y van junto al contrato de tu proyecto y a la
+          <a href="/privacidad/">política de privacidad</a>. Si algo choca entre
+          los tres, manda el contrato que firmas en el portal.
+        </p>
+
+        <nav class="paginas" aria-label="Otras páginas legales">
+          <ul>
+            <li><a class="pastilla" href="/privacidad/">Privacidad</a></li>
+            <li><a class="pastilla" href="/pagos/">Formas de pago</a></li>
+          </ul>
+        </nav>
+
+        <section>
+          <h2>Qué te entregamos</h2>
+          <p>
+            Diseñamos, construimos y publicamos tu página, tu aplicación web o tu
+            portafolio. Tú solo lo revisas y lo apruebas.
+          </p>
+          <ul>
+            <li>Ejecutar exactamente el alcance que aprobaste, con el cuidado profesional que corresponde a lo que hacemos.</li>
+            <li>
+              Gestionar el registro y la renovación del nombre en Internet a tu
+              nombre, y dejar listos hasta cinco correos con tu marca, incluido el
+              buzón de avisos automáticos.
+            </li>
+            <li>
+              Mantener el sitio publicado y aplicar las medidas de seguridad que
+              describe la política de privacidad.
+            </li>
+            <li>Conservar la evidencia y los sellos de lo que se firmó.</li>
+            <li>
+              Atender tus consultas y las fallas que reportes por el correo del
+              contrato.
+            </li>
+            <li>Guardar tus datos y permitir que te los lleves cuando los pidas.</li>
+          </ul>
+          <p>
+            No somos tu empleador, ni tu socio, ni tu agencia, ni tu franquicia.
+            Ninguno de los dos compromete al otro frente a terceros sin permiso
+            por escrito.
+          </p>
+        </section>
+
+        <section>
+          <h2>Qué pones tú</h2>
+          <ul>
+            <li>
+              Datos veraces, contenidos legales y libres de derechos de terceros,
+              y los accesos que el proyecto necesite. Respondes por esos
+              contenidos.
+            </li>
+            <li>
+              Una persona con capacidad para aprobar entregables y dar accesos.
+            </li>
+            <li>
+              Usar el servicio conforme a la ley: sin violar derechos de nadie y
+              sin mandar comunicaciones no solicitadas.
+            </li>
+            <li>No compartir tu clave ni revender el acceso sin permiso escrito.</li>
+            <li>
+              Pagar en los plazos acordados, mantener al día tu correo y tus datos
+              de facturación, y colaborar cuando verifiquemos quién eres.
+            </li>
+            <li>
+              No pedir funciones fuera del alcance aprobado sin su cotización y su
+              anexo.
+            </li>
+          </ul>
+          <p>
+            La cuenta es tuya y lo que se haga desde ella también, hasta que avises
+            de un acceso no autorizado a
+            <a href="mailto:business@blink.com.ve">business@blink.com.ve</a>. Ese
+            aviso es de inmediato. Si vemos indicios razonables de fraude o de
+            suplantación, bloqueamos la cuenta y te comunicamos.
+          </p>
+        </section>
+
+        <section>
+          <h2>El precio va por escrito, antes de empezar</h2>
+          <p>
+            Cada proyecto se cotiza con nombres y apellidos: una sola cifra, por
+            escrito, antes de empezar. No publicamos tarifas porque no tenemos una
+            tarifa; depende de lo que quieras montar. Lo que diga la cotización es
+            lo contratado. Cómo se paga cada cifra está en
+            <a href="/pagos/">Formas de pago</a>.
+          </p>
+          <ul>
+            <li>
+              <strong>Desarrollo:</strong> se factura por mes de desarrollo. El
+              primer mes se paga al entregar la primera demo funcional; los meses
+              siguientes, por adelantado al empezar cada mes.
+            </li>
+            <li>
+              <strong>Nombre en Internet:</strong> el registro o la renovación
+              anual se cotiza en euros y se cobra al costo, pagadero en bolívares
+              a la tasa oficial del BCV del día del pago. La fecha y el valor de la
+              tasa quedan anotados en las condiciones del contrato. El trámite, una
+              vez hecho, no se devuelve.
+            </li>
+            <li>
+              <strong>Plan de servicio:</strong> el plan Pro es opcional, no se
+              activa solo y no se suma al desarrollo si tú no lo contratas. Son
+              conceptos distintos y se facturan por separado.
+            </li>
+            <li>
+              <strong>Impuestos:</strong> los que correspondan según la ley se
+              discriminan en la factura y los soporte quien deba soportarlos.
+            </li>
+            <li>
+              <strong>Extras:</strong> toda función adicional se cotiza y se paga
+              antes de ejecutarse.
+            </li>
+          </ul>
+        </section>
+
+        <section>
+          <h2>Cómo se aprueba y cómo se entrega</h2>
+          <p>
+            Las primeras demos llegan entre una y dos semanas; el proyecto final
+            depende de la complejidad y su plazo va por escrito en la cotización.
+            El plazo es de trabajo, no una fecha garantizada: depende de que nos
+            des contenidos, accesos y aprobaciones a tiempo. Si te atrasas, el
+            plazo se corre exactamente lo que te atrasaste.
+          </p>
+          <p>
+            Desde que recibes la demo tienes cinco días hábiles para señalar fallas
+            que se puedan reproducir. Si no dices nada en ese tiempo, la demo queda
+            aceptada. La entrega se documenta en un acta que se firma y queda en tu
+            expediente, y ahí constan el proyecto, el nombre en Internet y el
+            alcance. Cuando está listo, tu sitio está en Internet y te entregamos
+            los correos con tu marca y tus accesos.
+          </p>
+        </section>
+
+        <section>
+          <h2>Si quieres algo más</h2>
+          <p>
+            El alcance es el que enviaste en el formulario del proyecto y se
+            congela al firmar. Lo que no esté descrito ahí no forma parte del
+            encargo, ni por costumbre ni por lo que se dijo en un audio o en una
+            conversación.
+          </p>
+          <p>
+            Toda función nueva, pantalla nueva o conexión con otro servicio se
+            cotiza por escrito y se ejecuta con un anexo o una propuesta aparte,
+            con su precio y su plazo propios.
+          </p>
+        </section>
+
+        <section>
+          <h2>Cuando un pago se atrasa</h2>
+          <p>
+            Estás al día hasta el vencimiento y durante cinco días continuos de
+            gracia. Pasada la gracia empieza la mora. A los diez días de mora el
+            servicio se suspende, y antes te avisamos. A los treinta días, la
+            suscripción termina. Cada cambio de estado queda anotado con su fecha
+            y su motivo.
+          </p>
+          <p>
+            La suspensión apaga tu sitio y suspende la licencia de uso. No te quita
+            tus datos ni tu nombre en Internet: siguen siendo tuyos. Los guardamos
+            noventa días para que puedas exportarlos una vez pagada la deuda, y
+            después se eliminan o se vuelven anónimos, con aviso. El nombre en
+            Internet queda a tu nombre y cooperamos con pasarlo a quien tú digas;
+            si no se paga su registro, puede no renovarse, y eso te lo avisamos por
+            escrito. Reactivar el servicio exige un pago registrado, y queda
+            constancia.
+          </p>
+        </section>
+
+        <section>
+          <h2>De quién es qué después de entregar</h2>
+          <p>
+            <strong>Tuyo:</strong> tus datos, tus contenidos y tus marcas. Nos das
+            permiso para tratarlos con la única finalidad de prestar el servicio.
+          </p>
+          <p>
+            <strong>Nuestro:</strong> el código, la arquitectura, el sistema de
+            diseño, los componentes, las plantillas y la documentación. Recibes una
+            licencia de uso para operar tu negocio: no exclusiva, no transferible,
+            limitada en el tiempo según lo firmado y condicionada al pago puntual.
+            La licencia no incluye el código fuente y no permite revender,
+            sublicenciar, alquilar ni replicar la arquitectura. Se apaga con la
+            mora y termina con el contrato, y no se queda con uno por el solo hecho
+            de terminar el servicio.
+          </p>
+          <p>
+            Comprar el código o la arquitectura es un acuerdo aparte, con precio
+            propio; no se presume por pagar las mensualidades y no es un remedio por
+            impago. La mención «Powered by Blink» se mantiene visible el tiempo que
+            diga el contrato desde la entrega, salvo que la quitemos por escrito.
+          </p>
+        </section>
+
+        <section>
+          <h2>Los límites de la promesa</h2>
+          <ul>
+            <li>
+              No prometemos disponibilidad del cien por ciento ni un tiempo de
+              respuesta idéntico para todos: depende también de los servicios que
+              usamos y de tu conexión. Hay ventanas de mantenimiento.
+            </li>
+            <li>
+              Los respaldos se hacen según el plan contratado, y puedes exportar
+              tus datos cuando lo pidas.
+            </li>
+            <li>
+              Corregimos sin costo las fallas reproducibles del alcance entregado
+              que reportes dentro de los treinta días siguientes a la entrega. No
+              prometemos software libre de errores ni funcionando sin cortes.
+            </li>
+            <li>
+              No respondemos por ganancias dejadas de obtener, oportunidades
+              perdidas, daños indirectos, ni por el uso que tú o terceros den a la
+              aplicación.
+            </li>
+            <li>
+              Salvo dolo o fraude, nuestra responsabilidad total no pasa del monto
+              que nos pagaste en los doce meses anteriores al hecho.
+            </li>
+            <li>
+              Hay derechos que la ley no permite renunciar: nada de esto los toca.
+            </li>
+          </ul>
+          <p>
+            El soporte se atiende por correo en días hábiles. No prometemos lo que
+            no podemos sostener, y tampoco declaramos certificación ni conformidad
+            con norma ISO alguna.
+          </p>
+        </section>
+
+        <section>
+          <h2>Cómo avisar un problema</h2>
+          <p>
+            Todo aviso serio va al correo: el tuyo y
+            <a href="mailto:business@blink.com.ve">business@blink.com.ve</a>, o las
+            direcciones que alguno actualice por escrito. Se entiende recibido al
+            día hábil siguiente del envío, salvo que quede probado que no llegó.
+          </p>
+          <p>
+            Para reportar una falla, con tres datos alcanza: qué esperabas, qué
+            pasó y desde cuándo. Si algo dejó de andar en tu sitio, escríbenos por
+            correo y, si quieres hablar rápido, también por WhatsApp; para los
+            plazos del contrato cuenta el correo. Un acceso no autorizado a tu
+            cuenta se avisa de inmediato.
+          </p>
+        </section>
+
+        <section>
+          <h2>Terminar y actualizar estos términos</h2>
+          <p>
+            Cualquiera de los dos puede terminar el servicio con un aviso escrito de
+            treinta días. Blink puede suspender o terminar de inmediato ante un
+            impago, un uso ilícito, un riesgo para la seguridad o un incumplimiento
+            grave. Al terminar, te llevas tus datos; la licencia se apaga salvo que
+            digamos otra cosa, y siguen vivas la reserva, la propiedad del software
+            y las reglas de responsabilidad.
+          </p>
+          <p>
+            Estos términos pueden actualizarse por cambios legales, técnicos o
+            comerciales. La versión nueva se publica con su fecha y, si el cambio es
+            sustancial, te avisamos por correo con quince días de anticipación. Si
+            no aceptas, puedes terminar antes de esa fecha.
+          </p>
+        </section>
+
+        <section>
+          <h2>La ley aplicable</h2>
+          <p>
+            Se rigen por las leyes de la República Bolivariana de Venezuela, y las
+            controversias se llevan ante los tribunales competentes de Caracas, sin
+            perjuicio del fuero que la ley reconozca al consumidor. Si una regla se
+            cae, las demás siguen valiendo y esa se interpreta lo más cerca posible
+            de su finalidad. No ejercer un derecho hoy no es renunciar a él. Estos
+            términos, el contrato y sus anexos forman el acuerdo completo y
+            sustituyen lo conversado antes.
+          </p>
+          <p>
+            Si una función que necesitas depende de que te guardemos información
+            especialmente sensible, firmamos un acuerdo de reserva aparte antes de
+            compartirla.
+          </p>
+        </section>
+
+        <section class="nota">
+          <h2>Estos textos los escribe Blink</h2>
+          <p>
+            Describen lo que el servicio hace hoy, en el idioma con el que te
+            hablamos. Todavía no los ha revisado un abogado, así que no afirmamos
+            que un juez vaya a sostener cada cláusula. Si algo de aquí choca con el
+            contrato que firmaste en el portal, manda el contrato.
+          </p>
+        </section>
+      </main>
+
+      <footer class="pie">
+        <ul>
+          <li>
+            <a class="pastilla" href="mailto:business@blink.com.ve">business@blink.com.ve</a>
+          </li>
+          <li>
+            <a class="pastilla pastilla--accion" href="https://wa.me/16318211938">
+              Escribir por WhatsApp
+            </a>
+          </li>
+          <li><a class="pastilla" href="/">Volver al sitio</a></li>
+        </ul>
+        <p>Blink&nbsp;Web&nbsp;Services · Maracaibo, Zulia · Página de noviembre de 2026</p>
+      </footer>
+    </div>
+  </body>
+</html>

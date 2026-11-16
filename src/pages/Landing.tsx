@@ -1,6 +1,7 @@
 import { Acordeon } from "../components/Acordeon";
 import { Icono } from "../components/Icono";
 import { MarcaBWS } from "../components/MarcaBWS";
+import { Pagos } from "../components/Pagos";
 import { Seccion } from "../components/Seccion";
 import { Socios } from "../components/Socios";
 import {
@@ -39,9 +40,11 @@ import {
      elemento más grande de la página y el que manda en el esquema del
      documento; la marca va delante, oculta para la vista y presente
      para el lector de pantalla.
-   · «Hablemos» no es una ancla: abre el WhatsApp. El sitio no captura
-     datos, así que llevarlo a un formulario sería un paso de más entre
-     la idea y nosotros.
+   · El WhatsApp tiene una sola dirección en todo el sitio: arriba del
+     pie, con el horario y la ciudad pegados. Arriba manda «Crear
+     cuenta», porque quien llega sin haber leído nada todavía no tiene
+     nada que preguntar; y así el recorrido hasta el canal es la página
+     entera, no un atajo de dos centímetros.
    · No hay mockups de hardware ni de teléfono. Pay los necesita porque
      enseña una app; BWS vende un servicio y el hero no tiene pantalla
      que mostrar. Cerrar con aire, y no con una interfaz inventada, es
@@ -106,14 +109,9 @@ export function Landing() {
             <p className="lp-hero__sub">{HERO.sub}</p>
 
             <p className="lp-hero__cta">
-              <a
-                className="lp-boton lp-boton--primario"
-                href={HERO.ctaPrimaria.url}
-                target="_blank"
-                rel="noopener noreferrer"
-              >
+              <a className="lp-boton lp-boton--primario" href={HERO.ctaPrimaria.url}>
                 {HERO.ctaPrimaria.texto}
-                <Icono nombre="whatsapp" />
+                <Icono nombre="flecha" />
               </a>
               <a className="lp-boton lp-boton--fantasma" href={HERO.ctaSecundaria.ancla}>
                 {HERO.ctaSecundaria.texto}
@@ -201,15 +199,6 @@ export function Landing() {
             <a className="lp-boton lp-boton--primario" href="/registro">
               Crear cuenta
             </a>
-            <a
-              className="lp-boton lp-boton--fantasma"
-              href={CONTACTO.whatsappSaludo}
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              <Icono nombre="whatsapp" />
-              Escribir por WhatsApp
-            </a>
             <a className="lp-boton lp-boton--fantasma" href={`tel:${CONTACTO.telefonoMarca}`}>
               <Icono nombre="telefono" />
               Llamar al {CONTACTO.telefono}
@@ -226,6 +215,45 @@ export function Landing() {
       <footer className="lp-pie">
         <div className="lp-contenido">
           <MarcaBWS variante="pie" />
+
+          {/* El pie se lee en el orden de la decisión: el canal, luego
+              cómo se paga, luego las páginas que se buscan después de
+              decir que sí. */}
+          <p className="lp-pie__canal">
+            <a
+              className="lp-boton lp-boton--primario"
+              href={PIE.canal.url}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <Icono nombre="whatsapp" />
+              {PIE.canal.texto}
+            </a>
+            <span className="lp-pie__datos">
+              {PIE.canal.horario}
+              <span aria-hidden="true"> · </span>
+              {PIE.canal.lugar}
+            </span>
+          </p>
+
+          <section className="lp-pie__pagos" aria-labelledby="pie-pagos">
+            <h2 className="lp-pie__titulo" id="pie-pagos">
+              Formas de pago
+            </h2>
+            <Pagos />
+          </section>
+
+          <nav className="lp-pie__politicas" aria-label="Políticas y condiciones">
+            <ul>
+              {PIE.politicas.map((enlace) => (
+                <li key={enlace.url}>
+                  <a className="lp-enlace" href={enlace.url}>
+                    {enlace.texto}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </nav>
 
           <div className="lp-pie__fila">
             <p className="lp-pie__legal">{PIE.legal}</p>

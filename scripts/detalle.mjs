@@ -25,6 +25,9 @@ const BLOQUES = [
   ["beneficios", ".lp-beneficios__rejilla"],
   ["faq", "#preguntas .lp-contenido"],
   ["cierre", "#hablemos .lp-contenido"],
+  ["canal", ".lp-pie__canal"],
+  ["pagos", ".lp-pagos"],
+  ["politicas", ".lp-pie__politicas"],
   ["pie", ".lp-pie"],
 ];
 
@@ -68,6 +71,27 @@ for (const [nombre, selector] of BLOQUES) {
     `${nombre}: ${Math.round(caja.width)}×${Math.round(caja.height)} css px`,
   );
 }
+
+/* Los cuatro rectángulos del pie existen para que se lean sin preguntar,
+   y un rectángulo con el nombre y la marca ausente cumple la mitad de la
+   promesa sin avisar. La captura de 390 del 2026-11-15 lo enseñó: con
+   `loading="lazy"` sobre un `data:` la fila salía vacía y ningún otro
+   script se quejaba. `naturalWidth === 0` es la única señal de que el
+   archivo no llegó, así que aquí se vuelve fallo, no nota al pie. */
+const tintas = await pagina.evaluate(() =>
+  [...document.querySelectorAll(".lp-pago")].map((p) => ({
+    nombre: p.querySelector(".lp-pago__nombre")?.textContent ?? "?",
+    img: !!p.querySelector("img"),
+    ancho: p.querySelector("img")?.naturalWidth ?? null,
+    alto: p.getBoundingClientRect().height,
+  })),
+);
+console.log("\nrectángulos de pago:", JSON.stringify(tintas));
+const mudos = tintas.filter((t) => t.img && t.ancho === 0);
+if (tintas.length !== 4) console.error(`✗ hay ${tintas.length} rectángulos de pago, se esperan 4`);
+if (mudos.length)
+  console.error(`✗ marcas que no pintan: ${mudos.map((m) => m.nombre).join(", ")}`);
+if (tintas.length !== 4 || mudos.length) process.exit(1);
 
 /* Dos medidas que solo da el DOM, y las dos mandan en la cinta.
 

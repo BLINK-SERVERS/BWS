@@ -171,7 +171,23 @@ const A = pagina.match(/assets\/index-[A-Za-z0-9_-]+\.js/)?.[0] ?? "";
 const C = pagina.match(/assets\/index-[A-Za-z0-9_-]+\.css/)?.[0] ?? "";
 /* La fuente no la referencia `index.html` sino el CSS, con una ruta
    relativa al directorio de `assets/`. */
-const RUTAS = ["/", "/404.html", "/robots.txt", "/sitemap.xml", "/favicon.svg", "/favicon.png", "/og.png", `/${A}`, `/${C}`];
+/* Las tres políticas se sirven como páginas estáticas con su propia
+   hoja en línea: no salen del bundle, así que hay que pedirlas por su
+   ruta exacta — con la barra final, que es la forma canónica. */
+const RUTAS = [
+  "/",
+  "/privacidad/",
+  "/terminos/",
+  "/pagos/",
+  "/404.html",
+  "/robots.txt",
+  "/sitemap.xml",
+  "/favicon.svg",
+  "/favicon.png",
+  "/og.png",
+  `/${A}`,
+  `/${C}`,
+];
 const respuestas = new Map();
 for (const r of RUTAS) {
   const c = await http(IP, r);
@@ -238,6 +254,12 @@ lienzo.on("console", (m) => m.type() === "error" && errores.push(m.text()));
 lienzo.on("pageerror", (e) => errores.push(String(e)));
 await lienzo.goto(LARGO, { waitUntil: "domcontentloaded", timeout: 300_000 });
 await lienzo.evaluate(() => document.fonts.ready);
+/* Se baja hasta el pie antes de medir: los lockups de la cinta y los
+   rectángulos de pago salen con `loading="lazy"`, y sin meterlos en el
+   viewport no se piden — el examen de «logo roto» pasaría sin haber
+   mirado nada. */
+await lienzo.evaluate(() => document.querySelector(".lp-pie")?.scrollIntoView());
+await lienzo.waitForTimeout(900);
 
 const visto = await lienzo.evaluate(() => {
   const texto = (s) => document.querySelector(s)?.textContent?.trim() ?? null;
@@ -289,10 +311,23 @@ const visto = await lienzo.evaluate(() => {
     /* La promesa se quedó sin subtítulo: si vuelve a aparecer un hijo
        dentro de su sección, alguien reinsertó la línea que se borró. */
     promesaHijos: document.querySelectorAll(".lp-promesa > *").length,
-    /* Los tres botones «Hablemos» (barra, hero y cierre) tienen que
-       salir hacia WhatsApp, no al formulario de antes. */
-    hablemos: [...document.querySelectorAll(".lp-nav__cta, .lp-hero__cta a, .lp-cierre__cta a")]
-      .map((a) => `${a.textContent.trim().slice(0, 14)} → ${a.getAttribute("href")}`),
+    /* El WhatsApp cambió de sitio: ya no está en la barra, el hero ni el
+       cierre — vive solo arriba del pie. `arriba` es la prueba de que no
+       volvió a colarse arriba, y `canal` la de que el del pie funciona. */
+    arriba: [...document.querySelectorAll(".lp-nav, .lp-hero__cta a, .lp-cierre__cta a")].map(
+      (a) => `${a.textContent.trim().slice(0, 20)} → ${a.getAttribute("href")}`,
+    ),
+    canal: texto(".lp-pie__canal a") + " → " + document.querySelector(".lp-pie__canal a")?.getAttribute("href"),
+    /* Los cuatro rectángulos de pago: el recuento dice que están y
+       `pagosRotos` es la única prueba de que los archivos salieron del
+       despliegue (un `naturalWidth` 0 es un logo que no se subió). */
+    pagos: document.querySelectorAll(".lp-pago").length,
+    pagosRotos: [...document.querySelectorAll(".lp-pago img")]
+      .filter((i) => i.complete && i.naturalWidth === 0)
+      .map((i) => i.alt),
+    politicas: [...document.querySelectorAll(".lp-pie__politicas a")].map(
+      (a) => `${a.textContent.trim()} → ${a.getAttribute("href")}`,
+    ),
     contacto: [...document.querySelectorAll(".lp-cierre a")].map((a) => a.getAttribute("href")),
     desborda: document.documentElement.scrollWidth - document.documentElement.clientWidth,
     /* Qué voz está usando el dominio de verdad. `fonts.check` vale true
@@ -332,7 +367,8 @@ dice(
     .join("   |   ") + ` · ${visto.logos} lockups pintados`,
 );
 dice("promesa", visto.promesa ?? "?");
-dice("botones", visto.hablemos.join("   |   "));
+dice("botones de arriba", visto.arriba.join("   |   "));
+dice("canal del pie", visto.canal);
 dice("contacto", visto.contacto.join("  "));
 dice("acordeón", `aria-expanded=${bandeja.expandido} · respuesta ${bandeja.alto} px alta`);
 dice("overflow horizontal", `${visto.desborda} px`);
@@ -365,16 +401,21 @@ for (const c of visto.cinta) {
 if (!/misma tecnolog/.test(visto.promesa ?? ""))
   fallos.push("la promesa literal no está en el DOM publicado");
 if (visto.promesaHijos > 0) fallos.push("la promesa volvió a llevar subtítulo");
-/* De la lista solo se juzgan los enlaces que PROMETEN la conversación:
-   los tres «Hablemos» y el botón de WhatsApp del cierre. Del mismo
-   contenedor cuelgan el «Ver qué hacemos» del hero (ancla interna) y el
-   teléfono y el correo del cierre, y exigirles `wa.me` era un falso
-   positivo del selector, no un fallo del sitio. */
-const prometeCharla = (l) => /^(Hablemos|Escribir por WhatsApp)/.test(l.split("→")[0].trim());
-const sinWhatsapp = visto.hablemos.filter(
-  (l) => prometeCharla(l) && !/wa\.me\/16318211938/.test(l.split("→")[1] ?? ""),
-);
-if (sinWhatsapp.length) fallos.push(`botones que no llevan a WhatsApp: ${sinWhatsapp.join(" | ")}`);
+/* Arriba ya no promete charla: promete cuenta. Un `wa.me` por encima
+   del pie sería un botón que alguien devolvió al hero o al cierre. */
+const colado = (visto.arriba ?? []).filter((l) => /wa\.me/.test(l));
+if (colado.length) fallos.push(`el WhatsApp volvió a estar arriba: ${colado.join(" | ")}`);
+if (!/Escribir por WhatsApp → https:\/\/wa\.me\/16318211938/.test(visto.canal ?? ""))
+  fallos.push(`el canal del pie no es el botón que se esperaba: «${visto.canal}»`);
+if (visto.pagos !== 4) fallos.push(`la fila de medios de pago tiene ${visto.pagos} rectángulos`);
+if (visto.pagosRotos.length) fallos.push(`logos de pago que no cargan: ${visto.pagosRotos.join(", ")}`);
+for (const p of [
+  "Privacidad → /privacidad/",
+  "Términos de servicio → /terminos/",
+  "Cómo se paga → /pagos/",
+]) {
+  if (!(visto.politicas ?? []).includes(p)) fallos.push(`el pie no enlaza ${p}`);
+}
 const prohibidas = [["división de Blink", /divisi[oó]n de Blink/i], ["Cuatro cosas", /Cuatro cosas/]];
 for (const [nombre, re] of prohibidas) {
   if (re.test(render)) fallos.push(`el sitio publicado todavía menciona «${nombre}»`);

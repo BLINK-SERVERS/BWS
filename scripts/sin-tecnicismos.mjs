@@ -77,6 +77,12 @@ function archivos() {
     "src/main.tsx",
     "index.html",
     "public/404.html",
+    /* Las tres páginas de políticas se escriben a mano, con su hoja en
+       línea y sin bundle, y son texto que el cliente lee: entran en el
+       mismo grep que el copy. */
+    "public/privacidad/index.html",
+    "public/terminos/index.html",
+    "public/pagos/index.html",
     "public/robots.txt",
     "public/sitemap.xml",
     "public/CNAME",
@@ -141,8 +147,9 @@ if (hallazgos.length) {
   hallazgos.forEach((h) => console.error("  " + h));
   process.exit(1);
 }
-const adicionales = readFileSync(new URL("src/lib/socios.ts", RAIZ), "utf8").length;
+const almacenes = ["src/lib/socios.ts", "src/lib/pagos.ts"];
+const KB = almacenes.reduce((n, r) => n + readFileSync(new URL(r, RAIZ), "utf8").length, 0);
 console.log(
   `✓ sin tecnicismos en ${archivos().length} archivos de cara al cliente ` +
-    `(y las marcas viven solo en lib/socios.ts, ${Math.round(adicionales / 1024)} KB)`,
+    `(y las marcas viven solo en ${almacenes.map((r) => r.replace("src/lib/", "lib/")).join(" y ")}, ${Math.round(KB / 1024)} KB)`,
 );

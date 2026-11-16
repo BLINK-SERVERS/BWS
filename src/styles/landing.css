@@ -986,10 +986,15 @@
 /* ============================================================
    Pie
    ------------------------------------------------------------
+   El pie se lee en tres tiempos, y el orden es intencionado: el canal
+   abre (es lo único que el cliente puede usar sin pensar), los medios
+   de pago siguen (cuatro logos, no una pregunta), y las políticas
+   cierran (se buscan después de decir que sí). La marca y los enlaces
+   de la familia quedan abajo, como siempre.
+
    Sin la franja de notas que había entre el cierre y el pie: la línea
    de las tarifas se volvió la última pregunta, y la de «división de
-   Blink» se borró del sitio. Dejar un `aside` con una sola nota encima
-   del pie era pagarle al lector un renglón que ya leyó arriba.
+   Blink» se borró del sitio.
    ============================================================ */
 
 .lp-pie {
@@ -1017,6 +1022,108 @@
   display: block;
   width: 100%;
   height: auto;
+}
+
+/* --- 1. El canal --- */
+
+.lp-pie__canal {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 1.25rem;
+  margin: 0 0 1.5rem;
+}
+
+/* El horario y la ciudad van pegados al botón, no en un renglón
+   aparte: separados, «24/7» queda flotando y se lee como adorno. */
+.lp-pie__datos {
+  font-size: var(--lp-fs-nota);
+  font-weight: 600;
+  color: var(--lp-texto-2);
+}
+
+/* --- Grupos con etiqueta, del uno al tres --- */
+
+.lp-pie__pagos,
+.lp-pie__politicas {
+  padding-top: 1.15rem;
+  border-top: 1px solid var(--lp-borde);
+  margin-bottom: 1.15rem;
+}
+
+.lp-pie__titulo {
+  margin: 0 0 0.75rem;
+  font-size: var(--lp-fs-nota);
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  color: var(--lp-texto-2);
+}
+
+/* --- 2. Los medios de pago --- */
+
+.lp-pagos {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* El rectángulo es el medio, no un marco decorativo: sobre el gris del
+   pie, el blanco le da a cada logo su propia caja y por eso la fila se
+   escanea de un golpe. `min-width` pareja para que cuatro rectángulos
+   no salgan con cuatro anchos distintos. */
+.lp-pago {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  min-width: 132px;
+  min-height: 52px;
+  padding: 0.6rem 0.9rem;
+  background: #ffffff;
+  border: 1px solid var(--lp-borde);
+  border-radius: var(--radius-md);
+}
+
+/* El glifo va a altura fija y con su color de marca cocido en el SVG: un
+   rombo negro en un rectángulo blanco no es Binance, es un rombo. El ancho
+   lo da el ratio del archivo —el cuadrado de Binance y el 302×338 del
+   isotipo de Zinli quedan a la misma altura sin estirar a nadie— y
+   `flex: none` evita que el nombre de al lado lo aplaste. */
+.lp-pago__glifo {
+  display: block;
+  flex: none;
+  height: 22px;
+  width: auto;
+  max-width: 60px;
+}
+
+/* El nombre escrito es lo que hace legible el rectángulo: el glifo va mudo
+   (`alt=""`) justamente porque esta palabra ya lo nombra. */
+.lp-pago__nombre {
+  font-size: var(--lp-fs-nota);
+  font-weight: 600;
+  white-space: nowrap;
+  color: var(--lp-texto);
+}
+
+/* --- 3. Las políticas --- */
+
+.lp-pie__politicas ul {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 1.5rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.lp-pie__politicas .lp-enlace {
+  /* Azul de enlace, no gris: estas tres sí llevan a una página propia,
+     y el color es lo que las distingue de la fila de la familia. */
+  font-size: var(--lp-fs-nota);
 }
 
 .lp-pie__fila {

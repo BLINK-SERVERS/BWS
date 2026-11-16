@@ -10,13 +10,17 @@ es la única promesa que el sitio hace en voz alta.
 nombra a Supabase, GitHub, Cloudflare, Neon, AWS, Zoho, Resend, Qoder ni
 nic.ve. Son las tecnologías que usamos, no parte de lo que el cliente
 tiene que entender. Los únicos nombres de terceros que se ven son los
-logos de la cinta de aliados, y salen sin una línea de explicación. La
+logos: los de la cinta de aliados y los de los medios de pago del pie, y
+unos y otros salen sin una línea de explicación. La
 regla es comprobable: `npm run verificar` (`scripts/sin-tecnicismos.mjs`)
 recorre el copy, los componentes y lo que se sirve desde `public/`,
 quita los comentarios y falla si encuentra una sola aparición visible.
 Las nueve marcas viven en `src/lib/socios.ts`, que es el único archivo
 eximido del segundo grep: fuera de ese almacén, cualquier mención a un
-vendor en el copy es un fallo.
+vendor en el copy es un fallo. Las cuatro redes de pago no están eximidas
+porque no necesitan estarlo: `Binance`, `Mastercard`, `Pago Móvil` y
+`Zinli` no son tecnologías, son canales, y se nombran en `src/lib/pagos.ts`
+y en `/pagos/` con la misma libertad con que se nombran en el contrato.
 
 ## Stack
 
@@ -239,6 +243,49 @@ marcas a color un gris pálido lee como marcador de posición. Su caja de
 `viewBox` la mide `scripts/medir-socios.mjs`, que desde la cinta solo
 sirve para estas marcas compuestas.
 
+## Los medios de pago del pie
+
+El pie abre con el canal —un solo botón de WhatsApp en todo el sitio, con
+«Atención 24/7 · Maracaibo, Zulia» al lado— y sigue con los medios de pago.
+No hay un «consúltenos las formas de pago» en ninguna parte: la gente no
+va a esperar una respuesta para saber si puede pagar.
+
+Cuatro rectángulos —Pago Móvil, Mastercard, Binance, Zinli— definidos en
+`src/lib/pagos.ts` y dibujados por `src/components/Pagos.tsx`. Los cuatro
+son compuestos, y por una razón que no es de gusto: de esas cuatro marcas
+solo Zinli publica un wordmark vectorial limpio, y las demás llegaron como
+símbolo. Un rombo amarillo suelto no dice «Binance», así que la regla es
+una para todas: el símbolo oficial verbatim desde
+`src/assets/pagos/origen/*.svg` y el nombre escrito al lado, con la pila de
+la familia. Mezclar lockups con símbolos compuestos daría cuatro cajas con
+pesos visuales distintos.
+
+A diferencia de la cinta, aquí `npm run logos` no pinta nada: estos archivos
+son el vector final, no la materia prima de un script, y viven en `origen/`
+solo para que la procedencia quede en el repo.
+
+Pago Móvil es la excepción, y es una excepción que no se va a poder cerrar
+buscando mejor: se comprobó el 2026-11-15 que no publica logo en ninguna
+parte. No hay SVG oficial en simple-icons (3.307 entradas), ni en Iconify
+(~150 packs), ni en Wikimedia Commons, ni en Wikidata —que además no tiene
+entidad—, y los dominios que uno esperaría (`pagomovil.com.ve`, `banpay.ve`,
+`asei.com.ve`) están todos fuera de zona; `pagomovil.com` es un
+estacionamiento a la venta. La razón es de fondo, no de suerte: Pago Móvil
+es un instrumento interbancario regulado por el BCV, y quien lo marca es
+cada banco —Banesco y Mercantil sacan su propio rótulo, en PNG—, así que no
+hay dueño que publique una marca. Su rectángulo lleva solo el nombre
+escrito, que es verdad: un texto dice «Pago Móvil», un glifo inventado por
+nosotros afirmaría algo de una red bancaria ajena.
+
+Como el nombre ya va escrito, el `<img>` del glifo va mudo (`alt=""` +
+`aria-hidden`): con texto alternativo el lector de pantalla diría «Binance
+Binance». El bloque enlaza a `/pagos/`, que es donde está el cómo —lo que no
+está ahí, y a propósito, son los datos de destino de las cuentas.
+
+Al final del pie van las tres páginas: Privacidad, Términos de servicio y
+Cómo se paga. «Quiénes somos» no está y no va a estar hasta que haya
+identidad fiscal real: el sitio no publica un RIF de relleno.
+
 ## La tarjeta de enlace
 
 `npm run og` (`scripts/og.mjs`) escribe `public/og.png`, 1200×630 exactos
@@ -289,6 +336,7 @@ solo con su propio origen y los proveedores viven en el servidor.
 | ruta | quién responde | origen |
 |---|---|---|
 | `/`, `/*.js`, `/*.css`, imágenes | GitHub Pages | `dist/` de la raíz |
+| `/privacidad/`, `/terminos/`, `/pagos/` | GitHub Pages | `public/<ruta>/index.html`, copiados tal cual |
 | `/registro`, `/ingreso`, `/panel`, `/proyecto`, `/admin`, `/verificar`, `/recuperar` | Worker `bws-portal` | `portal/dist/index.html` |
 | `/portal/assets/*` | Worker `bws-portal` | `portal/dist/portal/assets/*` |
 | `/api`, `/api/*` | Worker `bws-portal` | `portal/api/[...ruta].ts` |
@@ -303,6 +351,24 @@ inmutable de `/portal/assets/*` también vive solo en `worker.ts`, porque
 inexistente. La barra de la landing enlaza «Entrar» a `/ingreso` y el
 pie a «Portal de clientes», ambos locales; si el Worker no está
 desplegado, esos enlaces caen en el `404.html` de Pages.
+
+Las tres páginas de políticas no son rutas del portal ni del React: son
+`public/privacidad/index.html`, `public/terminos/index.html` y
+`public/pagos/index.html`, que Vite copia a `dist/` sin tocar y Pages
+sirve en `/privacidad/` — con la barra final, que es lo que hace falta
+para que una carpeta resuelva a su `index.html` sin router y sin reescritura.
+Cada una trae su CSS incrustado, igual que `404.html`: una página legal no
+puede quedar en blanco porque no bajó el bundle. Su contenido sale de los
+textos que sí firman los clientes (`portal/legal/textos/`) y de las
+condiciones de `con-004`, nunca al revés: si la página y el contrato se
+contradicen, manda el contrato, y la propia página lo dice.
+
+Por eso hay una cifra de la página que no se puede tocar a la ligera: la
+sesión del portal dura `HORAS = 12` en `portal/server/_lib/sesion.ts`, y
+`/privacidad/` lo dice con esas palabras. `web-006.ts`, la tabla de cookies
+del PDF, sigue afirmando ocho horas; es un texto con hash que ya firmó
+gente, así que corregirlo es una decisión del dueño del proyecto, no un
+arreglo de copy.
 
 El sistema visual vive en `portal/sistema/`, una copia de `src/styles` que
 mantiene `npm run sistema`; el Worker sube solo la carpeta del portal y no
