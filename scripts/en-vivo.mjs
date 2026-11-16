@@ -127,9 +127,14 @@ const ips = (await dns("1.1.1.1", "A")).filter((c) => /^\d+\.\d+\.\d+\.\d+$/.tes
 dice("CNAME @1.1.1.1", cname11.join(" ") || "NO HAY REGISTRO");
 dice("CNAME @8.8.8.8", cname88.join(" ") || "NO HAY REGISTRO");
 dice("A", ips.join(" ") || "sin dirección");
-if (!cname11.length) fallos.push("el CNAME no resuelve en 1.1.1.1");
-if (cname11[0] !== "blink-servers.github.io.")
-  fallos.push(`el CNAME apunta a ${cname11[0] ?? "?"}, se esperaba blink-servers.github.io.`);
+/* Desde que el nombre fue puesto detrás del proxy de Cloudflare, el
+   DNS público no contesta ningún CNAME: contesta las dos IPv4 del borde
+   (104.21/172.67) y el alias hacia `blink-servers.github.io.` vive solo
+   en la zona de Cloudflare, que no es consultable desde aquí. Lo que
+   todavía se puede afirmar es que el nombre resuelve; si algún día el
+   proxy se apaga, las IPs pasan a ser las de GitHub y las comprobaciones
+   de certificado y de forzado a continuación son las que lo delatan. */
+if (!ips.length) fallos.push("el nombre no resuelve en 1.1.1.1");
 const IP = ips[0] ?? "185.199.108.153";
 
 /* --- 2. el certificado ----------------------------------------------- */
