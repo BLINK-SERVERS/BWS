@@ -250,51 +250,77 @@ El pie abre con el canal —un solo botón de WhatsApp en todo el sitio, con
 No hay un «consúltenos las formas de pago» en ninguna parte: la gente no
 va a esperar una respuesta para saber si puede pagar.
 
-Cuatro rectángulos —Pago Móvil, Mastercard, Binance, Zinli— definidos en
-`src/lib/pagos.ts` y dibujados por `src/components/Pagos.tsx`. Los cuatro
-son compuestos, y por una razón que no es de gusto: de esas cuatro marcas
-solo Zinli publica un wordmark vectorial limpio, y las demás llegaron como
-símbolo. Un rombo amarillo suelto no dice «Binance», así que la regla es
-una para todas: el símbolo oficial verbatim desde
-`src/assets/pagos/origen/*.svg` y el nombre escrito al lado, con la pila de
-la familia. Mezclar lockups con símbolos compuestos daría cuatro cajas con
-pesos visuales distintos.
+Cuatro credenciales —Pago Móvil, Mastercard, Binance, Zinli— definidas en
+`src/lib/pagos.ts` y dibujadas por `src/components/Pagos.tsx`. Cada una es
+un icono nomás sobre el fondo de su propia marca, con la proporción de la
+tarjeta de plástico (`85.6 / 53.98`, ISO/IEC 7810 ID-1). El nombre escrito
+que llevaban al lado se quitó el 2026-11-15, pero no desapareció del sitio:
+se fue al `alt` del `<img>`. Sin ese `alt` la fila sería cuatro dibujos
+mudos, y «Pago Móvil» no se lee en ningún dibujo porque es una palabra.
 
 A diferencia de la cinta, aquí `npm run logos` no pinta nada: estos archivos
-son el vector final, no la materia prima de un script, y viven en `origen/`
+son el arte final, no la materia prima de un script, y viven en `origen/`
 solo para que la procedencia quede en el repo.
 
-Pago Móvil es la excepción, y es una excepción que no se va a poder cerrar
-buscando mejor: se comprobó el 2026-11-15 que no publica logo en ninguna
-parte. No hay SVG oficial en simple-icons (3.307 entradas), ni en Iconify
-(~150 packs), ni en Wikimedia Commons, ni en Wikidata —que además no tiene
-entidad—, y los dominios que uno esperaría (`pagomovil.com.ve`, `banpay.ve`,
-`asei.com.ve`) están todos fuera de zona; `pagomovil.com` es un
-estacionamiento a la venta. La razón es de fondo, no de suerte: Pago Móvil
-es un instrumento interbancario regulado por el BCV, y quien lo marca es
-cada banco —Banesco y Mercantil sacan su propio rótulo, en PNG—, así que no
-hay dueño que publique una marca. Su rectángulo lleva solo el nombre
-escrito, que es verdad: un texto dice «Pago Móvil», un glifo inventado por
-nosotros afirmaría algo de una red bancaria ajena. Lo único que existe con
-las palabras «Pago Móvil» dibujadas es el rótulo que cada banco se compone
-para sí —el del Banco de Venezuela circula por hosts ajenos al banco—, y
-ponerlo sería afirmar que BWS cobra por una red cuando cobra por un banco.
+**Mastercard** va a color completo sobre negro, y no es un gusto nuestro: el
+brand center define su *acceptance mark* como el símbolo sobre fondo negro.
+Los tres hexes son los publicados —`#EB001B`, `#FF5F00` en la lente,
+`#F79E1B`— y la geometría sale de φ: separación de centros `2r(φ−1)`, caja
+`2φr × 2r`. El archivo `mastercard-simbolo.svg` está construido con esos
+números y verificado, no dibujado a ojo: la caja mide 999,945 sobre 1000
+(desvío 0,055 %) y los cortes de la lente caen exactamente en `y = 66,08` y
+`551,92`. Medido en el navegador a 390 px: la ficha es de 80,5 × 50,75 y el
+símbolo entra en 49,25 × 30,44, así que quedan 15,63 px de aire a cada lado
+y 10,16 arriba y abajo. La marca pide ¼ de su diámetro por todos lados —a
+ese tamaño, 7,61 px— y un mínimo de 24 px; los dos números quedan por
+encima. La versión anterior (monocroma de simpleicons + nombre escrito) se
+quedó corta: era el *brand mark*, no el símbolo que el pie está mostrando.
 
-Y la fila no se rompe para Mastercard, que sí tiene lockup a color (dos
-círculos `#EB001B` + `#F79E1B` y el wordmark): el archivo que circula es
-una reproducción de Wikimedia con dos desviaciones sobre la marca
-registrada —el naranja del solapamiento sale `#FF5A00` en vez de `#FF5F00`
-y las trazas del wordmark van sin `fill`—, y usarlo obligaría a quitarle
-el nombre escrito a una sola marca, que es justo la fila de pesos
-distintos que se quiso evitar. Se sirve la versión monocroma oficial de
-simpleicons y «Mastercard» al lado, como con las otras tres. Si algún día
-se saca el lockup del brand center de Mastercard, que hoy responde `403`,
-esta decisión se revisa.
+**Zinli** es el icono de app que el propio `zinli.com` sirve
+(`/icon-512x512.png`): campo morado `#5A37B4` con la «Z» en su verde
+`#32CD96`, los dos planos. Se recortó a la mancha de la Z y nada más. Ojo
+con el rosetón de seis cintas que está embebido en su HTML (`IsoPurple`,
+`viewBox="0 0 302 338"`): es un motivo decorativo del sitio, no la marca.
+Ese rosetón —con un `fill` morado que sobre fondo morado desaparecía— es lo
+que servíamos antes de esta corrección. Tampoco hay degradado aqua→morado:
+el único degradado que Zinli declara en su CSS es verde→amarillo.
 
-Como el nombre ya va escrito, el `<img>` del glifo va mudo (`alt=""` +
-`aria-hidden`): con texto alternativo el lector de pantalla diría «Binance
-Binance». El bloque enlaza a `/pagos/`, que es donde está el cómo —lo que no
-está ahí, y a propósito, son los datos de destino de las cuentas.
+**Pago Móvil** sigue sin marca propia, y eso no se arregla buscando mejor:
+se comprobó el 2026-11-15 que no publica logo en ninguna parte (ni
+simple-icons, ni Iconify, ni Wikimedia, ni Wikidata; los dominios que uno
+esperaría están fuera de zona). La razón es de fondo: es un instrumento
+interbancario regulado por el BCV y quien lo marca es cada banco. Así que la
+ficha muestra el banco donde está nuestra cuenta, no una red: **BNC**. Del
+BNC no existe vector en ningún lado —el banco solo sirve dos PNG
+(`BNCLogo_rebrand.png` de 255×100 y `bnc-logo-white.png` de 170×75) y su
+favicon es de 48×48—, así que se sirve el reverso en blanco que él mismo
+publica, recortado a su símbolo de 61×59 (arco + las tres letras), sobre su
+azul `#001C4D`, el color dominante de su propio archivo. La versión a color
+no servía: su letra «N» es de ese mismo azul y desaparecía sobre el fondo.
+Es lo más grande del símbolo que existe en fuente oficial.
+
+Esto es una afirmación contable, no decorativa: decir BNC en el pie dice
+dónde se deposita. `public/pagos/index.html` lo dice también con palabras, y
+ahí se corrigió la frase que prometía no publicar «el banco» —hoy el banco
+sí es público; lo que no se publica es el número, la billetera ni la
+tarjeta, que siguen viajando con la cotización.
+
+**Binance** va con su rombo oficial `#F0B90B` sobre negro, tal cual.
+
+El `<img>` ya no va mudo: lleva el nombre en `alt` y sale de
+`aria-hidden`, porque no hay texto al lado que lo nombre. El bloque enlaza a
+`/pagos/`, que es donde está el cómo.
+
+Dos gates lo sostienen. `scripts/detalle.mjs` falla si hay menos de cuatro
+fichas, si algún glifo sale con `naturalWidth` 0, si alguna ficha pierde su
+`alt`, si alguna se queda sin fondo de marca o si su proporción se desvía
+de ID-1 más de 0,05. `scripts/en-vivo.mjs` comprueba en el dominio los
+cuatro nombres (`Pago Móvil por BNC`, `Mastercard`, `Binance`, `Zinli`) y
+que los cuatro carguen —y ahora eso importa de verdad: `zinli-z.png`, con
+9 KB, es la única de las cuatro que Vite no alcanza a incrustar (su límite
+por defecto son 4096 bytes), así que es la única que puede fallar en una
+petición. Los otros tres —los dos SVG y el PNG de BNC, de 3,5 KB— salen
+como `data:` dentro del bundle.
 
 Al final del pie van las tres páginas: Privacidad, Términos de servicio y
 Cómo se paga. «Quiénes somos» no está y no va a estar hasta que haya

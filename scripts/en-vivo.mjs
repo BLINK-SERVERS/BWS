@@ -323,10 +323,14 @@ const visto = await lienzo.evaluate(() => {
       (a) => `${a.textContent.trim().slice(0, 20)} → ${a.getAttribute("href")}`,
     ),
     canal: texto(".lp-pie__canal a") + " → " + document.querySelector(".lp-pie__canal a")?.getAttribute("href"),
-    /* Los cuatro rectángulos de pago: el recuento dice que están y
+    /* Las cuatro credenciales de pago: el recuento dice que están,
        `pagosRotos` es la única prueba de que los archivos salieron del
-       despliegue (un `naturalWidth` 0 es un logo que no se subió). */
+       despliegue (un `naturalWidth` 0 es un logo que no se subió —y ahora
+       uno de los cuatro sí es una petición real, el PNG del BNC), y
+       `pagosNombres` es la prueba de que siguen nombradas: el nombre ya no
+       se lee al lado del dibujo, vive en el `alt`. */
     pagos: document.querySelectorAll(".lp-pago").length,
+    pagosNombres: [...document.querySelectorAll(".lp-pago img")].map((i) => i.alt),
     pagosRotos: [...document.querySelectorAll(".lp-pago img")]
       .filter((i) => i.complete && i.naturalWidth === 0)
       .map((i) => i.alt),
@@ -414,6 +418,10 @@ if (!/Escribir por WhatsApp → https:\/\/wa\.me\/16318211938/.test(visto.canal 
   fallos.push(`el canal del pie no es el botón que se esperaba: «${visto.canal}»`);
 if (visto.pagos !== 4) fallos.push(`la fila de medios de pago tiene ${visto.pagos} rectángulos`);
 if (visto.pagosRotos.length) fallos.push(`logos de pago que no cargan: ${visto.pagosRotos.join(", ")}`);
+for (const nombre of ["Pago Móvil por BNC", "Mastercard", "Binance", "Zinli"]) {
+  if (!(visto.pagosNombres ?? []).includes(nombre))
+    fallos.push(`una credencial publicada no se nombra «${nombre}»`);
+}
 for (const p of [
   "Privacidad → /privacidad/",
   "Términos de servicio → /terminos/",

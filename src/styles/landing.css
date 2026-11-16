@@ -1070,43 +1070,33 @@
   list-style: none;
 }
 
-/* El rectángulo es el medio, no un marco decorativo: sobre el gris del
-   pie, el blanco le da a cada logo su propia caja y por eso la fila se
-   escanea de un golpe. `min-width` pareja para que cuatro rectángulos
-   no salgan con cuatro anchos distintos. */
+/* La ficha es una credencial: la proporción es la de la tarjeta-plástico
+   real (ISO/IEC 7810 ID-1, 85,60 × 53,98 mm), no un cuadrado decorativo.
+   `flex-basis` y `max-width` en vez de un ancho fijo para que las cuatro
+   entren en una sola línea a 390 px —a 80,5 px por ficha caben cuatro con
+   sus tres huecos de 12 dentro de los 358 px de la fila— y en desktop no
+   se estiren hasta el borde. El fondo lo pone cada marca desde
+   `src/lib/pagos.ts`: sobre el gris del pie, el negro de Mastercard y el
+   azul de BNC son la marca misma, no un marco que elegimos nosotros. */
 .lp-pago {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 0.45rem;
-  min-width: 132px;
-  min-height: 52px;
-  padding: 0.6rem 0.9rem;
-  background: #ffffff;
-  border: 1px solid var(--lp-borde);
-  border-radius: var(--radius-md);
+  flex: 1 1 78px;
+  max-width: 104px;
+  aspect-ratio: 85.6 / 53.98;
+  border-radius: var(--radius-sm);
 }
 
-/* El glifo va a altura fija y con su color de marca cocido en el SVG: un
-   rombo negro en un rectángulo blanco no es Binance, es un rombo. El ancho
-   lo da el ratio del archivo —el cuadrado de Binance y el 302×338 del
-   isotipo de Zinli quedan a la misma altura sin estirar a nadie— y
-   `flex: none` evita que el nombre de al lado lo aplaste. */
+/* El glifo manda sobre el hueco de la ficha, no sobre un tamaño fijo: al
+   ir solo y sin nombre escrito, lo que se escanea es la marca llenando su
+   caja. `max-width` recorta las marcas anchas (el rombo de Binance y la
+   Z de Zinli tienen ratios distintos) sin deformar a ninguna. */
 .lp-pago__glifo {
   display: block;
-  flex: none;
-  height: 22px;
+  height: 60%;
   width: auto;
-  max-width: 60px;
-}
-
-/* El nombre escrito es lo que hace legible el rectángulo: el glifo va mudo
-   (`alt=""`) justamente porque esta palabra ya lo nombra. */
-.lp-pago__nombre {
-  font-size: var(--lp-fs-nota);
-  font-weight: 600;
-  white-space: nowrap;
-  color: var(--lp-texto);
+  max-width: 74%;
 }
 
 /* --- 3. Las políticas --- */

@@ -72,26 +72,49 @@ for (const [nombre, selector] of BLOQUES) {
   );
 }
 
-/* Los cuatro rectángulos del pie existen para que se lean sin preguntar,
-   y un rectángulo con el nombre y la marca ausente cumple la mitad de la
+/* Las cuatro credenciales del pie existen para que se lean sin preguntar,
+   y una ficha con el nombre y la marca ausente cumple la mitad de la
    promesa sin avisar. La captura de 390 del 2026-11-15 lo enseñó: con
    `loading="lazy"` sobre un `data:` la fila salía vacía y ningún otro
    script se quejaba. `naturalWidth === 0` es la única señal de que el
-   archivo no llegó, así que aquí se vuelve fallo, no nota al pie. */
+   archivo no llegó, así que aquí se vuelve fallo, no nota al pie.
+
+   Desde el 2026-11-15 el nombre ya no está escrito al lado del glifo: vive
+   en el `alt`. Un `alt` vacío sería una ficha muda para quien no ve el
+   dibujo, y un fondo sin color de marca sería una ficha cualquiera. */
 const tintas = await pagina.evaluate(() =>
-  [...document.querySelectorAll(".lp-pago")].map((p) => ({
-    nombre: p.querySelector(".lp-pago__nombre")?.textContent ?? "?",
-    img: !!p.querySelector("img"),
-    ancho: p.querySelector("img")?.naturalWidth ?? null,
-    alto: p.getBoundingClientRect().height,
-  })),
+  [...document.querySelectorAll(".lp-pago")].map((p) => {
+    const caja = p.getBoundingClientRect();
+    const img = p.querySelector("img");
+    return {
+      nombre: img?.getAttribute("alt") ?? "?",
+      ancho: img?.naturalWidth ?? 0,
+      ratio: +(caja.width / caja.height).toFixed(3),
+      fondo: getComputedStyle(p).backgroundColor,
+    };
+  }),
 );
-console.log("\nrectángulos de pago:", JSON.stringify(tintas));
-const mudos = tintas.filter((t) => t.img && t.ancho === 0);
-if (tintas.length !== 4) console.error(`✗ hay ${tintas.length} rectángulos de pago, se esperan 4`);
+console.log("\ncredenciales de pago:", JSON.stringify(tintas));
+const mudos = tintas.filter((t) => t.ancho === 0);
+const sinNombre = tintas.filter((t) => !t.nombre || t.nombre === "?");
+const sinFondo = tintas.filter((t) => /rgba\(0, 0, 0, 0\)|transparent/.test(t.fondo));
+const torcidas = tintas.filter((t) => Math.abs(t.ratio - 1.586) > 0.05);
+if (tintas.length !== 4) console.error(`✗ hay ${tintas.length} credenciales de pago, se esperan 4`);
 if (mudos.length)
   console.error(`✗ marcas que no pintan: ${mudos.map((m) => m.nombre).join(", ")}`);
-if (tintas.length !== 4 || mudos.length) process.exit(1);
+if (sinNombre.length)
+  console.error(`✗ fichas sin nombre accesible: ${sinNombre.map((m) => m.ratio).join(", ")}`);
+if (sinFondo.length) console.error(`✗ fichas sin fondo de marca: ${sinFondo.length}`);
+if (torcidas.length)
+  console.error(`✗ fichas fuera de la proporción ID-1: ${torcidas.map((m) => m.ratio).join(", ")}`);
+if (
+  tintas.length !== 4 ||
+  mudos.length ||
+  sinNombre.length ||
+  sinFondo.length ||
+  torcidas.length
+)
+  process.exit(1);
 
 /* Dos medidas que solo da el DOM, y las dos mandan en la cinta.
 
