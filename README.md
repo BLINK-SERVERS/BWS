@@ -275,7 +275,21 @@ es un instrumento interbancario regulado por el BCV, y quien lo marca es
 cada banco —Banesco y Mercantil sacan su propio rótulo, en PNG—, así que no
 hay dueño que publique una marca. Su rectángulo lleva solo el nombre
 escrito, que es verdad: un texto dice «Pago Móvil», un glifo inventado por
-nosotros afirmaría algo de una red bancaria ajena.
+nosotros afirmaría algo de una red bancaria ajena. Lo único que existe con
+las palabras «Pago Móvil» dibujadas es el rótulo que cada banco se compone
+para sí —el del Banco de Venezuela circula por hosts ajenos al banco—, y
+ponerlo sería afirmar que BWS cobra por una red cuando cobra por un banco.
+
+Y la fila no se rompe para Mastercard, que sí tiene lockup a color (dos
+círculos `#EB001B` + `#F79E1B` y el wordmark): el archivo que circula es
+una reproducción de Wikimedia con dos desviaciones sobre la marca
+registrada —el naranja del solapamiento sale `#FF5A00` en vez de `#FF5F00`
+y las trazas del wordmark van sin `fill`—, y usarlo obligaría a quitarle
+el nombre escrito a una sola marca, que es justo la fila de pesos
+distintos que se quiso evitar. Se sirve la versión monocroma oficial de
+simpleicons y «Mastercard» al lado, como con las otras tres. Si algún día
+se saca el lockup del brand center de Mastercard, que hoy responde `403`,
+esta decisión se revisa.
 
 Como el nombre ya va escrito, el `<img>` del glifo va mudo (`alt=""` +
 `aria-hidden`): con texto alternativo el lector de pantalla diría «Binance
