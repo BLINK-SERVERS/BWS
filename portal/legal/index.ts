@@ -9,8 +9,19 @@ import { PRI_005 } from "./textos/pri-005";
 import { WEB_006 } from "./textos/web-006";
 import { LIC_007 } from "./textos/lic-007";
 import { NDA_008 } from "./textos/nda-008";
+import { CONTRATOS, contratoDe, type PersonaContrato } from "./textos/con-servicios";
 
-/** Los ocho documentos, en el orden en que se firman. */
+export { CONTRATOS, contratoDe, CATEGORIAS_CONTRATO, etiquetaPersona } from "./textos/con-servicios";
+export type { CategoriaContrato, PersonaContrato } from "./textos/con-servicios";
+
+/** Los siete documentos comunes a todo expediente. */
+export const DOCUMENTOS_BASE: DocumentoLegal[] = [REG_001, LEG_002, LEG_003, PRI_005, WEB_006, LIC_007, NDA_008];
+
+/**
+ * Expediente histórico con CON-004: se conserva para verificar los
+ * expedientes ya firmados. Los proyectos nuevos usan la variante del
+ * contrato de servicios que corresponde a su categoría y persona.
+ */
 export const DOCUMENTOS: DocumentoLegal[] = [
   REG_001,
   LEG_002,
@@ -22,7 +33,14 @@ export const DOCUMENTOS: DocumentoLegal[] = [
   NDA_008,
 ];
 
-export const DOCUMENTO_POR_CODIGO = new Map(DOCUMENTOS.map((d) => [d.codigo, d]));
+/** Los ocho documentos de un proyecto nuevo, en el orden en que se firman. */
+export function documentosDeExpediente(categoria: string, persona: PersonaContrato): DocumentoLegal[] {
+  return [REG_001, LEG_002, LEG_003, contratoDe(categoria, persona), PRI_005, WEB_006, LIC_007, NDA_008];
+}
+
+export const DOCUMENTO_POR_CODIGO = new Map(
+  [...DOCUMENTOS, ...CONTRATOS].map((d) => [d.codigo, d]),
+);
 
 /**
  * Datos de prueba para los PDF locales y las pruebas unitarias.
@@ -32,9 +50,11 @@ export const DOCUMENTO_POR_CODIGO = new Map(DOCUMENTOS.map((d) => [d.codigo, d])
 export function datosDePrueba(opciones?: {
   preset?: PresetPlan["clave"];
   nivel?: NivelPlan["clave"];
+  persona?: PersonaContrato;
 }): DatosExpediente {
   const preset = opciones?.preset ?? "supabase";
   const nivel = opciones?.nivel ?? "pro";
+  const persona = opciones?.persona ?? "juridica";
   const plan = nivelDePlan(preset, nivel);
 
   const variables = Object.fromEntries(CAMPOS.map((c) => [c.clave, c.ejemplo]));
@@ -75,7 +95,24 @@ export function datosDePrueba(opciones?: {
     licencia_duracion: "la vida del servicio contratado",
     credito_meses: "veinticuatro (24) meses",
     correo_proveedor: "el proveedor de correo transaccional contratado por Blink",
+    persona_tipo: persona === "natural" ? "Persona natural" : "Persona jurídica",
+    cliente_rep_nombre: "Nombre Apellido",
+    cliente_rep_documento: "V-00000000",
+    mantenimiento_precio: "treinta y un dólares (USD 31)",
+    tasa_p2p_valor: "Bs. 245,0000 por USDT",
+    tasa_p2p_fecha: "11 de noviembre de 2026",
+    mantenimiento_bs: "Bs. 7.595,00",
+    mantenimiento_btc: "0,00031000 BTC",
+    mantenimiento_eth: "0,01240000 ETH",
   });
+
+  if (persona === "natural") {
+    Object.assign(variables, {
+      cliente_razon_social: "Cliente de Prueba",
+      cliente_documento_tipo: "cédula de identidad",
+      cliente_documento_numero: "V-12345678",
+    });
+  }
 
   return {
     variables,

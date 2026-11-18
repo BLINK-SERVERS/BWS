@@ -7,6 +7,8 @@
    ============================================================ */
 
 import type { LectorFuentes } from "./fuentes";
+import interBold from "./fuentes/Inter-Bold.ttf";
+import inter from "./fuentes/Inter-Regular.ttf";
 import mono from "./fuentes/LiberationMono-Regular.ttf";
 import sansBold from "./fuentes/LiberationSans-Bold.ttf";
 import sans from "./fuentes/LiberationSans-Regular.ttf";
@@ -15,6 +17,8 @@ import serifItalic from "./fuentes/LiberationSerif-Italic.ttf";
 import serif from "./fuentes/LiberationSerif-Regular.ttf";
 
 const ARCHIVOS: Record<string, Uint8Array> = {
+  "Inter-Bold.ttf": interBold,
+  "Inter-Regular.ttf": inter,
   "LiberationMono-Regular.ttf": mono,
   "LiberationSans-Bold.ttf": sansBold,
   "LiberationSans-Regular.ttf": sans,

@@ -152,7 +152,7 @@ export function Firma({ alFirmar }: { alFirmar?: () => void }) {
               {estado.consentimiento.codigo} · {estado.consentimiento.titulo}
             </summary>
             <div className="po-consentimiento-texto">
-              <TextoLegal bloques={estado.consentimiento.bloques} />
+              <TextoLegal bloques={estado.consentimiento.bloques} clasico={estado.consentimiento.estilo === "clasico"} />
             </div>
           </details>
 

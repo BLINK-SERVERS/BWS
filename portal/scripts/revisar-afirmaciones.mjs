@@ -12,7 +12,7 @@
    npx tsx scripts/revisar-afirmaciones.mjs
    ============================================================ */
 
-import { DOCUMENTOS } from "../legal/index.ts";
+import { CONTRATOS, DOCUMENTOS } from "../legal/index.ts";
 
 const NEGACION = /\b(no|ni|nunca|jamás|sin|tampoco|ningún|ninguna|ninguno)\b/i;
 // Hablar de una alternativa que el cliente puede pedir no es afirmar que
@@ -92,6 +92,10 @@ function textoDeBloque(bloque) {
       return bloque.texto;
     case "lista":
       return bloque.items.join("\n");
+    case "capitulo":
+      return [bloque.texto, bloque.subtitulo].filter(Boolean).join("\n");
+    case "clausula":
+      return `${bloque.ordinal} ${bloque.texto}`;
     case "tabla":
       return [bloque.cabecera.join(" | "), ...bloque.filas.map((f) => f.join(" | "))].join("\n");
     case "buzones":
@@ -112,7 +116,9 @@ function frases(doc) {
 const hallazgos = [];
 let aceptadas = 0;
 
-for (const doc of DOCUMENTOS) {
+const REVISADOS = [...DOCUMENTOS, ...CONTRATOS];
+
+for (const doc of REVISADOS) {
   for (const frase of frases(doc)) {
     for (const regla of REGLAS) {
       if (!regla.patron.test(frase)) continue;
@@ -135,5 +141,5 @@ if (hallazgos.length) {
 }
 
 console.log(
-  `✓ ${DOCUMENTOS.length} documentos revisados: ninguna afirmación prohibida sin negar (${aceptadas} menciones correctamente calificadas).`,
+  `✓ ${REVISADOS.length} documentos revisados: ninguna afirmación prohibida sin negar (${aceptadas} menciones correctamente calificadas).`,
 );

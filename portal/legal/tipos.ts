@@ -18,6 +18,10 @@ export type Bloque =
   | { tipo: "lista"; items: string[]; numerada?: boolean }
   | { tipo: "tabla"; cabecera: string[]; filas: string[][]; anchos?: number[] }
   | { tipo: "aviso"; texto: string }
+  /** Capítulo centrado del estilo clásico, con bajada opcional. */
+  | { tipo: "capitulo"; texto: string; subtitulo?: string }
+  /** Cláusula del estilo clásico: ordinal en negrita y cuerpo justificado. */
+  | { tipo: "clausula"; ordinal: string; texto: string }
   /** Tabla de buzones resuelta desde el proyecto (máximo cinco). */
   | { tipo: "buzones" }
   /** Tabla de límites del plan de infraestructura elegido. */
@@ -36,6 +40,8 @@ export interface DocumentoLegal {
   /** Variables que este documento exige; todas deben llegar con valor. */
   campos: string[];
   bloques: Bloque[];
+  /** Formato del papel: «clasico» usa Inter, membrete y capítulos centrados. */
+  estilo?: "clasico";
 }
 
 export interface Buzon {

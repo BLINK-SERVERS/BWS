@@ -37,5 +37,8 @@ export function contenidoPlantilla(doc: DocumentoLegal): string {
     firma: doc.firma,
     campos: doc.campos,
     bloques: doc.bloques,
+    // Solo entra cuando existe: las plantillas publicadas antes del estilo
+    // clásico conservan exactamente la huella con la que se firmaron.
+    ...(doc.estilo ? { estilo: doc.estilo } : {}),
   });
 }

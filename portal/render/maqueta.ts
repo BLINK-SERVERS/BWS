@@ -9,6 +9,9 @@
 import fontkit from "@pdf-lib/fontkit";
 import { rgb, type PDFDocument, type PDFFont, type RGB } from "pdf-lib";
 import type { LectorFuentes } from "./fuentes";
+import { partirRuns } from "./runs";
+
+export { partirRuns } from "./runs";
 
 export const A4 = { ancho: 595.28, alto: 841.89 };
 export const MARGEN = { sup: 68, inf: 62, izq: 56, der: 56 };
@@ -48,11 +51,23 @@ async function incrustar(
   return pdf.embedFont(bytes, { subset: true, customName: nombre });
 }
 
-export async function cargarFuentes(pdf: PDFDocument, leer: LectorFuentes): Promise<Fuentes> {
+export async function cargarFuentes(
+  pdf: PDFDocument,
+  leer: LectorFuentes,
+  opciones?: { inter?: boolean },
+): Promise<Fuentes> {
   pdf.registerFontkit(fontkit);
   // En serie, no en paralelo: pdf-lib numera los objetos al registrarlos y
   // con Promise.all el orden depende de qué fuente termine antes. Eso cambia
   // los bytes del PDF entre dos pasadas idénticas. Aquí el orden es fijo.
+  if (opciones?.inter) {
+    // Estilo clásico: todo el documento va en Inter (SIL OFL 1.1). Solo se
+    // conserva el mono de Liberation para los hashes de la evidencia.
+    const inter = await incrustar(pdf, leer, "Inter-Regular.ttf", "BWSINT+Inter");
+    const interBold = await incrustar(pdf, leer, "Inter-Bold.ttf", "BWSINB+Inter-Bold");
+    const mono = await incrustar(pdf, leer, "LiberationMono-Regular.ttf", "BWSMON+LiberationMono");
+    return { serif: inter, serifBold: interBold, serifItalic: inter, sans: inter, sansBold: interBold, mono };
+  }
   const serif = await incrustar(pdf, leer, "LiberationSerif-Regular.ttf", "BWSSER+LiberationSerif");
   const serifBold = await incrustar(pdf, leer, "LiberationSerif-Bold.ttf", "BWSSBD+LiberationSerif-Bold");
   const serifItalic = await incrustar(pdf, leer, "LiberationSerif-Italic.ttf", "BWSSIT+LiberationSerif-Italic");
@@ -118,6 +133,118 @@ export function envolverCaracteres(
     }
   }
   if (actual) lineas.push(actual);
+  return lineas;
+}
+
+/** Tamaños del estilo clásico: Inter 16/14/12 con interlineado 1.5. */
+export const CLASICO = {
+  titulo: 16,
+  interlineadoTitulo: 24,
+  capitulo: 14,
+  interlineadoCapitulo: 21,
+  cuerpo: 12,
+  interlineadoCuerpo: 18,
+  celda: 10,
+  interlineadoCelda: 14,
+};
+
+export interface PalabraMedida {
+  texto: string;
+  negrita: boolean;
+  ancho: number;
+}
+
+export interface LineaRuns {
+  palabras: PalabraMedida[];
+  /** Suma de anchos de palabra, sin los espacios entre ellas. */
+  anchoTexto: number;
+  /** Última línea de su párrafo: no se justifica. */
+  final: boolean;
+}
+
+/**
+ * Envuelve un texto con negritas inline (`**…**`) midiendo cada palabra
+ * con su fuente real. Devuelve líneas listas para justificar: el sobrante
+ * se reparte entre los huecos de palabra salvo en la línea final.
+ */
+export function envolverRuns(
+  texto: string,
+  regular: PDFFont,
+  bold: PDFFont,
+  tamano: number,
+  ancho: number,
+): LineaRuns[] {
+  const parrafos: { texto: string; negrita: boolean }[][] = [[]];
+  let separado = true;
+  for (const run of partirRuns(texto)) {
+    run.texto.split("\n").forEach((segmento, indice) => {
+      if (indice > 0) {
+        parrafos.push([]);
+        separado = true;
+      }
+      if (!segmento.trim()) {
+        if (segmento.length) separado = true;
+        return;
+      }
+      const palabras = segmento.split(/\s+/).filter(Boolean);
+      const inicial = /^\s/.test(segmento) || separado;
+      const actual = parrafos[parrafos.length - 1];
+      palabras.forEach((palabra, i) => {
+        if (i > 0 || inicial || !actual.length) {
+          actual.push({ texto: palabra, negrita: run.negrita });
+        } else {
+          // Negrita que parte una palabra por la mitad: se une al tramo anterior.
+          const ultima = actual[actual.length - 1];
+          actual[actual.length - 1] = { texto: ultima.texto + palabra, negrita: ultima.negrita };
+        }
+      });
+      separado = /\s$/.test(segmento);
+    });
+  }
+
+  const espacio = regular.widthOfTextAtSize(" ", tamano);
+  const lineas: LineaRuns[] = [];
+  for (const parrafo of parrafos) {
+    if (!parrafo.length) {
+      lineas.push({ palabras: [], anchoTexto: 0, final: true });
+      continue;
+    }
+    let actual: PalabraMedida[] = [];
+    let anchoActual = 0;
+    for (const palabra of parrafo) {
+      const fuente = palabra.negrita ? bold : regular;
+      const anchoPalabra = fuente.widthOfTextAtSize(palabra.texto, tamano);
+      const prueba = actual.length ? anchoActual + espacio + anchoPalabra : anchoPalabra;
+      if (prueba <= ancho) {
+        actual.push({ ...palabra, ancho: anchoPalabra });
+        anchoActual = prueba;
+        continue;
+      }
+      if (actual.length) {
+        lineas.push({ palabras: actual, anchoTexto: anchoActual, final: false });
+        actual = [];
+        anchoActual = 0;
+      }
+      if (anchoPalabra > ancho) {
+        const trozos = envolverCaracteres(palabra.texto, fuente, tamano, ancho);
+        for (const trozo of trozos.slice(0, -1)) {
+          const anchoTrozo = fuente.widthOfTextAtSize(trozo, tamano);
+          lineas.push({
+            palabras: [{ texto: trozo, negrita: palabra.negrita, ancho: anchoTrozo }],
+            anchoTexto: anchoTrozo,
+            final: false,
+          });
+        }
+        const resto = trozos[trozos.length - 1] ?? "";
+        actual = [{ texto: resto, negrita: palabra.negrita, ancho: fuente.widthOfTextAtSize(resto, tamano) }];
+        anchoActual = actual[0].ancho;
+      } else {
+        actual = [{ ...palabra, ancho: anchoPalabra }];
+        anchoActual = anchoPalabra;
+      }
+    }
+    if (actual.length) lineas.push({ palabras: actual, anchoTexto: anchoActual, final: true });
+  }
   return lineas;
 }
 

@@ -1,5 +1,5 @@
 /* ============================================================
-   Genera los ocho PDF de muestra y los verifica sin red.
+   Genera los PDF de muestra y los verifica sin red.
    ------------------------------------------------------------
    · Valida que cada plantilla use solo variables declaradas.
    · Resuelve los datos de prueba y genera A4 con fuentes embebidas.
@@ -8,6 +8,9 @@
      debe producir el mismo archivo.
    · Encadena los documentos con GENESIS y guarda el resumen.
 
+   Ocho documentos históricos (con CON-004) más las doce variantes
+   del contrato de servicios, cada una con su persona.
+
    npx tsx scripts/pdf-local.mjs
    ============================================================ */
 
@@ -15,7 +18,7 @@ import { execFileSync } from "node:child_process";
 import { mkdir, rm, writeFile } from "node:fs/promises";
 import { createHash } from "node:crypto";
 import { join } from "node:path";
-import { DOCUMENTOS, datosDePrueba } from "../legal/index.ts";
+import { CONTRATOS, DOCUMENTOS, datosDePrueba } from "../legal/index.ts";
 import { resolver, validarPlantilla } from "../legal/validar.ts";
 import { PRESETS } from "../legal/planes.ts";
 import { hashCadena, hashPlantilla, selloDeContenido, sha256Hex } from "../render/hash.ts";
@@ -47,17 +50,25 @@ function sha256(bytes) {
 }
 
 function verificarTexto(ruta, doc) {
-  const texto = ejecutar("pdftotext", ["-layout", ruta, "-"]);
-  if (texto === null) {
+  const bruto = ejecutar("pdftotext", ["-layout", ruta, "-"]);
+  if (bruto === null) {
     avisos.push("pdftotext no está disponible: se omite la revisión del texto");
     return;
   }
+  // El justificado del estilo clásico separa las palabras con espacios
+  // extra y los títulos pueden partirse en dos líneas: se normaliza.
+  const texto = bruto.replace(/\s+/g, " ");
   if (texto.includes("{{")) errores.push(`${doc.codigo}: quedaron marcadores {{ en el PDF`);
   if (!texto.includes(doc.codigo)) errores.push(`${doc.codigo}: el código no aparece en el texto`);
   if (!texto.includes(doc.titulo.slice(0, 24))) errores.push(`${doc.codigo}: el título no aparece en el texto`);
   if (!texto.includes("Firmas")) errores.push(`${doc.codigo}: falta la página de firmas`);
   if (!texto.includes("Constancia de evidencia")) errores.push(`${doc.codigo}: falta la página de evidencia`);
-  if (!texto.includes("Powered by Blink")) errores.push(`${doc.codigo}: falta el crédito en el pie`);
+  if (!texto.includes("Powered by Blink")) errores.push(`${doc.codigo}: falta el crédito «Powered by Blink»`);
+  if (doc.estilo === "clasico") {
+    if (!texto.includes("Blink Technology Corporation.")) errores.push(`${doc.codigo}: falta el membrete`);
+    if (!texto.includes("Contrato de servicios, página 1 de")) errores.push(`${doc.codigo}: falta el pie clásico`);
+    if (!texto.includes("CONTRATO DE SERVICIOS")) errores.push(`${doc.codigo}: falta el título centrado`);
+  }
   if (/undefined|null/.test(texto)) errores.push(`${doc.codigo}: el texto contiene undefined/null`);
 }
 
@@ -99,6 +110,9 @@ function verificarFuentes(ruta, doc) {
       errores.push(`${doc.codigo}: fuente sin incrustar (${linea})`);
     }
   }
+  if (doc.estilo === "clasico" && !/Inter/.test(salida)) {
+    errores.push(`${doc.codigo}: el estilo clásico debe ir en Inter`);
+  }
 }
 
 async function generar(doc, datos, firmas, evidencia) {
@@ -119,7 +133,7 @@ async function principal() {
   await mkdir(FIRMAS, { recursive: true });
 
   // 1. Plantillas
-  for (const doc of DOCUMENTOS) {
+  for (const doc of [...DOCUMENTOS, ...CONTRATOS]) {
     const problemas = validarPlantilla(doc);
     for (const p of problemas) errores.push(`plantilla ${p.documento}: ${p.mensaje}`);
   }
@@ -129,11 +143,12 @@ async function principal() {
     process.exit(1);
   }
 
-  // 2. Variantes de plan: el anexo B debe resolverse con ambos presets.
+  // 2. Variantes de plan: el CON-004 histórico y la cláusula DÉCIMA de
+  // cada contrato deben resolverse con todos los presets y niveles.
+  const con = DOCUMENTOS.find((d) => d.codigo === "BWS-CON-004");
   for (const preset of PRESETS) {
     for (const nivel of preset.niveles) {
       const datos = datosDePrueba({ preset: preset.clave, nivel: nivel.clave });
-      const con = DOCUMENTOS.find((d) => d.codigo === "BWS-CON-004");
       try {
         const resuelto = resolver(con, datos);
         const texto = JSON.stringify(resuelto.bloques);
@@ -142,6 +157,19 @@ async function principal() {
         }
       } catch (error) {
         errores.push(`anexo B: ${preset.clave}/${nivel.clave} no resuelve (${error.message})`);
+      }
+      for (const [i, contrato] of CONTRATOS.entries()) {
+        const persona = i % 2 === 0 ? "natural" : "juridica";
+        const datosContrato = datosDePrueba({ preset: preset.clave, nivel: nivel.clave, persona });
+        try {
+          const resuelto = resolver(contrato, datosContrato);
+          const texto = JSON.stringify(resuelto.bloques);
+          if (!texto.includes(nivel.nombre) || !texto.includes(nivel.fuente)) {
+            errores.push(`${contrato.codigo}: ${preset.clave}/${nivel.clave} no imprime el plan elegido`);
+          }
+        } catch (error) {
+          errores.push(`${contrato.codigo}: ${preset.clave}/${nivel.clave} no resuelve (${error.message})`);
+        }
       }
     }
   }
@@ -152,35 +180,43 @@ async function principal() {
   await writeFile(new URL("representante.png", FIRMAS), pngRep);
   await writeFile(new URL("cliente.png", FIRMAS), pngCli);
 
-  const datos = datosDePrueba();
-  const firmas = {
-    representante: {
-      png: pngRep,
-      nombre: datos.variables.representante_nombre,
-      documento: datos.variables.representante_documento,
-      correo: datos.variables.bws_correo,
-      utc: UTC,
-      ip: "127.0.0.1",
-      agente: "Generación local de muestra",
-      metodo: "simple_reforzada",
-    },
-    cliente: {
-      png: pngCli,
-      nombre: datos.variables.cliente_razon_social,
-      documento: datos.variables.cliente_documento_numero,
-      correo: datos.variables.cliente_correo,
-      utc: UTC,
-      ip: "127.0.0.1",
-      agente: "Generación local de muestra",
-      metodo: "simple_reforzada",
-    },
-  };
+  function firmasDe(datos) {
+    return {
+      representante: {
+        png: pngRep,
+        nombre: datos.variables.representante_nombre,
+        documento: datos.variables.representante_documento,
+        correo: datos.variables.bws_correo,
+        utc: UTC,
+        ip: "127.0.0.1",
+        agente: "Generación local de muestra",
+        metodo: "simple_reforzada",
+      },
+      cliente: {
+        png: pngCli,
+        nombre: datos.variables.cliente_razon_social,
+        documento: datos.variables.cliente_documento_numero,
+        correo: datos.variables.cliente_correo,
+        utc: UTC,
+        ip: "127.0.0.1",
+        agente: "Generación local de muestra",
+        metodo: "simple_reforzada",
+      },
+    };
+  }
 
-  // 4. Generación y verificación
+  // 4. Generación y verificación: los ocho históricos con CON-004 y las
+  // doce variantes del contrato, cada una con los datos de su persona.
+  const entradas = DOCUMENTOS.map((doc) => ({ doc, datos: datosDePrueba() }));
+  for (const [i, doc] of CONTRATOS.entries()) {
+    entradas.push({ doc, datos: datosDePrueba({ persona: i % 2 === 0 ? "natural" : "juridica" }) });
+  }
+
   const resumen = [];
   let anterior = "GENESIS";
 
-  for (const [indice, doc] of DOCUMENTOS.entries()) {
+  for (const [indice, { doc, datos }] of entradas.entries()) {
+    const firmas = firmasDe(datos);
     const orden = indice + 1;
     const sello = selloDeContenido({ doc, datos, firmas: [firmas.representante, firmas.cliente], utc: UTC });
     const cadena = hashCadena(anterior, sello, orden);
@@ -239,7 +275,7 @@ async function principal() {
     process.exit(1);
   }
   console.log(
-    `\n✓ ${DOCUMENTOS.length} PDF generados en portal/tmp/pdf, A4, fuentes embebidas, reproducibles y con cadena desde GENESIS.`,
+    `\n✓ ${entradas.length} PDF generados en portal/tmp/pdf, A4, fuentes embebidas, reproducibles y con cadena desde GENESIS.`,
   );
 }
 

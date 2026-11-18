@@ -25,11 +25,13 @@ import { lectorDeFuentes, type LectorFuentes } from "./fuentes";
 import {
   ANCHO_CONTENIDO,
   A4,
+  CLASICO,
   COLORES,
   MARGEN,
   cargarFuentes,
   envolver,
   envolverCaracteres,
+  envolverRuns,
   formatearUTC,
   type Fuentes,
 } from "./maqueta";
@@ -62,8 +64,16 @@ interface Celda {
 
 export async function generarPDF(opciones: OpcionesPDF): Promise<Uint8Array> {
   const { doc, datos, firmas, evidencia } = opciones;
+  const clasico = doc.estilo === "clasico";
   const pdf = await PDFDocument.create();
-  const fuentes = await cargarFuentes(pdf, opciones.leerFuente ?? lectorDeFuentes());
+  const fuentes = await cargarFuentes(pdf, opciones.leerFuente ?? lectorDeFuentes(), { inter: clasico });
+
+  // En el estilo clásico las fuentes serif y sans son Inter: el cuerpo va
+  // en 12 con interlineado 18 (1.5) y las celdas acompañan ese tamaño.
+  const tamanoCuerpo = clasico ? CLASICO.cuerpo : TAMANO_CUERPO;
+  const interlineadoCuerpo = clasico ? CLASICO.interlineadoCuerpo : INTERLINEADO_CUERPO;
+  const tamanoCelda = clasico ? CLASICO.celda : TAMANO_CELDA;
+  const interlineadoCelda = clasico ? CLASICO.interlineadoCelda : INTERLINEADO_CELDA;
 
   const bws = datos.variables.bws_razon_social ?? "Blink";
   const paginas: PDFPage[] = [];
@@ -105,8 +115,8 @@ export async function generarPDF(opciones: OpcionesPDF): Promise<Uint8Array> {
     },
   ) {
     const fuente = opcionesParrafo?.fuente ?? fuentes.serif;
-    const tamano = opcionesParrafo?.tamano ?? TAMANO_CUERPO;
-    const interlineado = opcionesParrafo?.interlineado ?? INTERLINEADO_CUERPO;
+    const tamano = opcionesParrafo?.tamano ?? tamanoCuerpo;
+    const interlineado = opcionesParrafo?.interlineado ?? interlineadoCuerpo;
     const color = opcionesParrafo?.color ?? COLORES.tinta;
     const sangria = opcionesParrafo?.sangria ?? 0;
     const ancho = opcionesParrafo?.ancho ?? ANCHO_CONTENIDO - sangria;
@@ -119,7 +129,73 @@ export async function generarPDF(opciones: OpcionesPDF): Promise<Uint8Array> {
     y -= opcionesParrafo?.espacio ?? 7;
   }
 
+  /**
+   * Párrafo del estilo clásico: negritas inline y justificado completo.
+   * El sobrante de cada línea se reparte entre los huecos de palabra;
+   * la última línea de cada párrafo queda alineada a la izquierda.
+   */
+  function parrafoClasico(
+    contenido: string,
+    opcionesParrafo?: {
+      tamano?: number;
+      interlineado?: number;
+      color?: typeof COLORES.tinta;
+      sangria?: number;
+      espacio?: number;
+      /** Líneas mínimas que deben caber antes de empezar (ordinal + texto). */
+      minLineas?: number;
+      /** Marca de lista, dibujada junto a la primera línea. */
+      marca?: string;
+    },
+  ) {
+    const tamano = opcionesParrafo?.tamano ?? tamanoCuerpo;
+    const interlineado = opcionesParrafo?.interlineado ?? interlineadoCuerpo;
+    const color = opcionesParrafo?.color ?? COLORES.tinta;
+    const sangria = opcionesParrafo?.sangria ?? 0;
+    const ancho = ANCHO_CONTENIDO - sangria;
+    const lineas = envolverRuns(contenido, fuentes.serif, fuentes.serifBold, tamano, ancho);
+    const espacioBase = fuentes.serif.widthOfTextAtSize(" ", tamano);
+    if (opcionesParrafo?.minLineas) {
+      asegurar(Math.min(lineas.length, opcionesParrafo.minLineas) * interlineado);
+    }
+    let primera = true;
+    for (const linea of lineas) {
+      if (y - interlineado < MARGEN.inf) nuevaPagina();
+      if (primera && opcionesParrafo?.marca) {
+        texto(opcionesParrafo.marca, fuentes.serifBold, tamano, color, MARGEN.izq, y);
+      }
+      primera = false;
+      const huecos = Math.max(linea.palabras.length - 1, 0);
+      const extra =
+        !linea.final && huecos > 0
+          ? Math.max((ancho - linea.anchoTexto - huecos * espacioBase) / huecos, 0)
+          : 0;
+      let x = MARGEN.izq + sangria;
+      for (const palabra of linea.palabras) {
+        texto(palabra.texto, palabra.negrita ? fuentes.serifBold : fuentes.serif, tamano, color, x, y);
+        x += palabra.ancho + espacioBase + extra;
+      }
+      y -= interlineado;
+    }
+    y -= opcionesParrafo?.espacio ?? 10;
+  }
+
+  function centrado(contenido: string, fuente: PDFFont, tamano: number, interlineado: number) {
+    for (const linea of envolver(contenido, fuente, tamano, ANCHO_CONTENIDO)) {
+      const anchoLinea = fuente.widthOfTextAtSize(linea, tamano);
+      texto(linea, fuente, tamano, COLORES.tinta, MARGEN.izq + (ANCHO_CONTENIDO - anchoLinea) / 2, y);
+      y -= interlineado;
+    }
+  }
+
   function subtitulo(contenido: string) {
+    if (clasico) {
+      asegurar(CLASICO.interlineadoCapitulo + 14);
+      y -= 4;
+      centrado(contenido, fuentes.serif, CLASICO.capitulo, CLASICO.interlineadoCapitulo);
+      y -= 8;
+      return;
+    }
     asegurar(36);
     y -= 5;
     texto(contenido, fuentes.sansBold, 10.5, COLORES.tinta, MARGEN.izq, y);
@@ -127,6 +203,13 @@ export async function generarPDF(opciones: OpcionesPDF): Promise<Uint8Array> {
   }
 
   function tituloBloque(contenido: string) {
+    if (clasico) {
+      asegurar(CLASICO.interlineadoTitulo + 14);
+      y -= 4;
+      centrado(contenido, fuentes.serifBold, CLASICO.titulo, CLASICO.interlineadoTitulo);
+      y -= 6;
+      return;
+    }
     asegurar(44);
     y -= 8;
     const lineas = envolver(contenido, fuentes.sansBold, 12.5, ANCHO_CONTENIDO);
@@ -137,19 +220,40 @@ export async function generarPDF(opciones: OpcionesPDF): Promise<Uint8Array> {
     y -= 5;
   }
 
+  function capitulo(contenido: string, bajada?: string) {
+    const lineas = envolver(contenido, fuentes.serifBold, CLASICO.capitulo, ANCHO_CONTENIDO);
+    const lineasBajada = bajada ? envolver(bajada, fuentes.serif, CLASICO.capitulo, ANCHO_CONTENIDO) : [];
+    asegurar((lineas.length + lineasBajada.length) * CLASICO.interlineadoCapitulo + 22);
+    y -= 10;
+    centrado(contenido, fuentes.serifBold, CLASICO.capitulo, CLASICO.interlineadoCapitulo);
+    if (bajada) centrado(bajada, fuentes.serif, CLASICO.capitulo, CLASICO.interlineadoCapitulo);
+    y -= 8;
+  }
+
+  function clausula(ordinal: string, contenido: string) {
+    parrafoClasico(`**${ordinal}** ${contenido}`, { minLineas: 2 });
+  }
+
   function lista(items: string[], numerada?: boolean) {
+    if (clasico) {
+      items.forEach((item, indice) => {
+        parrafoClasico(item, { sangria: 20, marca: numerada ? `${indice + 1}.` : "•", espacio: 4 });
+      });
+      y -= 6;
+      return;
+    }
     items.forEach((item, indice) => {
       const marca = numerada ? `${indice + 1}.` : "•";
-      const lineas = envolver(item, fuentes.serif, TAMANO_CUERPO, ANCHO_CONTENIDO - 20);
+      const lineas = envolver(item, fuentes.serif, tamanoCuerpo, ANCHO_CONTENIDO - 20);
       let primera = true;
       for (const linea of lineas) {
-        if (y - INTERLINEADO_CUERPO < MARGEN.inf) nuevaPagina();
+        if (y - interlineadoCuerpo < MARGEN.inf) nuevaPagina();
         if (primera) {
-          texto(marca, fuentes.serifBold, TAMANO_CUERPO, COLORES.secundario, MARGEN.izq, y);
+          texto(marca, fuentes.serifBold, tamanoCuerpo, COLORES.secundario, MARGEN.izq, y);
           primera = false;
         }
-        texto(linea, fuentes.serif, TAMANO_CUERPO, COLORES.tinta, MARGEN.izq + 20, y);
-        y -= INTERLINEADO_CUERPO;
+        texto(linea, fuentes.serif, tamanoCuerpo, COLORES.tinta, MARGEN.izq + 20, y);
+        y -= interlineadoCuerpo;
       }
       y -= 3;
     });
@@ -160,8 +264,8 @@ export async function generarPDF(opciones: OpcionesPDF): Promise<Uint8Array> {
     return fila.map((valor, i) => {
       const esHash = monoEnHash && /^[0-9a-f]{64}$/i.test(valor);
       const fuente = esHash ? fuentes.mono : fuentes.serif;
-      const tamano = esHash ? 6.9 : TAMANO_CELDA;
-      const interlineado = esHash ? 9.4 : INTERLINEADO_CELDA;
+      const tamano = esHash ? 6.9 : tamanoCelda;
+      const interlineado = esHash ? 9.4 : interlineadoCelda;
       const ancho = anchos[i] - RELLENO_CELDA * 2;
       return {
         lineas: esHash
@@ -182,12 +286,12 @@ export async function generarPDF(opciones: OpcionesPDF): Promise<Uint8Array> {
   function dibujarCabeceraTabla(cabecera: string[], anchos: number[]) {
     const celdas = cabecera.map((valor, i) => {
       const fuente = fuentes.sansBold;
-      const tamano = 8.1;
+      const tamano = clasico ? 9.5 : 8.1;
       return {
         lineas: envolver(valor, fuente, tamano, anchos[i] - RELLENO_CELDA * 2),
         fuente,
         tamano,
-        interlineado: 10.4,
+        interlineado: clasico ? 13 : 10.4,
       };
     });
     const alto = altoDeFila(celdas);
@@ -259,8 +363,10 @@ export async function generarPDF(opciones: OpcionesPDF): Promise<Uint8Array> {
   }
 
   function aviso(contenido: string) {
-    const lineas = envolver(contenido, fuentes.serif, 9.2, ANCHO_CONTENIDO - 26);
-    const alto = lineas.length * 12.8 + 20;
+    const tamano = clasico ? 10.5 : 9.2;
+    const interlineado = clasico ? 14.5 : 12.8;
+    const lineas = envolver(contenido, fuentes.serif, tamano, ANCHO_CONTENIDO - 26);
+    const alto = lineas.length * interlineado + 20;
     asegurar(alto + 8);
     pagina.drawRectangle({
       x: MARGEN.izq,
@@ -276,10 +382,10 @@ export async function generarPDF(opciones: OpcionesPDF): Promise<Uint8Array> {
       height: alto,
       color: COLORES.acento,
     });
-    let yLinea = y - 10 - 9.2;
+    let yLinea = y - 10 - tamano;
     for (const linea of lineas) {
-      texto(linea, fuentes.serif, 9.2, COLORES.secundario, MARGEN.izq + 14, yLinea);
-      yLinea -= 12.8;
+      texto(linea, fuentes.serif, tamano, COLORES.secundario, MARGEN.izq + 14, yLinea);
+      yLinea -= interlineado;
     }
     y -= alto + 10;
   }
@@ -466,36 +572,40 @@ export async function generarPDF(opciones: OpcionesPDF): Promise<Uint8Array> {
   // ---------- Construcción ----------
   pagina = nuevaPagina();
 
-  texto(doc.codigo, fuentes.sansBold, 8.5, COLORES.acento, MARGEN.izq, y);
-  y -= 17;
-  const lineasTitulo = envolver(doc.titulo, fuentes.serifBold, 18, ANCHO_CONTENIDO);
-  for (const linea of lineasTitulo) {
-    texto(linea, fuentes.serifBold, 18, COLORES.tinta, MARGEN.izq, y);
-    y -= 22;
+  // El estilo clásico abre con el membrete y el título centrado del propio
+  // documento; la cabecera moderna con código y resumen no aplica.
+  if (!clasico) {
+    texto(doc.codigo, fuentes.sansBold, 8.5, COLORES.acento, MARGEN.izq, y);
+    y -= 17;
+    const lineasTitulo = envolver(doc.titulo, fuentes.serifBold, 18, ANCHO_CONTENIDO);
+    for (const linea of lineasTitulo) {
+      texto(linea, fuentes.serifBold, 18, COLORES.tinta, MARGEN.izq, y);
+      y -= 22;
+    }
+    y -= 2;
+    const lineasResumen = envolver(doc.resumen, fuentes.serifItalic, 9.4, ANCHO_CONTENIDO);
+    for (const linea of lineasResumen) {
+      texto(linea, fuentes.serifItalic, 9.4, COLORES.secundario, MARGEN.izq, y);
+      y -= 13;
+    }
+    y -= 6;
+    texto(
+      `Versión ${doc.version} · ${doc.fecha} · ${bws}`,
+      fuentes.sans,
+      8,
+      COLORES.terciario,
+      MARGEN.izq,
+      y,
+    );
+    y -= 12;
+    pagina.drawLine({
+      start: { x: MARGEN.izq, y },
+      end: { x: MARGEN.izq + ANCHO_CONTENIDO, y },
+      thickness: 0.8,
+      color: COLORES.borde,
+    });
+    y -= 16;
   }
-  y -= 2;
-  const lineasResumen = envolver(doc.resumen, fuentes.serifItalic, 9.4, ANCHO_CONTENIDO);
-  for (const linea of lineasResumen) {
-    texto(linea, fuentes.serifItalic, 9.4, COLORES.secundario, MARGEN.izq, y);
-    y -= 13;
-  }
-  y -= 6;
-  texto(
-    `Versión ${doc.version} · ${doc.fecha} · ${bws}`,
-    fuentes.sans,
-    8,
-    COLORES.terciario,
-    MARGEN.izq,
-    y,
-  );
-  y -= 12;
-  pagina.drawLine({
-    start: { x: MARGEN.izq, y },
-    end: { x: MARGEN.izq + ANCHO_CONTENIDO, y },
-    thickness: 0.8,
-    color: COLORES.borde,
-  });
-  y -= 16;
 
   for (const bloque of doc.bloques) {
     switch (bloque.tipo) {
@@ -506,7 +616,8 @@ export async function generarPDF(opciones: OpcionesPDF): Promise<Uint8Array> {
         subtitulo(bloque.texto);
         break;
       case "parrafo":
-        parrafo(bloque.texto);
+        if (clasico) parrafoClasico(bloque.texto);
+        else parrafo(bloque.texto);
         break;
       case "lista":
         lista(bloque.items, bloque.numerada);
@@ -516,6 +627,12 @@ export async function generarPDF(opciones: OpcionesPDF): Promise<Uint8Array> {
         break;
       case "aviso":
         aviso(bloque.texto);
+        break;
+      case "capitulo":
+        capitulo(bloque.texto, bloque.subtitulo);
+        break;
+      case "clausula":
+        clausula(bloque.ordinal, bloque.texto);
         break;
       case "buzones":
         dibujarTabla(["Buzón", "Uso"], filasDeBuzones(datos.buzones), [0.46, 0.54]);
@@ -532,6 +649,31 @@ export async function generarPDF(opciones: OpcionesPDF): Promise<Uint8Array> {
   // Cabecera y pie se dibujan al final: la paginación ya es definitiva.
   const total = paginas.length;
   paginas.forEach((p, indice) => {
+    if (clasico) {
+      const membrete = [
+        "Blink Technology Corporation.",
+        "División: Blink Web Services (BWS)",
+        `RIF: ${datos.variables.bws_documento ?? ""}`,
+      ];
+      membrete.forEach((linea, i) => {
+        p.drawText(linea, {
+          x: MARGEN.izq,
+          y: A4.alto - 30 - i * 11,
+          size: 8,
+          font: fuentes.sans,
+          color: COLORES.secundario,
+        });
+      });
+      const pie = `Contrato de servicios, página ${indice + 1} de ${total}`;
+      p.drawText(pie, {
+        x: A4.ancho - MARGEN.der - fuentes.sans.widthOfTextAtSize(pie, 8),
+        y: MARGEN.inf - 23,
+        size: 8,
+        font: fuentes.sans,
+        color: COLORES.terciario,
+      });
+      return;
+    }
     const yCabecera = A4.alto - 46;
     p.drawText("BLINK WEB SERVICES", {
       x: MARGEN.izq,

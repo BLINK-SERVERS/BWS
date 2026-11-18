@@ -594,6 +594,30 @@ code {
   color: var(--color-warning-text);
 }
 
+/* Vista previa del contrato clásico: Inter y justificado, como el PDF. */
+.po-legal-clasico {
+  font-family: "Inter", var(--font-text);
+  text-align: justify;
+}
+
+.po-legal-clasico h3 {
+  text-align: center;
+}
+
+.po-legal-capitulo {
+  margin: 1.75rem 0 0.75rem;
+}
+
+.po-legal-bajada {
+  display: block;
+  font-weight: 400;
+}
+
+.po-legal-clasico ul,
+.po-legal-clasico ol {
+  text-align: justify;
+}
+
 .po-tabla-marco {
   overflow-x: auto;
   margin: 1rem 0;

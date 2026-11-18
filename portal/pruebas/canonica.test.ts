@@ -9,7 +9,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { canonica } from "../legal/canonica.ts";
-import { DOCUMENTOS, DOCUMENTO_POR_CODIGO } from "../legal/index.ts";
+import { CONTRATOS, DOCUMENTOS, DOCUMENTOS_BASE, DOCUMENTO_POR_CODIGO } from "../legal/index.ts";
 import { hashConsentimiento, hashPlantilla, sha256Hex } from "../render/hash.ts";
 import { resolver } from "../legal/validar.ts";
 import { huellaDelConsentimiento, huellasDeRegistro, DOCUMENTOS_REGISTRO } from "../server/_lib/registro.ts";
@@ -64,6 +64,28 @@ describe("huellas de plantilla", () => {
     });
     assert.notEqual(hashConsentimiento(a), hashConsentimiento(b));
     assert.equal(hashConsentimiento(a), hashConsentimiento(a));
+  });
+});
+
+describe("huellas de las plantillas históricas", () => {
+  it("los siete documentos intactos conservan la forma canónica de siempre", () => {
+    for (const doc of DOCUMENTOS_BASE) {
+      const formaVieja = canonica({
+        codigo: doc.codigo,
+        titulo: doc.titulo,
+        version: doc.version,
+        fecha: doc.fecha,
+        firma: doc.firma,
+        campos: doc.campos,
+        bloques: doc.bloques,
+      });
+      assert.equal(hashPlantilla(doc), sha256Hex(formaVieja), doc.codigo);
+    }
+  });
+
+  it("el estilo clásico entra en la huella cuando existe", () => {
+    const doc = CONTRATOS[0];
+    assert.notEqual(hashPlantilla(doc), hashPlantilla({ ...doc, estilo: undefined }));
   });
 });
 

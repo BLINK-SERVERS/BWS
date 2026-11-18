@@ -214,7 +214,7 @@ export function Registro() {
                   </span>
                 </summary>
                 <div className="po-documento-cuerpo">
-                  <TextoLegal bloques={documento.bloques} />
+                  <TextoLegal bloques={documento.bloques} clasico={documento.estilo === "clasico"} />
                   <p className="po-hash-linea">
                     Huella: <code className="po-hash">{documento.hash}</code>
                   </p>

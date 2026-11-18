@@ -18,6 +18,7 @@ export interface DocumentoPrevia {
   bloques: Bloque[];
   hash: string;
   hash_plantilla: string;
+  estilo?: "clasico";
 }
 
 export interface PrestadorPortal {
