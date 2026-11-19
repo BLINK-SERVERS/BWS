@@ -35,10 +35,15 @@ export default manejar(["GET"], async (peticion) => {
   const [suscripciones, pagos] = await enTransaccion(sesion.usuarioId, sesion.rol, (txn) => [
     txn`select s.id, s.estado, s.monto_usd, s.moneda, s.dia_cobro,
                s.proximo_vencimiento, s.dias_gracia, s.creada,
+               bws_contrato_mora_nuevo(s.proyecto_id) as regimen_nuevo,
+               d.inicio_conocido, d.proximo, d.vencidas, d.exigibles, d.pendientes, d.irregularidades, d.principal_usd,
+               d.intereses_debidos_usd, d.intereses_pagados_usd, d.intereses_regularizados,
                (select l.estado from licencias l
                  where l.proyecto_id = s.proyecto_id and l.tipo = 'uso'
                  order by l.creado desc limit 1) as licencia
         from suscripciones s
+        left join lateral bws_deuda_mora(s.id, ${hoy}::date) d
+          on bws_contrato_mora_nuevo(s.proyecto_id)
         where s.proyecto_id = ${proyectoId}`,
     txn`select p.id, p.periodo, p.monto, p.moneda, p.tasa_bcv, p.referencia, p.fecha
         from pagos p
@@ -53,14 +58,33 @@ export default manejar(["GET"], async (peticion) => {
 
   let suscripcion = null;
   if (fila) {
-    const vencimiento = fechaTexto(fila.proximo_vencimiento);
-    const gracia = Number(fila.dias_gracia);
+    const nuevo = Boolean(fila.regimen_nuevo);
+    const inicioConocido = nuevo && Boolean(fila.inicio_conocido);
+    const vencimiento = fechaTexto(inicioConocido && fila.proximo ? fila.proximo : fila.proximo_vencimiento);
+    const gracia = nuevo ? 0 : Number(fila.dias_gracia);
     const estado = String(fila.estado);
     const licencia = fila.licencia ? String(fila.licencia) : null;
+    const fechaCalculada = estadoPorFecha(vencimiento, gracia, hoy, nuevo ? "nuevo" : "legacy");
+    const estadoCalculado = nuevo && inicioConocido &&
+      (!fila.intereses_regularizados || Number(fila.irregularidades) > 0)
+      ? "mora" : fechaCalculada;
     suscripcion = {
       id: String(fila.id),
       estado,
-      estado_calculado: estadoPorFecha(vencimiento, gracia, hoy),
+      estado_calculado: estadoCalculado,
+      regimen_mora: nuevo ? "nuevo" : "legacy",
+      deuda: nuevo ? {
+        inicio_conocido: inicioConocido,
+        mensualidades_pendientes: inicioConocido ? Number(fila.pendientes) : null,
+        mensualidades_vencidas: inicioConocido ? Number(fila.vencidas) : null,
+        mensualidades_exigibles: inicioConocido ? Number(fila.exigibles) : null,
+        irregularidades: inicioConocido ? Number(fila.irregularidades) : null,
+        principal_usd: inicioConocido ? Number(fila.principal_usd) : null,
+        intereses_debidos_usd: fila.intereses_debidos_usd === null ? null : Number(fila.intereses_debidos_usd),
+        intereses_pagados_usd: fila.intereses_pagados_usd === null ? null : Number(fila.intereses_pagados_usd),
+        intereses_regularizados: inicioConocido ? Boolean(fila.intereses_regularizados) : null,
+        saldada: inicioConocido ? Number(fila.pendientes) === 0 && Number(fila.irregularidades) === 0 && Boolean(fila.intereses_regularizados) : null,
+      } : null,
       monto_usd: Number(fila.monto_usd),
       moneda: String(fila.moneda),
       dia_cobro: Number(fila.dia_cobro),

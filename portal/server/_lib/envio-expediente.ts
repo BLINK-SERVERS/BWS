@@ -20,6 +20,7 @@ import { correoNormalizado } from "../../legal/identidad";
 import { enTransaccion } from "./db";
 import { enviarCorreo } from "./correo";
 import { sitio } from "./cuenta";
+import { nombreArchivoPdf } from "./nombre-archivo";
 import { ErrorHttp } from "./respuestas";
 import type { Sesion } from "./sesion";
 
@@ -29,6 +30,7 @@ interface DocumentoEnvio {
   version: number;
   orden: number;
   titulo: string;
+  nombre_archivo: string | null;
   pdf: Uint8Array;
   hash_archivo: string;
   hash_cadena: string;
@@ -73,7 +75,7 @@ export async function enviarExpediente(
           join usuarios u on u.id = c.usuario_id
           where p.id = ${proyectoId}`,
       txn`select d.id, d.plantilla_codigo, d.plantilla_version, d.orden, d.hash_archivo,
-                 d.hash_cadena, p.contenido->>'titulo' as titulo,
+                 d.hash_cadena, d.nombre_archivo, p.contenido->>'titulo' as titulo,
                  coalesce(a.pdf, d.pdf) as pdf,
                  coalesce(a.sha256_ajustado, d.hash_archivo) as hash_servido,
                  a.sha256_ajustado is not null as ajustado
@@ -116,6 +118,7 @@ export async function enviarExpediente(
     version: Number(fila.plantilla_version),
     orden: Number(fila.orden),
     titulo: String(fila.titulo),
+    nombre_archivo: typeof fila.nombre_archivo === "string" ? fila.nombre_archivo : null,
     pdf: fila.pdf as Uint8Array,
     hash_archivo: String(fila.hash_servido),
     hash_cadena: String(fila.hash_cadena),
@@ -182,7 +185,7 @@ export async function enviarExpediente(
   const enlacePortal = `${sitio()}/panel`;
   const ajustados = docs.filter((doc) => doc.ajustado);
   const adjuntos = docs.map((doc) => ({
-    nombre: `${doc.codigo}-v${doc.version}${doc.ajustado ? "-ajustado" : ""}.pdf`,
+    nombre: nombreArchivoPdf(doc.nombre_archivo, doc.codigo, doc.version, doc.ajustado),
     contenido: doc.pdf,
   }));
 
@@ -191,26 +194,21 @@ export async function enviarExpediente(
     envio = await enviarCorreo({
       para: correoDestino,
       copia: copiaDeNegocio(),
-      asunto: `Expediente firmado — ${String(filaProyecto.razon_social)}`,
+      asunto: `${ajustados.length ? "Expediente del proyecto" : "Expediente firmado"} — ${String(filaProyecto.razon_social)}`,
       texto: [
         `Hola, ${contacto}.`,
         "",
-        `El expediente del proyecto «${String(filaProyecto.nombre)}» quedó firmado por las dos partes. Adjuntamos los ${docs.length} documentos en PDF:`,
+        `Las dos partes firmaron los documentos originales del proyecto «${String(filaProyecto.nombre)}». Adjuntamos ${docs.length} archivos PDF:`,
         "",
-        ...docs.map(
-          (doc) =>
-            `· ${doc.codigo} — ${doc.titulo} (v${doc.version}) · ${doc.hash_archivo.slice(0, 16)}…${
-              doc.ajustado ? " · ajustado a mano por Blink" : ""
-            }`,
+        ...docs.map((doc) =>
+          `· ${doc.titulo} — ${doc.ajustado ? "copia ajustada por Blink" : "original firmado"}`,
         ),
         "",
-        `Hash final de la cadena: ${final}`,
-        "",
-        "La firma es electrónica simple, no certificada, con evidencia reforzada: trazo, fecha y hora en UTC, IP, agente y sello de contenido SHA-256. El PDF no es modificable dentro del sistema y cualquier alteración del archivo se detecta al compararlo con el hash guardado.",
+        "Las firmas electrónicas de los documentos originales son simples, no certificadas. La evidencia de esas firmas está disponible en el portal.",
         ...(ajustados.length
           ? [
               "",
-              `${ajustados.length} de los ${docs.length} documentos fueron revisados y ajustados a mano por Blink antes de este envío; el adjunto marcado «ajustado» es el archivo que recibes. Su sello de contenido y su eslabón de cadena son los del documento generado, que es el que aparece en la verificación del portal; el hash informado arriba corresponde al adjunto.`,
+              "Las copias ajustadas son archivos distintos de los originales firmados; las firmas registradas no acreditan esas copias.",
             ]
           : []),
         "",

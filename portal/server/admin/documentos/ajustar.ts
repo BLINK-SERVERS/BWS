@@ -8,10 +8,10 @@
    cuándo. Esa fila es la que se sirve en la descarga, la que viaja
    adjunta al correo y la que se ve en el panel del cliente.
 
-   Dos puertas antes de guardar: si el cliente ya confirmó, su
-   consentimiento apunta a los archivos que descargó; si el
-   expediente ya salió, el correo adjuntó otros bytes. En los dos
-   casos el ajuste se rechaza, no se sobreescribe la historia.
+   Dos puertas antes de guardar: si el cliente ya confirmó, un
+   ajuste nuevo confundiría la presentación del original firmado;
+   si el expediente ya salió, el correo adjuntó otros bytes. En los
+   dos casos el ajuste se rechaza, sin sobreescribir la historia.
 
    Se acepta un PDF real (cabecera y cierre), entre 1 KB y 8 MB,
    distinto del generado. Subir el mismo archivo dos veces no crea
@@ -72,30 +72,74 @@ export default manejar(["POST"], async (peticion) => {
   const nota = texto(cuerpo?.nota).slice(0, 500) || null;
   const { pdf, sha256 } = pdfValidado(cuerpo?.pdf);
 
-  const [estado] = await enTransaccion(sesion.usuarioId, sesion.rol, (txn) => [
-    txn`select d.proyecto_id, d.hash_archivo,
-               exists (
-                 select 1 from documentos_ajustados aj
-                 where aj.documento_id = d.id and aj.sha256_ajustado = ${sha256}
-               ) as repetido,
-               exists (
-                 select 1 from actos_firma a
-                 join documentos m on m.id = a.documento_id
-                 where m.proyecto_id = d.proyecto_id and a.firmante = 'cliente'
-               ) as confirmado,
-               exists (
-                 select 1 from envios e
-                 join documentos m on m.id = e.documento_id
-                 where m.proyecto_id = d.proyecto_id
-                   and e.clave_idempotencia like 'expediente/%'
-               ) as enviado
-        from documentos d
-        where d.id = ${documentoId}::uuid`,
+  const ip = ipDe(peticion);
+  const agente = agenteDe(peticion);
+
+  // La firma bloquea este mismo proyecto. La comprobación y el alta van
+  // después del bloqueo, en otra sentencia de la misma transacción HTTP.
+  const [, bloqueo, estados] = await enTransaccion(sesion.usuarioId, sesion.rol, (txn) => [
+    txn`select set_config('app.expediente_bloqueado', '', true)`,
+    txn`with bloqueado as materialized (
+          select p.id from proyectos p
+          join documentos d on d.proyecto_id = p.id
+          where d.id = ${documentoId}::uuid
+          for no key update of p
+        )
+        select id, set_config('app.expediente_bloqueado', id::text, true) from bloqueado`,
+    txn`with estado as materialized (
+          select d.proyecto_id, d.hash_archivo,
+                 current_setting('transaction_isolation') = 'read committed' as aislamiento_seguro,
+                 exists (
+                   select 1 from documentos_ajustados aj
+                   where aj.documento_id = d.id and aj.sha256_ajustado = ${sha256}
+                 ) as repetido,
+                 exists (
+                   select 1 from actos_firma a
+                   join documentos m on m.id = a.documento_id
+                   where m.proyecto_id = d.proyecto_id and a.firmante = 'cliente'
+                 ) as confirmado,
+                 exists (
+                   select 1 from envios e
+                   join documentos m on m.id = e.documento_id
+                   where m.proyecto_id = d.proyecto_id
+                     and e.clave_idempotencia like 'expediente/%'
+                 ) as enviado
+          from documentos d
+          join proyectos p on p.id = d.proyecto_id
+          where d.id = ${documentoId}::uuid
+            and current_setting('app.expediente_bloqueado', true) = p.id::text
+        ), nueva as (
+          insert into documentos_ajustados
+            (documento_id, proyecto_id, pdf, sha256_original, sha256_ajustado, nota, actor)
+          select ${documentoId}::uuid, e.proyecto_id, ${pdf}::bytea, e.hash_archivo,
+                 ${sha256}::text, ${nota}::text, ${sesion.usuarioId}::uuid
+          from estado e
+          where e.aislamiento_seguro and not e.enviado and not e.confirmado
+            and not e.repetido and e.hash_archivo <> ${sha256}
+          on conflict (documento_id, sha256_ajustado) do nothing
+          returning id, sha256_ajustado, sha256_original, utc, octet_length(pdf) as tamano
+        ), evento as (
+          insert into eventos (actor, rol, accion, entidad, entidad_id, detalle, ip, agente)
+          select ${sesion.usuarioId}::uuid, 'admin', 'documento.ajustado', 'documentos',
+                 ${documentoId}::text,
+                 jsonb_build_object('ajuste_id', nueva.id::text,
+                                    'sha256_original', nueva.sha256_original,
+                                    'sha256_ajustado', nueva.sha256_ajustado,
+                                    'nota', ${nota}::text),
+                 ${ip}::inet, ${agente}::text
+          from nueva
+          returning 1
+        )
+        select e.*, n.id, n.sha256_ajustado, n.sha256_original, n.tamano, n.utc
+        from estado e left join nueva n on true`,
   ]);
 
-  const fila = (estado ?? [])[0] as Record<string, unknown> | undefined;
-  if (!fila) {
+  const fila = (estados ?? [])[0] as Record<string, unknown> | undefined;
+  if (!(bloqueo ?? []).length || !fila) {
     throw new ErrorHttp(404, "Ese documento no está en ningún expediente.", "documento");
+  }
+  if (!fila.aislamiento_seguro) {
+    throw new ErrorHttp(503, "No se pudo comprobar el expediente de forma segura. Inténtalo de nuevo.", "aislamiento");
   }
   if (fila.enviado) {
     throw new ErrorHttp(
@@ -111,49 +155,18 @@ export default manejar(["POST"], async (peticion) => {
       "ya_confirmado",
     );
   }
-
-  const original = String(fila.hash_archivo);
-  if (original === sha256) {
+  if (String(fila.hash_archivo) === sha256) {
     throw new ErrorHttp(
       400,
       "El archivo que subiste es idéntico al generado: no hay ningún ajuste que registrar.",
       "identico",
     );
   }
-  if (fila.repetido) {
+  if (!fila.id) {
     return json({ ok: true, reutilizado: true, sha256_ajustado: sha256 });
   }
 
-  const ip = ipDe(peticion);
-  const agente = agenteDe(peticion);
-
-  const [nuevas] = await enTransaccion(sesion.usuarioId, sesion.rol, (txn) => [
-    txn`with nueva as (
-          insert into documentos_ajustados
-            (documento_id, proyecto_id, pdf, sha256_original, sha256_ajustado, nota, actor)
-          values (${documentoId}::uuid, ${String(fila.proyecto_id)}::uuid, ${pdf},
-                  ${original}, ${sha256}, ${nota}, ${sesion.usuarioId}::uuid)
-          on conflict (documento_id, sha256_ajustado) do nothing
-          returning id, sha256_ajustado, sha256_original, utc, octet_length(pdf) as tamano
-        ), evento as (
-          insert into eventos (actor, rol, accion, entidad, entidad_id, detalle, ip, agente)
-          select ${sesion.usuarioId}, 'admin', 'documento.ajustado', 'documentos',
-                 ${documentoId}::text,
-                 jsonb_build_object('ajuste_id', nueva.id::text,
-                                    'sha256_original', nueva.sha256_original,
-                                    'sha256_ajustado', nueva.sha256_ajustado,
-                                    'nota', ${nota}::text),
-                 ${ip}, ${agente}
-          from nueva
-          returning 1
-        )
-        select id, sha256_ajustado, sha256_original, tamano, utc from nueva`,
-  ]);
-
-  const nueva = (nuevas ?? [])[0] as Record<string, unknown> | undefined;
-  if (!nueva) {
-    return json({ ok: true, reutilizado: true, sha256_ajustado: sha256 });
-  }
+  const nueva = fila;
 
   return json(
     {

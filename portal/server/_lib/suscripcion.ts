@@ -5,7 +5,8 @@
    `date`, no `timestamptz`, y el corte de mora no debe depender de
    la zona horaria del servidor.
 
-   Los plazos son los del contrato (BWS-CON-004 y BWS-LEG-003):
+   Los plazos siguientes son exclusivos del régimen histórico
+   (BWS-CON-004 y BWS-LEG-003):
 
    · `al_dia`: hoy no pasó el vencimiento.
    · `mora`: pasó el vencimiento y corre la gracia, más diez días.
@@ -16,6 +17,7 @@
    ============================================================ */
 
 export type EstadoSuscripcion = "al_dia" | "mora" | "suspendida" | "terminada";
+export type RegimenMora = "legacy" | "nuevo";
 
 /** Días de mora que el contrato concede antes de suspender. */
 export const DIAS_MORA_SUSPENSION = 10;
@@ -53,6 +55,25 @@ export function numero(valor: unknown): number | null {
   return Number(limpio);
 }
 
+/** Montos declarados explícitamente en USD, sin inferir una tasa. */
+export function interesesValidos(debidos: number | null, pagados: number | null): boolean {
+  return debidos !== null && pagados !== null && [debidos, pagados].every((monto) =>
+    Number.isFinite(monto) && monto >= 0 && monto <= 100_000_000 &&
+    Math.abs(monto * 100 - Math.round(monto * 100)) < 1e-6);
+}
+
+/** La cuota no incluye intereses; una mensualidad parcial no cubre el periodo. */
+export function pagoCubreMensualidad(monto: number, moneda: string, tasa: number | null, cuota: number): boolean {
+  if (!Number.isFinite(monto) || !Number.isFinite(cuota) || monto < 0 || cuota < 0 ||
+      monto > 100_000_000 || cuota > 100_000_000) return false;
+  const centimos = BigInt(Math.round(Number(monto.toFixed(2)) * 100));
+  const cuotaCentimos = BigInt(Math.round(cuota * 100));
+  if (moneda === "USD") return centimos >= cuotaCentimos;
+  if (moneda !== "VES" || tasa === null || !Number.isFinite(tasa) || tasa <= 0 || tasa > 1_000_000) return false;
+  const tasaGuardada = BigInt(Math.round(Number(tasa.toFixed(4)) * 10_000));
+  return tasaGuardada > 0n && centimos * 10_000n >= cuotaCentimos * tasaGuardada;
+}
+
 export function fechaISO(valor: unknown): string | null {
   if (typeof valor !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(valor)) return null;
   const fecha = desdeUTC(valor);
@@ -72,8 +93,10 @@ export function estadoPorFecha(
   vencimiento: string,
   diasGracia: number,
   hoy = hoyUTC(),
+  regimen: RegimenMora = "legacy",
 ): EstadoSuscripcion {
   if (hoy <= vencimiento) return "al_dia";
+  if (regimen === "nuevo") return "mora";
   const finGracia = sumarDias(vencimiento, diasGracia);
   if (hoy <= sumarDias(finGracia, DIAS_MORA_SUSPENSION)) return "mora";
   if (hoy <= sumarDias(finGracia, DIAS_MORA_TERMINACION)) return "suspendida";

@@ -7,6 +7,9 @@
    pueden ajustar. Junto con la suscripción nace la licencia de uso
    no exclusiva, que es lo que se suspende si se deja de pagar.
 
+   El régimen nuevo confirmado se abre sin gracia y conserva el primer
+   vencimiento para reconstruir los meses omitidos. Sin ese contrato se
+   mantiene la gracia histórica de cinco días por defecto.
    Una suscripción por proyecto. Si ya existe, responde 409.
    ============================================================ */
 
@@ -41,8 +44,8 @@ export default manejar(["POST"], async (peticion) => {
     throw new ErrorHttp(400, "El día de cobro debe ser un entero entre 1 y 28.", "dia_cobro");
   }
 
-  const diasGracia = cuerpo?.dias_gracia === undefined ? 5 : numero(cuerpo?.dias_gracia);
-  if (diasGracia === null || !Number.isInteger(diasGracia) || diasGracia < 0 || diasGracia > 60) {
+  const graciaSolicitada = cuerpo?.dias_gracia === undefined ? null : numero(cuerpo?.dias_gracia);
+  if (cuerpo?.dias_gracia !== undefined && (graciaSolicitada === null || !Number.isInteger(graciaSolicitada) || graciaSolicitada < 0 || graciaSolicitada > 60)) {
     throw new ErrorHttp(400, "Los días de gracia deben estar entre 0 y 60.", "gracia");
   }
 
@@ -53,7 +56,7 @@ export default manejar(["POST"], async (peticion) => {
 
   const [filas] = await enTransaccion(sesion.usuarioId, sesion.rol, (txn) => [
     txn`select p.id, p.nombre, p.plan_clave, p.plan_nivel, p.plan_version,
-               pi.precio_usd,
+               pi.precio_usd, bws_contrato_mora_nuevo(p.id) as regimen_nuevo,
                (select s.id from suscripciones s where s.proyecto_id = p.id) as suscripcion_id,
                (select l.id from licencias l
                  where l.proyecto_id = p.id and l.tipo = 'uso'
@@ -72,6 +75,11 @@ export default manejar(["POST"], async (peticion) => {
   if (proyecto.suscripcion_id) {
     throw new ErrorHttp(409, "Ese proyecto ya tiene una suscripción.", "suscripcion_existente");
   }
+  const regimenNuevo = Boolean(proyecto.regimen_nuevo);
+  if (regimenNuevo && graciaSolicitada !== null && graciaSolicitada !== 0) {
+    throw new ErrorHttp(400, "El contrato confirmado no concede días de gracia.", "gracia");
+  }
+  const diasGracia = regimenNuevo ? 0 : graciaSolicitada ?? 5;
 
   const monto = cuerpo?.monto_usd === undefined
     ? Number(proyecto.precio_usd)
@@ -83,8 +91,8 @@ export default manejar(["POST"], async (peticion) => {
   const vencimiento = cuerpo?.proximo_vencimiento === undefined
     ? siguienteVencimiento(diaCobro)
     : fechaISO(texto(cuerpo?.proximo_vencimiento));
-  if (!vencimiento) {
-    throw new ErrorHttp(400, "El vencimiento debe ser una fecha real (AAAA-MM-DD).", "vencimiento");
+  if (!vencimiento || (regimenNuevo && (vencimiento < "2020-01-01" || vencimiento > "2100-12-31"))) {
+    throw new ErrorHttp(400, "El vencimiento debe ser una fecha real (AAAA-MM-DD); para contratos nuevos debe estar entre 2020 y 2100.", "vencimiento");
   }
 
   const nombre = String(proyecto.nombre);
@@ -94,16 +102,20 @@ export default manejar(["POST"], async (peticion) => {
     const [, , , creada] = await enTransaccion(sesion.usuarioId, sesion.rol, (txn) => [
       txn`insert into suscripciones
             (proyecto_id, plan_clave, plan_nivel, plan_version, monto_usd,
-             moneda, dia_cobro, proximo_vencimiento, dias_gracia)
+             moneda, dia_cobro, proximo_vencimiento, dias_gracia, vencimiento_inicial_mora)
           values (${proyectoId}::uuid, ${String(proyecto.plan_clave)},
                   ${String(proyecto.plan_nivel)}, ${Number(proyecto.plan_version)},
                   ${monto.toFixed(2)}, ${moneda}, ${diaCobro},
-                  ${vencimiento}::date, ${diasGracia})
+                  ${vencimiento}::date,
+                  case when bws_contrato_mora_nuevo(${proyectoId}::uuid) then 0 else ${diasGracia} end,
+                  case when bws_contrato_mora_nuevo(${proyectoId}::uuid) then ${vencimiento}::date end)
           returning id, estado, proximo_vencimiento, dias_gracia, monto_usd, moneda`,
       txn`insert into licencias (proyecto_id, tipo, alcance, inicio, estado, condiciones)
           select ${proyectoId}::uuid, 'uso', ${`Licencia de uso no exclusiva del proyecto «${nombre}»`},
                  ${inicio}::date, 'activa',
-                 ${"Sujeta al pago de la suscripción: la mora suspende el servicio y la licencia, nunca el acceso del cliente a sus datos."}
+                 case when bws_contrato_mora_nuevo(${proyectoId}::uuid)
+                   then ${"Sujeta al pago de la suscripción: la suspensión por mora es discrecional y no extingue la deuda ni el acceso del cliente a sus datos."}
+                   else ${"Sujeta al pago de la suscripción: la mora suspende el servicio y la licencia, nunca el acceso del cliente a sus datos."} end
           where not exists (
             select 1 from licencias where proyecto_id = ${proyectoId}::uuid and tipo = 'uso'
           )`,

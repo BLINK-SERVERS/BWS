@@ -12,6 +12,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
   datosDeExpediente,
+  documentosParaProyecto,
   firmasDeExpediente,
   type ClienteExpediente,
   type FirmaExpediente,
@@ -19,7 +20,9 @@ import {
   type RepresentanteExpediente,
 } from "../server/_lib/expediente.ts";
 import type { PlanVista } from "../server/_lib/planes.ts";
-import type { ProyectoVista } from "../server/_lib/proyecto.ts";
+import { CATEGORIAS, type ProyectoVista } from "../server/_lib/proyecto.ts";
+import { ErrorHttp } from "../server/_lib/respuestas.ts";
+import { contratoDe } from "../legal/textos/con-servicios.ts";
 import { fechaLarga } from "../legal/fechas.ts";
 import { DOCUMENTOS } from "../legal/index.ts";
 import { hashCadena, selloDeContenido } from "../render/hash.ts";
@@ -38,6 +41,9 @@ const PLAN: PlanVista = {
 
 const VISTA: ProyectoVista = {
   id: "11111111-1111-1111-1111-111111111111",
+  persona_tipo: null,
+  cliente_rep_nombre: null,
+  cliente_rep_documento: null,
   nombre: "Estudio Ana",
   categoria: "Aplicación web",
   dominio: "estudio-ana.com.ve",
@@ -126,6 +132,30 @@ function sellar(fecha: Date, cliente: ClienteExpediente = CLIENTE) {
   });
 }
 
+describe("selección de contrato para un expediente nuevo", () => {
+  it("elige la variante por categoría y persona explícita", () => {
+    for (const categoria of CATEGORIAS) {
+      for (const persona_tipo of ["natural", "juridica"] as const) {
+        const proyecto = { ...PROYECTO, vista: { ...VISTA, categoria, persona_tipo,
+          cliente_rep_nombre: persona_tipo === "juridica" ? "Ana Pérez" : null,
+          cliente_rep_documento: persona_tipo === "juridica" ? "V-12345678" : null } };
+        assert.equal(documentosParaProyecto(proyecto)[3].codigo, contratoDe(categoria, persona_tipo).codigo);
+      }
+    }
+  });
+
+  it("no deduce persona ni categoría en un proyecto antiguo", () => {
+    assert.throws(() => documentosParaProyecto(PROYECTO),
+      (error) => error instanceof ErrorHttp && error.codigo === "persona_incompleta");
+    assert.throws(() => documentosParaProyecto({ ...PROYECTO,
+      vista: { ...VISTA, persona_tipo: "juridica" } }),
+    (error) => error instanceof ErrorHttp && error.codigo === "representante_incompleto");
+    assert.throws(() => documentosParaProyecto({ ...PROYECTO,
+      vista: { ...VISTA, persona_tipo: "natural", categoria: "desconocida" } }),
+    (error) => error instanceof ErrorHttp && error.codigo === "categoria_contrato");
+  });
+});
+
 describe("variables del expediente", () => {
   it("reúne prestador, cliente, proyecto, plan y buzones", () => {
     const { datos } = armar(FECHA);
@@ -144,6 +174,37 @@ describe("variables del expediente", () => {
       { correo: "contacto@estudio-ana.com.ve", uso: "Correo operativo del proyecto" },
     ]);
     assert.deepEqual(datos.limites, [{ concepto: "Disponibilidad", valor: "continua" }]);
+  });
+
+  it("entrega solo la persona y el representante capturados en el proyecto", () => {
+    const generar = (vista: ProyectoVista) => datosDeExpediente({
+      cliente: CLIENTE,
+      representante: REPRESENTANTE,
+      proyecto: { ...PROYECTO, vista },
+      fecha: FECHA,
+    });
+    const historico = generar(VISTA);
+    assert.equal(historico.variables.persona_tipo, undefined);
+    assert.equal(historico.variables.cliente_rep_nombre, undefined);
+    assert.equal(historico.variables.cliente_rep_documento, undefined);
+
+    const natural = generar({ ...VISTA, persona_tipo: "natural" });
+    assert.equal(natural.variables.persona_tipo, "Persona natural");
+    assert.equal(natural.variables.cliente_rep_nombre, undefined);
+
+    const empresa = generar({ ...VISTA, persona_tipo: "juridica",
+      cliente_rep_nombre: "Ana Pérez", cliente_rep_documento: "V-12345678" });
+    assert.equal(empresa.variables.persona_tipo, "Persona jurídica");
+    assert.equal(empresa.variables.cliente_rep_nombre, "Ana Pérez");
+    assert.equal(empresa.variables.cliente_rep_documento, "V-12345678");
+    assert.equal(empresa.variables.representante_nombre, REPRESENTANTE.nombre);
+
+    // Ningún documento histórico usa los nuevos campos; sus sellos no cambian.
+    const firmas = armar(FECHA).firmas;
+    for (const doc of DOCUMENTOS) {
+      const args = { doc, firmas: [firmas.representante, firmas.cliente], utc: FECHA.toISOString() };
+      assert.equal(selloDeContenido({ ...args, datos: historico }), selloDeContenido({ ...args, datos: empresa }));
+    }
   });
 
   it("fija la fecha comercial con la fecha del documento", () => {

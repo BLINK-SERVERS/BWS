@@ -19,6 +19,7 @@ import { TextoLegal } from "./TextoLegal";
 export function Firma({ alFirmar }: { alFirmar?: () => void }) {
   const [estado, setEstado] = useState<EstadoFirma | null>(null);
   const [fallo, setFallo] = useState<string | null>(null);
+  const [falloCarga, setFalloCarga] = useState<string | null>(null);
   const [acepta, setAcepta] = useState(false);
   const [tieneTrazo, setTieneTrazo] = useState(false);
   const [enviando, setEnviando] = useState(false);
@@ -30,9 +31,10 @@ export function Firma({ alFirmar }: { alFirmar?: () => void }) {
     try {
       const respuesta = await api.estadoFirma();
       setEstado(respuesta);
-      setFallo(null);
+      setFalloCarga(null);
     } catch (error) {
-      setFallo(
+      setEstado(null);
+      setFalloCarga(
         error instanceof FalloApi
           ? error.estado === 401
             ? "Tu sesión venció. Vuelve a entrar para firmar."
@@ -69,6 +71,8 @@ export function Firma({ alFirmar }: { alFirmar?: () => void }) {
       setFallo(
         error instanceof FalloApi ? error.message : "No pudimos registrar la firma.",
       );
+      setAcepta(false);
+      borrar();
       await cargar();
     } finally {
       setEnviando(false);
@@ -79,11 +83,27 @@ export function Firma({ alFirmar }: { alFirmar?: () => void }) {
     return (
       <section className="po-tarjeta" aria-live="polite">
         <h2 className="po-tarjeta-titulo">Firma</h2>
-        <p className="po-apagado">{fallo ?? "Cargando el consentimiento…"}</p>
-        {fallo ? (
-          <p>
-            <a href="/ingreso">Entrar de nuevo</a>
-          </p>
+        {fallo ? <p className="po-campo-error" role="alert">{fallo}</p> : null}
+        {falloCarga ? (
+          <>
+            <p className="po-campo-error" role="alert">{falloCarga}</p>
+            <button
+              type="button"
+              className="po-boton po-boton-suave"
+              disabled={enviando}
+              onClick={() => {
+                setEnviando(true);
+                void cargar().finally(() => setEnviando(false));
+              }}
+            >
+              {enviando ? "Cargando…" : "Intentar de nuevo"}
+            </button>
+            <p>
+              <a href="/ingreso">Entrar de nuevo</a>
+            </p>
+          </>
+        ) : !fallo ? (
+          <p className="po-apagado">Cargando el consentimiento…</p>
         ) : null}
       </section>
     );
@@ -125,12 +145,6 @@ export function Firma({ alFirmar }: { alFirmar?: () => void }) {
               <dt>Método</dt>
               <dd>Firma electrónica simple, con evidencia reforzada</dd>
             </div>
-            <div>
-              <dt>Huella del trazo (SHA-256)</dt>
-              <dd>
-                <code className="po-hash">{firma.sha256}</code>
-              </dd>
-            </div>
           </dl>
           <p className="po-apagado">
             La firma original no se reemplaza dentro del portal. Si necesitas corregirla,
@@ -149,7 +163,7 @@ export function Firma({ alFirmar }: { alFirmar?: () => void }) {
 
           <details className="po-consentimiento" open>
             <summary>
-              {estado.consentimiento.codigo} · {estado.consentimiento.titulo}
+              {estado.consentimiento.titulo}
             </summary>
             <div className="po-consentimiento-texto">
               <TextoLegal bloques={estado.consentimiento.bloques} clasico={estado.consentimiento.estilo === "clasico"} />
@@ -160,22 +174,23 @@ export function Firma({ alFirmar }: { alFirmar?: () => void }) {
             <input
               type="checkbox"
               checked={acepta}
+              disabled={enviando}
               onChange={(evento) => {
                 setAcepta(evento.target.checked);
                 if (!evento.target.checked) borrar();
               }}
             />
             <span>
-              Leí y acepto el consentimiento {estado.consentimiento.codigo} para usar la
-              firma electrónica simple en este expediente.
+              Leí y acepto el consentimiento para usar la firma electrónica simple en este
+              expediente.
             </span>
           </label>
 
           <LienzoFirma
             ref={lienzo}
-            habilitado={acepta}
+            habilitado={acepta && !enviando}
             alCambiar={setTieneTrazo}
-            velo="Acepta el consentimiento para dibujar."
+            velo={enviando ? "Registrando la firma…" : "Acepta el consentimiento para dibujar."}
           />
 
           <div className="po-firma-acciones">
@@ -183,7 +198,7 @@ export function Firma({ alFirmar }: { alFirmar?: () => void }) {
               type="button"
               className="po-boton po-boton-suave"
               onClick={() => lienzo.current?.deshacer()}
-              disabled={!tieneTrazo}
+              disabled={!tieneTrazo || enviando}
             >
               Deshacer
             </button>
@@ -191,7 +206,7 @@ export function Firma({ alFirmar }: { alFirmar?: () => void }) {
               type="button"
               className="po-boton po-boton-suave"
               onClick={borrar}
-              disabled={!tieneTrazo}
+              disabled={!tieneTrazo || enviando}
             >
               Borrar
             </button>

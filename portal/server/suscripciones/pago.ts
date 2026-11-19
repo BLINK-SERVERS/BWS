@@ -5,12 +5,11 @@
    es una fila nueva e inmutable: una corrección se hace anulando y
    registrando otro, nunca editando.
 
-   Registrar el pago adelanta el vencimiento (solo hacia adelante) y le
-   devuelve el estado que le corresponde a esa fecha nueva: `al_dia` si
-   hoy no la pasó, `mora` o `suspendida` si sigue pendiente. La licencia
-   se reactiva solo con esos dos estados. Dos altas del mismo periodo no
-   caben: el disparador de la base responde 23505 y aquí se convierte en
-   un 409 legible.
+   El régimen histórico conserva su avance y reactivación anteriores.
+   El nuevo registra una cuota completa y calcula el primer periodo sin
+   cubrir; no reactiva automáticamente ni supone intereses. Una revisión
+   administrativa posterior acredita la liquidación y deja rastro. Dos
+   pagos vigentes del mismo periodo se rechazan con 409.
 
    Con moneda VES la tasa BCV es obligatoria y queda guardada con
    el pago: sin ella no se puede reconstruir el monto en bolívares.
@@ -28,6 +27,7 @@ import {
   fechaTexto,
   hoyUTC,
   numero,
+  pagoCubreMensualidad,
   periodoValido,
   vencimientoTrasPeriodo,
 } from "../_lib/suscripcion";
@@ -59,9 +59,10 @@ export default manejar(["POST"], async (peticion) => {
     throw new ErrorHttp(400, "La moneda solo puede ser USD o VES.", "moneda");
   }
 
-  const tasa = cuerpo?.tasa_bcv === undefined || texto(cuerpo?.tasa_bcv) === ""
+  const tasaCruda = cuerpo?.tasa_bcv;
+  const tasa = tasaCruda === undefined || tasaCruda === null || (typeof tasaCruda === "string" && texto(tasaCruda) === "")
     ? null
-    : numero(cuerpo?.tasa_bcv);
+    : numero(tasaCruda);
   if (moneda === "VES" && (tasa === null || tasa <= 0)) {
     throw new ErrorHttp(400, "Un pago en bolívares necesita la tasa BCV.", "tasa");
   }
@@ -81,7 +82,8 @@ export default manejar(["POST"], async (peticion) => {
   const hoy = hoyUTC();
 
   const [filas] = await enTransaccion(sesion.usuarioId, sesion.rol, (txn) => [
-    txn`select id, proyecto_id, estado, dia_cobro, dias_gracia, proximo_vencimiento
+    txn`select id, proyecto_id, estado, dia_cobro, dias_gracia, proximo_vencimiento,
+               vencimiento_inicial_mora, monto_usd, bws_contrato_mora_nuevo(proyecto_id) as regimen_nuevo
         from suscripciones where id = ${suscripcionId}`,
   ]);
   const suscripcion = (filas ?? [])[0] as Record<string, unknown> | undefined;
@@ -90,6 +92,46 @@ export default manejar(["POST"], async (peticion) => {
   }
   if (String(suscripcion.estado) === "terminada") {
     throw new ErrorHttp(409, "La suscripción está terminada: no admite pagos.", "terminada");
+  }
+
+  if (suscripcion.regimen_nuevo) {
+    if (!suscripcion.vencimiento_inicial_mora) {
+      throw new ErrorHttp(409, "Registra primero el vencimiento inicial y su fundamento en la regularización administrativa.", "inicio_mora");
+    }
+    if (periodo < fechaTexto(suscripcion.vencimiento_inicial_mora).slice(0, 7)) {
+      throw new ErrorHttp(400, "El periodo es anterior al primer vencimiento.", "periodo");
+    }
+    if (!pagoCubreMensualidad(monto, moneda, tasa, Number(suscripcion.monto_usd))) {
+      throw new ErrorHttp(400, "El pago debe cubrir la mensualidad completa; no incluye intereses.", "monto_insuficiente");
+    }
+    try {
+      const [movimiento, pagos] = await enTransaccion(sesion.usuarioId, sesion.rol, (txn) => [
+        txn`select * from bws_pago_mora(${suscripcionId}::uuid, ${periodo}, ${monto.toFixed(2)}::numeric,
+              ${moneda}, ${tasa === null ? null : tasa.toFixed(4)}::numeric, ${referencia}, ${fecha}::date, ${hoy}::date,
+              ${ipDe(peticion)}::inet, ${agenteDe(peticion)})`,
+        txn`select id, periodo, monto, moneda, tasa_bcv, referencia, fecha, estado
+            from pagos p where p.suscripcion_id = ${suscripcionId}::uuid
+              and p.periodo = ${periodo} and p.estado = 'registrado'
+              and not exists (select 1 from pagos a where a.anulacion_de = p.id)`,
+      ]);
+      const resultado = movimiento[0];
+      const pago = pagos[0];
+      return json({
+        ok: true, anterior: String(resultado.anterior),
+        pago: {
+          id: String(pago.id), periodo: String(pago.periodo), monto: Number(pago.monto),
+          moneda: String(pago.moneda), tasa_bcv: pago.tasa_bcv === null ? null : Number(pago.tasa_bcv),
+          referencia: String(pago.referencia), fecha: fechaTexto(pago.fecha), estado: String(pago.estado),
+        },
+        suscripcion: { estado: String(resultado.nuevo), proximo_vencimiento: fechaTexto(resultado.proximo), dias_gracia: 0 },
+        reactivacion_automatica: false,
+      }, 201);
+    } catch (error) {
+      const codigo = codigoPostgres(error);
+      if (codigo === "23505") throw new ErrorHttp(409, "Ese periodo ya tiene un pago registrado.", "pago_duplicado");
+      if (codigo === "P0001") throw new ErrorHttp(409, "No se pudo registrar el pago: revisa el estado, el inicio y la mensualidad completa.", "pago_mora");
+      throw error;
+    }
   }
 
   const proyectoId = String(suscripcion.proyecto_id);
@@ -108,24 +150,30 @@ export default manejar(["POST"], async (peticion) => {
   const agente = agenteDe(peticion);
 
   try {
-    const [pagoFila, , , , suscripcionFila] = await enTransaccion(sesion.usuarioId, sesion.rol, (txn) => [
+    const [, pagoFila, , , , suscripcionFila] = await enTransaccion(sesion.usuarioId, sesion.rol, (txn) => [
+      txn`select id from suscripciones where id = ${suscripcionId} for update`,
       txn`insert into pagos
             (suscripcion_id, periodo, monto, moneda, tasa_bcv, referencia, fecha)
-          values (${suscripcionId}::uuid, ${periodo}, ${monto.toFixed(2)}, ${moneda},
-                  ${tasa}, ${referencia}, ${fecha}::date)
+          select s.id, ${periodo}, ${monto.toFixed(2)}::numeric, ${moneda},
+                  ${tasa}::numeric, ${referencia}, ${fecha}::date
+          from suscripciones s where s.id = ${suscripcionId}::uuid
+            and s.estado <> 'terminada' and not bws_contrato_mora_nuevo(s.proyecto_id)
           returning id, periodo, monto, moneda, tasa_bcv, referencia, fecha, estado, creado`,
       txn`update suscripciones
           set estado = ${estadoTrasPago},
               proximo_vencimiento = greatest(proximo_vencimiento, ${nuevoVencimiento}::date),
               actualizada = now()
           where id = ${suscripcionId} and estado <> 'terminada'
+            and not bws_contrato_mora_nuevo(proyecto_id)
           returning proyecto_id, estado, proximo_vencimiento, dias_gracia`,
       txn`update licencias
           set estado = 'activa'
           where proyecto_id = ${proyectoId}::uuid and estado = 'suspendida'
-            and ${levantaLicencia}::boolean`,
+            and ${levantaLicencia}::boolean
+            and exists (select 1 from suscripciones s where s.id = ${suscripcionId}::uuid
+                        and s.estado <> 'terminada' and not bws_contrato_mora_nuevo(s.proyecto_id))`,
       txn`insert into eventos (actor, rol, accion, entidad, entidad_id, detalle, ip, agente)
-          values (${sesion.usuarioId}, 'admin', 'pago.registrado', 'suscripciones',
+          select ${sesion.usuarioId}::uuid, 'admin', 'pago.registrado', 'suscripciones',
                   ${suscripcionId},
                   ${JSON.stringify({
                     periodo,
@@ -137,11 +185,14 @@ export default manejar(["POST"], async (peticion) => {
                     estado_anterior: anterior,
                     estado_nuevo: estadoTrasPago,
                   })}::jsonb,
-                  ${ip}, ${agente})`,
+                  ${ip}::inet, ${agente}::text
+          where exists (select 1 from suscripciones s where s.id = ${suscripcionId}::uuid
+                        and s.estado <> 'terminada' and not bws_contrato_mora_nuevo(s.proyecto_id))`,
       txn`select estado, proximo_vencimiento, dias_gracia
           from suscripciones where id = ${suscripcionId}`,
     ]);
     const pago = (pagoFila ?? [])[0] as Record<string, unknown> | undefined;
+    if (!pago) throw new ErrorHttp(409, "La suscripción cambió; vuelve a intentar el pago.", "suscripcion_cambiada");
     const fila = (suscripcionFila ?? [])[0] as Record<string, unknown> | undefined;
 
     return json(

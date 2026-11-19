@@ -19,6 +19,7 @@ import { Proyecto } from "./vistas/Proyecto";
 import { Recuperar } from "./vistas/Recuperar";
 import { Registro } from "./vistas/Registro";
 import { Verificar } from "./vistas/Verificar";
+import { VerificacionPublica } from "./vistas/VerificacionPublica";
 
 function usarRuta(): Ruta {
   const [ruta, setRuta] = useState<Ruta>(rutaActual);
@@ -48,7 +49,10 @@ function usarEnlaces(): void {
       if (!enlace || enlace.target || enlace.hasAttribute("download")) return;
       const destino = new URL(enlace.href, window.location.href);
       if (destino.origin !== window.location.origin) return;
-      if (!(RUTAS as readonly string[]).includes(destino.pathname)) return;
+      if (
+        !(RUTAS as readonly string[]).includes(destino.pathname) &&
+        !destino.pathname.startsWith("/verify/")
+      ) return;
       evento.preventDefault();
       navegar(destino.pathname + destino.search);
       window.scrollTo({ top: 0 });
@@ -67,9 +71,8 @@ function Portada({ sesion }: { sesion: SesionPortal | null | undefined }) {
       </h1>
       <p className="po-entrada">
         Este portal reúne la identidad fiscal del cliente, el consentimiento de firma y, con
-        el proyecto, el contrato y sus anexos. La firma es electrónica simple, no
-        certificada, con evidencia reforzada: trazo, fecha y hora en UTC, IP, agente y sello
-        de contenido SHA-256.
+        el proyecto, el contrato y sus documentos. La firma es electrónica simple, no
+        certificada, con evidencia reforzada.
       </p>
 
       <div className="po-acciones-portada">
@@ -152,7 +155,9 @@ export function App() {
       contenido = <Admin sesion={sesion} />;
       break;
     default:
-      contenido = <Portada sesion={sesion} />;
+      contenido = ruta === "/verify" || ruta.startsWith("/verify/")
+        ? <VerificacionPublica key={ruta} id={ruta.slice("/verify/".length)} />
+        : <Portada sesion={sesion} />;
   }
 
   return (

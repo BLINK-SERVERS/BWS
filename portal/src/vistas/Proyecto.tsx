@@ -17,6 +17,7 @@ import {
   dominioDe,
   mensajeDocumento,
   normalizarDominio,
+  nombreValido,
   razonSocialValida,
   telefonoNormalizado,
   TIPOS_DOCUMENTO,
@@ -28,6 +29,7 @@ import {
   type Complejidad,
   type Condiciones,
   type DatosProyecto,
+  type PersonaContrato,
   type PlanVista,
   type ProyectoVista,
   type SesionPortal,
@@ -140,6 +142,9 @@ export function Proyecto({ sesion }: { sesion: SesionPortal | null | undefined }
   const [planClave, setPlanClave] = useState("supabase");
   const [planNivel, setPlanNivel] = useState("inicial");
 
+  const [persona, setPersona] = useState<PersonaContrato | "">("");
+  const [representanteNombre, setRepresentanteNombre] = useState("");
+  const [representanteDocumento, setRepresentanteDocumento] = useState("");
   const [razon, setRazon] = useState("");
   const [tipo, setTipo] = useState<TipoDocumento>("RIF");
   const [numero, setNumero] = useState("");
@@ -162,6 +167,9 @@ export function Proyecto({ sesion }: { sesion: SesionPortal | null | undefined }
         setProyecto(respuesta.proyecto);
         if (respuesta.ficha) {
           const f = respuesta.ficha;
+          setPersona(f.persona_tipo ?? "");
+          setRepresentanteNombre(f.cliente_rep_nombre ?? "");
+          setRepresentanteDocumento(f.cliente_rep_documento ?? "");
           setRazon(f.razon_social ?? "");
           if (f.documento_tipo === "RIF" || f.documento_tipo === "cedula" || f.documento_tipo === "pasaporte") {
             setTipo(f.documento_tipo);
@@ -252,6 +260,15 @@ export function Proyecto({ sesion }: { sesion: SesionPortal | null | undefined }
       nuevos.alcance = "Describe el alcance con al menos 40 caracteres.";
     }
     if (!plan) nuevos.plan = "Elige un plan disponible.";
+    if (!persona) nuevos.persona = "Elige si el proyecto es para ti o para tu empresa.";
+    if (persona === "juridica") {
+      if (!nombreValido(representanteNombre)) {
+        nuevos.representanteNombre = "Escribe el nombre del representante de la empresa.";
+      }
+      const documentoRepresentante = mensajeDocumento("cedula", representanteDocumento);
+      if (documentoRepresentante) nuevos.representanteDocumento = documentoRepresentante;
+      if (tipo !== "RIF") nuevos.numero = "Para una empresa, elige RIF como documento del cliente.";
+    }
     if (!razonSocialValida(razon)) {
       nuevos.razon = "Escribe la razón social o el nombre del cliente.";
     }
@@ -271,7 +288,8 @@ export function Proyecto({ sesion }: { sesion: SesionPortal | null | undefined }
   };
 
   const enviar = async (etapa: "guardar" | "enviar") => {
-    if (!dominioLimpio || !validar()) return;
+    const formularioValido = validar();
+    if (!dominioLimpio || !persona || !formularioValido) return;
     setGuardando(true);
     setFallo(null);
     setAviso(null);
@@ -289,6 +307,9 @@ export function Proyecto({ sesion }: { sesion: SesionPortal | null | undefined }
         plan_clave: planClave,
         plan_nivel: planNivel,
         ficha: {
+          persona_tipo: persona,
+          cliente_rep_nombre: persona === "juridica" ? representanteNombre.trim() : null,
+          cliente_rep_documento: persona === "juridica" ? representanteDocumento.trim() : null,
           razon_social: razon.trim(),
           documento_tipo: tipo,
           documento_numero: numero.trim(),
@@ -315,6 +336,46 @@ export function Proyecto({ sesion }: { sesion: SesionPortal | null | undefined }
       setFallo(
         error instanceof FalloApi ? error.message : "No pudimos guardar el proyecto.",
       );
+    } finally {
+      setGuardando(false);
+    }
+  };
+
+  const registrarPersona = async () => {
+    if (!proyecto) return;
+    const nuevos: Record<string, string> = {};
+    if (!persona) nuevos.persona = "Elige si el proyecto es para ti o para tu empresa.";
+    if (persona === "juridica") {
+      if (!nombreValido(representanteNombre)) {
+        nuevos.representanteNombre = "Escribe el nombre del representante de la empresa.";
+      }
+      const mensaje = mensajeDocumento("cedula", representanteDocumento);
+      if (mensaje) nuevos.representanteDocumento = mensaje;
+    }
+    setErrores(nuevos);
+    if (!persona || Object.keys(nuevos).length) return;
+    setGuardando(true);
+    setFallo(null);
+    setAviso(null);
+    try {
+      const respuesta = await api.registrarPersonaHistorica({
+        proyecto_id: proyecto.id,
+        persona_tipo: persona,
+        cliente_rep_nombre: persona === "juridica" ? representanteNombre.trim() : null,
+        cliente_rep_documento: persona === "juridica" ? representanteDocumento.trim() : null,
+      });
+      setProyecto(respuesta.proyecto);
+      setDatos((anterior) => anterior ? { ...anterior, puede_registrar_persona: false } : anterior);
+      setAviso("Persona registrada. El alcance y los datos fiscales permanecen sin cambios.");
+    } catch (error) {
+      if (error instanceof FalloApi && error.codigo === "persona_no_disponible") {
+        const recargado = await api.proyecto().catch(() => null);
+        if (recargado) {
+          setDatos(recargado);
+          setProyecto(recargado.proyecto);
+        }
+      }
+      setFallo(error instanceof FalloApi ? error.message : "No pudimos registrar la persona.");
     } finally {
       setGuardando(false);
     }
@@ -362,7 +423,7 @@ export function Proyecto({ sesion }: { sesion: SesionPortal | null | undefined }
     );
   }
 
-  if (!datos || !plan) {
+  if (!datos) {
     return (
       <section className="po-pagina" aria-live="polite" aria-busy="true">
         <h1 className="po-titulo-pagina" id="po-proyecto-titulo">
@@ -403,11 +464,56 @@ export function Proyecto({ sesion }: { sesion: SesionPortal | null | undefined }
           </p>
         </div>
 
+        {datos.puede_registrar_persona && proyecto.estado === "enviado" && !proyecto.persona_tipo ? (
+          <section className="po-tarjeta" aria-labelledby="po-persona-historica">
+            <h2 className="po-tarjeta-titulo" id="po-persona-historica">Persona para el contrato</h2>
+            <p>Este proyecto se envió sin indicar la persona. Elige una opción para poder generar
+              el expediente. Solo podrás registrarla una vez; no modifica el alcance ni los datos fiscales.</p>
+            <form className="po-formulario" onSubmit={(evento) => { evento.preventDefault(); void registrarPersona(); }} noValidate>
+              <fieldset className="po-grupo" aria-describedby={errores.persona ? "persona-historica-error" : undefined}>
+                <legend>¿Para quién es el proyecto?</legend>
+                <label><input type="radio" name="persona-historica" value="natural"
+                  checked={persona === "natural"} onChange={() => setPersona("natural")} /> Para mí</label>{" "}
+                <label><input type="radio" name="persona-historica" value="juridica"
+                  checked={persona === "juridica"} onChange={() => setPersona("juridica")} /> Para mi empresa</label>
+                {errores.persona ? <p className="po-campo-error" id="persona-historica-error" role="alert">{errores.persona}</p> : null}
+              </fieldset>
+              {persona === "juridica" ? (
+                <>
+                  <Campo id="persona-historica-nombre" etiqueta="Nombre del representante de la empresa"
+                    valor={representanteNombre} alCambiar={setRepresentanteNombre} error={errores.representanteNombre} />
+                  <Campo id="persona-historica-documento" etiqueta="Cédula del representante"
+                    ayuda="V-12345678 o E-12345678. Se valida el formato, no la identidad."
+                    valor={representanteDocumento} alCambiar={setRepresentanteDocumento} error={errores.representanteDocumento} />
+                </>
+              ) : null}
+              <div><button className="po-boton po-boton-principal" type="submit" disabled={guardando}>
+                {guardando ? "Guardando…" : "Registrar persona"}
+              </button></div>
+            </form>
+          </section>
+        ) : !proyecto.persona_tipo ? (
+          <p className="po-nota">La persona no fue registrada en este proyecto y no puede indicarse aquí.
+            Contacta a Blink si necesitas ayuda con el expediente.</p>
+        ) : null}
+
         <section className="po-tarjeta" aria-labelledby="po-proyecto-datos">
           <h2 className="po-tarjeta-titulo" id="po-proyecto-datos">
             Alcance enviado
           </h2>
           <dl className="po-datos">
+            {proyecto.persona_tipo ? (
+              <div>
+                <dt>Cliente</dt>
+                <dd>{proyecto.persona_tipo === "natural" ? "Para mí" : "Para mi empresa"}</dd>
+              </div>
+            ) : null}
+            {proyecto.persona_tipo === "juridica" ? (
+              <div>
+                <dt>Representante</dt>
+                <dd>{proyecto.cliente_rep_nombre} · {proyecto.cliente_rep_documento}</dd>
+              </div>
+            ) : null}
             <div>
               <dt>Categoría</dt>
               <dd>{proyecto.categoria}</dd>
@@ -436,6 +542,15 @@ export function Proyecto({ sesion }: { sesion: SesionPortal | null | undefined }
             Volver al panel
           </a>
         </p>
+      </section>
+    );
+  }
+
+  if (!plan) {
+    return (
+      <section className="po-pagina" aria-live="polite" aria-busy="true">
+        <h1 className="po-titulo-pagina" id="po-proyecto-titulo">Proyecto</h1>
+        <p className="po-apagado">Consultando el catálogo de infraestructura.</p>
       </section>
     );
   }
@@ -476,6 +591,35 @@ export function Proyecto({ sesion }: { sesion: SesionPortal | null | undefined }
           <p className="po-apagado">
             Con estos datos se emite el contrato y la factura.
           </p>
+          <fieldset className="po-grupo" aria-describedby={errores.persona ? "proyecto-persona-error" : undefined}>
+            <legend>¿Para quién es el proyecto?</legend>
+            <label>
+              <input
+                type="radio"
+                name="persona"
+                value="natural"
+                checked={persona === "natural"}
+                onChange={() => setPersona("natural")}
+              />{" "}
+              Para mí
+            </label>{" "}
+            <label>
+              <input
+                type="radio"
+                name="persona"
+                value="juridica"
+                checked={persona === "juridica"}
+                onChange={() => {
+                  setPersona("juridica");
+                  setTipo("RIF");
+                }}
+              />{" "}
+              Para mi empresa
+            </label>
+            {errores.persona ? (
+              <p className="po-campo-error" id="proyecto-persona-error" role="alert">{errores.persona}</p>
+            ) : null}
+          </fieldset>
           <Campo
             id="proyecto-razon"
             etiqueta="Razón social o nombre del cliente"
@@ -492,7 +636,7 @@ export function Proyecto({ sesion }: { sesion: SesionPortal | null | undefined }
               valor={tipo}
               alCambiar={(valor) => setTipo(valor as TipoDocumento)}
             >
-              {TIPOS_DOCUMENTO.map((opcion) => (
+              {TIPOS_DOCUMENTO.filter((opcion) => persona !== "juridica" || opcion.valor === "RIF").map((opcion) => (
                 <option key={opcion.valor} value={opcion.valor}>
                   {opcion.etiqueta}
                 </option>
@@ -507,6 +651,25 @@ export function Proyecto({ sesion }: { sesion: SesionPortal | null | undefined }
               error={errores.numero}
             />
           </div>
+          {persona === "juridica" ? (
+            <>
+              <Campo
+                id="proyecto-representante-nombre"
+                etiqueta="Nombre del representante de la empresa"
+                valor={representanteNombre}
+                alCambiar={setRepresentanteNombre}
+                error={errores.representanteNombre}
+              />
+              <Campo
+                id="proyecto-representante-documento"
+                etiqueta="Cédula del representante"
+                ayuda="V-12345678 o E-12345678. Se valida el formato, no la identidad."
+                valor={representanteDocumento}
+                alCambiar={setRepresentanteDocumento}
+                error={errores.representanteDocumento}
+              />
+            </>
+          ) : null}
           <Campo
             id="proyecto-domicilio"
             etiqueta="Domicilio fiscal"
@@ -744,8 +907,8 @@ export function Proyecto({ sesion }: { sesion: SesionPortal | null | undefined }
         {confirmando ? (
           <div className="po-aviso-legal" role="alert">
             <p>
-              Al enviar, el alcance, los buzones, el dominio y el plan quedan congelados y
-              se abre la etapa del contrato. Revisa el anexo B y el resumen del anexo D
+              Al enviar, la persona, el representante, el alcance, los buzones, el dominio y el plan
+              quedan congelados y se abre la etapa del contrato. Revisa el anexo B y el resumen del anexo D
               antes de continuar.
             </p>
             <div className="po-firma-acciones">

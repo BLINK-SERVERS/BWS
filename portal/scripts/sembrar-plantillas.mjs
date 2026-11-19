@@ -16,13 +16,13 @@
 
 import pg from "pg";
 import { cargarEnv, exigir } from "./_env.mjs";
-import { DOCUMENTOS } from "../legal/index.ts";
+import { PLANTILLAS_ACTUALES } from "../legal/index.ts";
 import { contenidoPlantilla } from "../legal/canonica.ts";
 import { validarPlantilla } from "../legal/validar.ts";
 import { hashPlantilla } from "../render/hash.ts";
 
 export async function sembrarPlantillas(cliente) {
-  const problemas = DOCUMENTOS.flatMap((doc) => validarPlantilla(doc));
+  const problemas = PLANTILLAS_ACTUALES.flatMap((doc) => validarPlantilla(doc));
   if (problemas.length) {
     throw new Error(
       `Plantilla inválida: ${problemas.map((p) => `${p.documento}: ${p.mensaje}`).join("; ")}`,
@@ -31,7 +31,7 @@ export async function sembrarPlantillas(cliente) {
 
   let nuevas = 0;
   let vigentes = 0;
-  for (const doc of DOCUMENTOS) {
+  for (const doc of PLANTILLAS_ACTUALES) {
     const version = Number.parseInt(doc.version, 10);
     if (!Number.isInteger(version) || version < 1) {
       throw new Error(`${doc.codigo}: la versión «${doc.version}» no es numérica.`);

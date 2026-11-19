@@ -7,8 +7,10 @@
    ============================================================ */
 
 import type { Bloque } from "../../legal/tipos";
+import { esDocumentoPublico, type DocumentoPublico } from "./verificacion-publica";
 
 export type TipoDocumento = "RIF" | "cedula" | "pasaporte";
+export type PersonaContrato = "natural" | "juridica";
 
 export interface DocumentoPrevia {
   codigo: string;
@@ -59,6 +61,9 @@ export interface ClienteCuenta {
 
 /** Ficha que se completa al contratar un proyecto. */
 export interface FichaContrato {
+  persona_tipo: PersonaContrato;
+  cliente_rep_nombre: string | null;
+  cliente_rep_documento: string | null;
   razon_social: string;
   documento_tipo: TipoDocumento;
   documento_numero: string;
@@ -69,6 +74,9 @@ export interface FichaContrato {
 
 /** La misma ficha tal como está guardada: puede estar a medias. */
 export interface FichaVista {
+  persona_tipo: PersonaContrato | null;
+  cliente_rep_nombre: string | null;
+  cliente_rep_documento: string | null;
   razon_social: string | null;
   documento_tipo: string | null;
   documento_numero: string | null;
@@ -149,6 +157,9 @@ export interface ProyectoDatos {
 }
 
 export interface ProyectoVista extends Omit<ProyectoDatos, "ficha"> {
+  persona_tipo: PersonaContrato | null;
+  cliente_rep_nombre: string | null;
+  cliente_rep_documento: string | null;
   id: string;
   estado: string;
   creado: string;
@@ -168,6 +179,7 @@ export interface Condiciones {
 export interface DatosProyecto {
   planes: PresetPlan[];
   proyecto: ProyectoVista | null;
+  puede_registrar_persona: boolean;
   condiciones: Condiciones;
   categorias: string[];
   complejidades: { valor: Complejidad; etiqueta: string }[];
@@ -428,11 +440,17 @@ export class FalloApi extends Error {
 
 async function pedir<T>(
   ruta: string,
-  opciones: { metodo?: "GET" | "POST"; cuerpo?: unknown } = {},
+  opciones: {
+    metodo?: "GET" | "POST";
+    cuerpo?: unknown;
+    credenciales?: RequestCredentials;
+    signal?: AbortSignal;
+  } = {},
 ): Promise<T> {
   const respuesta = await fetch(ruta, {
     method: opciones.metodo ?? "GET",
-    credentials: "same-origin",
+    credentials: opciones.credenciales ?? "same-origin",
+    signal: opciones.signal,
     cache: "no-store",
     headers:
       opciones.cuerpo === undefined ? undefined : { "content-type": "application/json" },
@@ -491,6 +509,15 @@ export const api = {
     return pedir("/api/auth/verificar", { metodo: "POST", cuerpo: { token } });
   },
 
+  async verificacionPublica(id: string, signal?: AbortSignal): Promise<DocumentoPublico> {
+    const datos = await pedir<unknown>(
+      `/api/documentos/verificacion-publica?id=${encodeURIComponent(id)}`,
+      { credenciales: "omit", signal },
+    );
+    if (!esDocumentoPublico(datos, id)) throw new Error("Respuesta pública inválida.");
+    return datos;
+  },
+
   reenviarVerificacion(): Promise<{ ok: true; enviado: boolean }> {
     return pedir("/api/auth/reenviar-verificacion", { metodo: "POST", cuerpo: {} });
   },
@@ -520,6 +547,17 @@ export const api = {
 
   guardarProyecto(datos: ProyectoDatos): Promise<{ ok: true; proyecto: ProyectoVista }> {
     return pedir("/api/cliente/proyecto", { metodo: "POST", cuerpo: datos });
+  },
+
+  registrarPersonaHistorica(datos: {
+    proyecto_id: string;
+    persona_tipo: PersonaContrato;
+    cliente_rep_nombre: string | null;
+    cliente_rep_documento: string | null;
+  }): Promise<{ ok: true; proyecto: ProyectoVista }> {
+    return pedir("/api/cliente/proyecto", {
+      metodo: "POST", cuerpo: { accion: "registrar_persona_historica", ...datos },
+    });
   },
 
   enviarProyecto(): Promise<{ ok: true; proyecto: ProyectoVista }> {

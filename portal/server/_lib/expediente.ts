@@ -12,11 +12,12 @@
    ============================================================ */
 
 import { fechaLarga } from "../../legal/fechas";
-import type { DatosExpediente, FirmaCapturada } from "../../legal/tipos";
+import { documentosDeExpediente } from "../../legal";
+import type { DatosExpediente, DocumentoLegal, FirmaCapturada } from "../../legal/tipos";
 import { enTransaccion } from "./db";
 import { planExacto, type PlanVista } from "./planes";
 import { identidadPrestador, variablesComerciales } from "./prestador";
-import { variablesDeProyecto, vistaDeProyecto, type ProyectoVista } from "./proyecto";
+import { CATEGORIAS, variablesDeProyecto, vistaDeProyecto, type ProyectoVista } from "./proyecto";
 import { ErrorHttp } from "./respuestas";
 import type { Sesion } from "./sesion";
 
@@ -24,6 +25,22 @@ export interface ProyectoExpediente {
   fila: Record<string, unknown>;
   vista: ProyectoVista;
   plan: PlanVista;
+}
+
+/** Selección para un expediente nuevo; los históricos se verifican con su plantilla guardada. */
+export function documentosParaProyecto(proyecto: ProyectoExpediente): DocumentoLegal[] {
+  const { persona_tipo, categoria } = proyecto.vista;
+  if (!persona_tipo) {
+    throw new ErrorHttp(409, "El proyecto no tiene una persona del cliente capturada.", "persona_incompleta");
+  }
+  if (persona_tipo === "juridica" &&
+      (!proyecto.vista.cliente_rep_nombre || !proyecto.vista.cliente_rep_documento)) {
+    throw new ErrorHttp(409, "El proyecto no tiene los datos del representante del cliente.", "representante_incompleto");
+  }
+  if (!(CATEGORIAS as readonly string[]).includes(categoria)) {
+    throw new ErrorHttp(409, "El proyecto no tiene una categoría de contrato disponible.", "categoria_contrato");
+  }
+  return documentosDeExpediente(categoria, persona_tipo);
 }
 
 export interface ClienteExpediente {
@@ -87,12 +104,14 @@ async function leerProyecto(
     proyectoId
       ? txn`select p.id, p.nombre, p.categoria, p.dominio, p.buzones, p.alcance,
                    p.complejidad, p.plan_clave, p.plan_nivel, p.plan_version,
-                   p.estado, p.creado, p.enviado, p.cliente_id
+                   p.estado, p.creado, p.enviado, p.cliente_id,
+                   p.persona_tipo, p.cliente_rep_nombre, p.cliente_rep_documento
             from proyectos p
             where p.id = ${proyectoId}`
       : txn`select p.id, p.nombre, p.categoria, p.dominio, p.buzones, p.alcance,
                    p.complejidad, p.plan_clave, p.plan_nivel, p.plan_version,
-                   p.estado, p.creado, p.enviado, p.cliente_id
+                   p.estado, p.creado, p.enviado, p.cliente_id,
+                   p.persona_tipo, p.cliente_rep_nombre, p.cliente_rep_documento
             from proyectos p
             join clientes c on c.id = p.cliente_id
             where c.usuario_id = ${sesion.usuarioId}
@@ -286,6 +305,16 @@ export function datosDeExpediente(args: {
       cliente_telefono: cliente.telefono,
       cliente_correo: cliente.correo,
       cliente_correo_factura: cliente.correo_factura,
+      // Los proyectos anteriores no tenían estos datos; no se deducen
+      // del RIF ni de la cuenta para reconstruir sus expedientes.
+      ...(proyecto.vista.persona_tipo ? {
+        persona_tipo: proyecto.vista.persona_tipo === "natural" ? "Persona natural" : "Persona jurídica",
+      } : {}),
+      ...(proyecto.vista.persona_tipo === "juridica" && proyecto.vista.cliente_rep_nombre &&
+          proyecto.vista.cliente_rep_documento ? {
+        cliente_rep_nombre: proyecto.vista.cliente_rep_nombre,
+        cliente_rep_documento: proyecto.vista.cliente_rep_documento,
+      } : {}),
       ...variablesDeProyecto(proyecto.vista),
       // La fecha comercial se fija con el sello: verificarlo otro día
       // debe reconstruir exactamente las mismas variables.

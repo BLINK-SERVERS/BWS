@@ -773,11 +773,21 @@ async function principal() {
     await prueba("el alcance enviado queda congelado y no vuelve a borrador", async () => {
       await db.query("begin");
       try {
+        await esperarErrorEn(db, "23514", "update proyectos set estado = 'enviado' where id = $1", [ids.proyectoA]);
+        await esperarErrorEn(db, "23514", "update proyectos set cliente_rep_nombre = 'Ana Pérez' where id = $1", [ids.proyectoA]);
+        await esperarErrorEn(db, "23514", "update proyectos set persona_tipo = 'juridica' where id = $1", [ids.proyectoA]);
+        await db.query(
+          "update proyectos set persona_tipo = 'juridica', cliente_rep_nombre = 'Ana Pérez', cliente_rep_documento = 'V-12345678' where id = $1",
+          [ids.proyectoA],
+        );
         const enviado = await db.query(
           "update proyectos set estado = 'enviado', enviado = now() where id = $1",
           [ids.proyectoA],
         );
         afirmar(enviado.rowCount === 1, "no se pudo enviar el proyecto");
+        await esperarErrorEn(db, "42501", "update proyectos set persona_tipo = 'natural', cliente_rep_nombre = null, cliente_rep_documento = null where id = $1", [ids.proyectoA]);
+        await esperarErrorEn(db, "42501", "update proyectos set cliente_rep_nombre = 'Otra Persona' where id = $1", [ids.proyectoA]);
+        await esperarErrorEn(db, "42501", "update proyectos set cliente_rep_documento = 'E-87654321' where id = $1", [ids.proyectoA]);
         await esperarErrorEn(db, "42501", "update proyectos set alcance = 'Otro alcance' where id = $1", [
           ids.proyectoA,
         ]);

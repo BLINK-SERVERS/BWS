@@ -209,15 +209,9 @@ export function Registro() {
               <details className="po-documento" key={documento.codigo}>
                 <summary>
                   <strong>{documento.titulo}</strong>
-                  <span className="po-documento-meta">
-                    {documento.codigo} · versión {documento.version}
-                  </span>
                 </summary>
                 <div className="po-documento-cuerpo">
                   <TextoLegal bloques={documento.bloques} clasico={documento.estilo === "clasico"} />
-                  <p className="po-hash-linea">
-                    Huella: <code className="po-hash">{documento.hash}</code>
-                  </p>
                 </div>
               </details>
             ))}

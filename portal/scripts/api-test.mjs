@@ -201,6 +201,9 @@ const PERSONA = {
 };
 
 const FICHA = {
+  persona_tipo: "juridica",
+  cliente_rep_nombre: "Ana Pérez",
+  cliente_rep_documento: "V-12345678",
   razon_social: "Ana Pérez Diseño, C.A.",
   documento_tipo: "RIF",
   documento_numero: "J-12345678-9",
@@ -489,6 +492,8 @@ probar("proyecto: catálogo de planes desde la base", async () => {
   assert.ok(niveles.every((n) => Number.isInteger(n.version) && n.version >= 1));
   assert.ok(niveles.every((n) => n.fecha_larga.length > 0 && n.fuente.length > 0));
   assert.ok(r.cuerpo.categorias.includes("Aplicación web"));
+  assert.ok(r.cuerpo.categorias.includes("Portafolio"));
+  assert.equal(r.cuerpo.ficha.persona_tipo, null);
 
   const filas = await cliente.query(
     "select clave, nivel, version, precio_usd::float8 as precio from planes_infra where estado = 'vigente'",
@@ -558,6 +563,21 @@ probar("proyecto: sin datos para el contrato se rechaza", async () => {
   pasar("400 ficha");
 });
 
+probar("proyecto: persona explícita y representante obligatorios", async () => {
+  for (const ficha of [
+    { ...FICHA, persona_tipo: null },
+    { ...FICHA, cliente_rep_nombre: "" },
+    { ...FICHA, cliente_rep_documento: "J-12345678-9" },
+  ]) {
+    const r = await invocar(proyecto, "/api/cliente/proyecto", {
+      metodo: "POST", cookie, cuerpo: { ...PROYECTO, ficha },
+    });
+    assert.equal(r.estado, 400);
+    assert.equal(r.cuerpo.codigo, "ficha");
+  }
+  pasar("400 cuando falta la elección o el representante");
+});
+
 probar("proyecto: documento inválido se rechaza", async () => {
   const r = await invocar(proyecto, "/api/cliente/proyecto", {
     metodo: "POST",
@@ -587,10 +607,31 @@ probar("proyecto: borrador guardado", async () => {
   const leido = await invocar(proyecto, "/api/cliente/proyecto", { cookie });
   assert.equal(leido.cuerpo.ficha.razon_social, FICHA.razon_social);
   assert.equal(leido.cuerpo.ficha.documento_numero, FICHA.documento_numero);
+  assert.equal(leido.cuerpo.ficha.persona_tipo, FICHA.persona_tipo);
+  assert.equal(leido.cuerpo.ficha.cliente_rep_nombre, FICHA.cliente_rep_nombre);
+  assert.equal(leido.cuerpo.ficha.cliente_rep_documento, FICHA.cliente_rep_documento);
+  assert.equal(leido.cuerpo.proyecto.persona_tipo, FICHA.persona_tipo);
   assert.equal(leido.cuerpo.ficha.telefono, FICHA.telefono);
   const sesionFicha = await invocar(sesionActual, "/api/auth/sesion", { cookie });
   assert.equal(sesionFicha.cuerpo.sesion.cliente.razon_social, FICHA.razon_social);
   pasar("201, ficha guardada con el proyecto y visible en la sesión");
+});
+
+probar("proyecto: un borrador antiguo debe completar la persona antes de enviar", async () => {
+  await cliente.query(
+    "update proyectos set persona_tipo = null, cliente_rep_nombre = null, cliente_rep_documento = null where id = $1",
+    [proyectoGuardado.id],
+  );
+  const antiguo = await invocar(proyecto, "/api/cliente/proyecto", { cookie });
+  assert.equal(antiguo.cuerpo.ficha.persona_tipo, null);
+  const envio = await invocar(enviarProyecto, "/api/cliente/proyecto/enviar", { metodo: "POST", cookie });
+  assert.equal(envio.estado, 409);
+  assert.equal(envio.cuerpo.codigo, "ficha_incompleta");
+  const corregido = await invocar(proyecto, "/api/cliente/proyecto", {
+    metodo: "POST", cookie, cuerpo: PROYECTO,
+  });
+  assert.equal(corregido.estado, 201);
+  pasar("409 sin elección y envío habilitado al guardar la ficha");
 });
 
 probar("proyecto: cambiar preset recalcula precio y versión", async () => {
@@ -621,6 +662,8 @@ probar("proyecto: enviar congela el alcance", async () => {
   assert.equal(r.cuerpo.proyecto.estado, "enviado");
   assert.ok(r.cuerpo.proyecto.enviado);
   assert.equal(r.cuerpo.proyecto.alcance, PROYECTO.alcance);
+  assert.equal(r.cuerpo.proyecto.persona_tipo, FICHA.persona_tipo);
+  assert.equal(r.cuerpo.proyecto.cliente_rep_documento, FICHA.cliente_rep_documento);
 
   const evento = await cliente.query(
     "select accion from eventos where accion = 'proyecto.enviado'",

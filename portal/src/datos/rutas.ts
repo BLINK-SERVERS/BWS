@@ -13,14 +13,16 @@ export const RUTAS = [
   "/proyecto",
   "/admin",
   "/verificar",
+  "/verify",
   "/recuperar",
 ] as const;
 
-export type Ruta = (typeof RUTAS)[number] | "/";
+export type Ruta = (typeof RUTAS)[number] | `/verify/${string}` | "/";
 
 /** Ruta del portal para un `pathname`; lo desconocido cae en la portada. */
 export function rutaDe(pathname: string): Ruta {
   const ruta = pathname.replace(/\/+$/, "") || "/";
+  if (ruta.startsWith("/verify/")) return ruta as `/verify/${string}`;
   return (RUTAS as readonly string[]).includes(ruta) ? (ruta as Ruta) : "/";
 }
 

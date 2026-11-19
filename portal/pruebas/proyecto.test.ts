@@ -11,12 +11,15 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
   CATEGORIAS,
+  leerFicha,
   leerProyecto,
   normalizarBuzones,
   variablesDeProyecto,
+  vistaDeProyecto,
   type ProyectoVista,
 } from "../server/_lib/proyecto.ts";
 import { normalizarDominio } from "../legal/identidad.ts";
+import { CATEGORIAS_CONTRATO, contratoDe } from "../legal/textos/con-servicios.ts";
 import type { PlanVista } from "../server/_lib/planes.ts";
 import { ErrorHttp } from "../server/_lib/respuestas.ts";
 
@@ -148,8 +151,67 @@ describe("leerProyecto", () => {
   });
 
   it("no acepta una categoría fuera de la lista", () => {
-    assert.deepEqual(CATEGORIAS.includes("Aplicación web"), true);
-    assert.equal(CATEGORIAS.length, 5);
+    assert.equal(CATEGORIAS.includes("Aplicación web"), true);
+    assert.equal(CATEGORIAS.includes("Portafolio"), true);
+    assert.equal(leerProyecto(datos({ categoria: "Portafolio" })).categoria, "Portafolio");
+    assert.equal(CATEGORIAS.length, 6);
+    assert.deepEqual([...CATEGORIAS], CATEGORIAS_CONTRATO.map((c) => c.categoria));
+    for (const categoria of CATEGORIAS) {
+      assert.notEqual(contratoDe(categoria, "natural").codigo, contratoDe(categoria, "juridica").codigo);
+    }
+  });
+
+  it("conserva los datos explícitos y no deduce persona en filas antiguas", () => {
+    const fila = { id: "proyecto", ...datos(), estado: "borrador", creado: "2026-11-11", enviado: null };
+    const historico = vistaDeProyecto(fila, PLAN);
+    assert.equal(historico.persona_tipo, null);
+    assert.equal(historico.cliente_rep_nombre, null);
+    assert.equal(historico.cliente_rep_documento, null);
+    const empresa = vistaDeProyecto({ ...fila, persona_tipo: "juridica",
+      cliente_rep_nombre: "Ana Pérez", cliente_rep_documento: "V-12345678" }, PLAN);
+    assert.equal(empresa.persona_tipo, "juridica");
+    assert.equal(empresa.cliente_rep_nombre, "Ana Pérez");
+    assert.equal(empresa.cliente_rep_documento, "V-12345678");
+  });
+});
+
+describe("ficha del contrato", () => {
+  const ficha = {
+    persona_tipo: "juridica",
+    razon_social: "Empresa de prueba",
+    documento_tipo: "RIF",
+    documento_numero: "j123456789",
+    domicilio: "Caracas, Venezuela",
+    telefono: "+58 412 1234567",
+    correo_factura: "FACTURAS@ejemplo.com",
+    cliente_rep_nombre: "  Ana Pérez  ",
+    cliente_rep_documento: "v 12.345.678",
+  };
+
+  it("exige elección explícita, sin deducirla del RIF", () => {
+    rechaza(() => leerFicha({ ...ficha, persona_tipo: undefined }), "ficha");
+    rechaza(() => leerFicha({ ...ficha, persona_tipo: "empresa" }), "ficha");
+    const natural = leerFicha({ ...ficha, persona_tipo: "natural" });
+    assert.equal(natural.persona_tipo, "natural");
+    assert.equal(natural.documento_numero, "J-12345678-9");
+    assert.equal(natural.cliente_rep_nombre, null);
+    assert.equal(natural.cliente_rep_documento, null);
+  });
+
+  it("valida y normaliza los datos de la representante de la empresa", () => {
+    const empresa = leerFicha(ficha);
+    assert.equal(empresa.persona_tipo, "juridica");
+    assert.equal(empresa.cliente_rep_nombre, "Ana Pérez");
+    assert.equal(empresa.cliente_rep_documento, "V-12345678");
+    assert.equal(empresa.correo_factura, "facturas@ejemplo.com");
+    for (const extra of [
+      { cliente_rep_nombre: "" },
+      { cliente_rep_nombre: "1" },
+      { cliente_rep_nombre: "x".repeat(121) },
+      { cliente_rep_documento: "" },
+      { cliente_rep_documento: "J-12345678-9" },
+      { documento_tipo: "cedula", documento_numero: "V-12345678" },
+    ]) rechaza(() => leerFicha({ ...ficha, ...extra }), "ficha");
   });
 });
 
@@ -157,6 +219,9 @@ describe("variables del anexo A y B", () => {
   it("salen del proyecto y del plan, no de constantes de la vista", () => {
     const proyecto: ProyectoVista = {
       id: "11111111-1111-4111-8111-111111111111",
+      persona_tipo: "natural",
+      cliente_rep_nombre: null,
+      cliente_rep_documento: null,
       nombre: "Estudio Ana",
       categoria: "Aplicación web",
       dominio: "estudio-ana.com.ve",

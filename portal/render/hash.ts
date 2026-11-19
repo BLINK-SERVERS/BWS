@@ -51,6 +51,23 @@ export function huellaFirma(firma: FirmaCapturada): string {
   return firma.png ? sha256Hex(firma.png) : "papel";
 }
 
+export function contextoDeSello(doc: DocumentoLegal, datos: DatosExpediente, firmas: FirmaCapturada[]) {
+  return {
+    datos: {
+      variables: Object.fromEntries(doc.campos.map((campo) => [campo, datos.variables[campo]])),
+      buzones: doc.bloques.some((bloque) => bloque.tipo === "buzones") ? datos.buzones : [],
+      limites: doc.bloques.some((bloque) => bloque.tipo === "limites") ? datos.limites : [],
+    },
+    firmas: firmas.map((firma) => ({
+      nombre: firma.nombre,
+      documento: firma.documento,
+      correo: firma.correo,
+      utc: firma.utc,
+      metodo: firma.metodo,
+    })),
+  };
+}
+
 /**
  * Sello de contenido. Incluye la identidad de la plantilla, los datos
  * resueltos, las firmas (por su huella) y el instante UTC.

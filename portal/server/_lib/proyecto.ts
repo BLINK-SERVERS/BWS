@@ -19,6 +19,7 @@ import {
   mensajeDocumento,
   normalizarDocumento,
   normalizarDominio,
+  nombreValido,
   razonSocialValida,
   telefonoNormalizado,
   type TipoDocumento,
@@ -32,6 +33,7 @@ export const CATEGORIAS = [
   "Aplicación web",
   "Tienda en línea",
   "Sistema interno",
+  "Portafolio",
   "Otro",
 ] as const;
 
@@ -42,6 +44,13 @@ export const COMPLEJIDADES = [
 ] as const;
 
 export type Complejidad = (typeof COMPLEJIDADES)[number]["valor"];
+export type PersonaContrato = "natural" | "juridica";
+
+export interface PersonaProyecto {
+  persona_tipo: PersonaContrato | null;
+  cliente_rep_nombre: string | null;
+  cliente_rep_documento: string | null;
+}
 
 export interface ProyectoDatos {
   nombre: string;
@@ -54,7 +63,7 @@ export interface ProyectoDatos {
   plan_nivel: string;
 }
 
-export interface ProyectoVista extends ProyectoDatos {
+export interface ProyectoVista extends ProyectoDatos, PersonaProyecto {
   id: string;
   estado: string;
   creado: string;
@@ -62,7 +71,8 @@ export interface ProyectoVista extends ProyectoDatos {
   plan: PlanVista;
 }
 
-export interface FichaContrato {
+export interface FichaContrato extends PersonaProyecto {
+  persona_tipo: PersonaContrato;
   razon_social: string;
   documento_tipo: TipoDocumento;
   documento_numero: string;
@@ -82,6 +92,24 @@ export function leerFicha(fuente: unknown): FichaContrato {
   }
   const datos = fuente as Record<string, unknown>;
 
+  const persona = datos.persona_tipo;
+  if (persona !== "natural" && persona !== "juridica") {
+    rechazar("Elige si el proyecto es para ti o para tu empresa.", "ficha");
+  }
+
+  let representanteNombre: string | null = null;
+  let representanteDocumento: string | null = null;
+  if (persona === "juridica") {
+    representanteNombre = limpiar(datos.cliente_rep_nombre);
+    if (!nombreValido(representanteNombre)) {
+      rechazar("Escribe el nombre del representante de la empresa.", "ficha");
+    }
+    representanteDocumento = normalizarDocumento("cedula", datos.cliente_rep_documento);
+    if (!representanteDocumento) {
+      rechazar("Escribe la cédula del representante con el formato V-12345678.", "ficha");
+    }
+  }
+
   const razon = limpiar(datos.razon_social);
   if (!razonSocialValida(razon)) {
     rechazar("Escribe la razón social o el nombre del cliente.", "ficha");
@@ -90,6 +118,9 @@ export function leerFicha(fuente: unknown): FichaContrato {
   const tipoCrudo = limpiar(datos.documento_tipo);
   if (tipoCrudo !== "RIF" && tipoCrudo !== "cedula" && tipoCrudo !== "pasaporte") {
     rechazar("Elige el tipo de documento del cliente.", "ficha");
+  }
+  if (persona === "juridica" && tipoCrudo !== "RIF") {
+    rechazar("Para una empresa, elige RIF como documento del cliente.", "ficha");
   }
   const numero = normalizarDocumento(tipoCrudo, datos.documento_numero);
   if (!numero) {
@@ -115,6 +146,9 @@ export function leerFicha(fuente: unknown): FichaContrato {
   }
 
   return {
+    persona_tipo: persona,
+    cliente_rep_nombre: representanteNombre,
+    cliente_rep_documento: representanteDocumento,
     razon_social: razon,
     documento_tipo: tipoCrudo,
     documento_numero: numero,
@@ -209,6 +243,23 @@ export function leerProyecto(fuente: unknown): ProyectoDatos {
     rechazar("Elige el plan de infraestructura de la aplicación.", "plan");
   }
 
+  // Los documentos PDF no admiten punto y coma, comillas angulares, viñetas
+  // de puntos ni asteriscos de negrita. Se rechaza al guardar, para que el
+  // cliente corrija el formulario antes de que el alcance quede congelado.
+  const signos = /[;«»•]|\*\*/;
+  const prohibido = [
+    ["nombre", nombre],
+    ["dominio", dominio],
+    ["alcance", alcance],
+    ...buzones.map((buzon, indice): [string, string] => [`buzón ${indice + 1}`, buzon]),
+  ].filter(([, valor]) => signos.test(valor));
+  if (prohibido.length) {
+    rechazar(
+      `En ${prohibido.map(([campo]) => `el ${campo}`).join(", ")} no se admiten punto y coma, comillas angulares, viñetas de puntos ni asteriscos. Sustitúyelos por comas, puntos o comillas dobles.`,
+      "alcance",
+    );
+  }
+
   return {
     nombre,
     categoria,
@@ -234,6 +285,10 @@ export function vistaDeProyecto(
 ): ProyectoVista {
   return {
     id: String(fila.id),
+    persona_tipo: fila.persona_tipo === "natural" || fila.persona_tipo === "juridica"
+      ? fila.persona_tipo : null,
+    cliente_rep_nombre: typeof fila.cliente_rep_nombre === "string" ? fila.cliente_rep_nombre : null,
+    cliente_rep_documento: typeof fila.cliente_rep_documento === "string" ? fila.cliente_rep_documento : null,
     nombre: String(fila.nombre),
     categoria: String(fila.categoria),
     dominio: String(fila.dominio),

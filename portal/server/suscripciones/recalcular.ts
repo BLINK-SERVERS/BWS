@@ -1,16 +1,14 @@
 /* ============================================================
    POST /api/suscripciones/recalcular
    ------------------------------------------------------------
-   Revisa las suscripciones contra la fecha y escala las que se
-   quedaron atrás con los plazos del contrato: al_dia → mora al
-   vencer, suspendida a los diez días de mora y terminada a los
-   treinta. Al suspender, la licencia de uso también se suspende; al
-   terminar, la licencia termina.
+   Revisa las suscripciones contra la fecha y solo escala estados.
+   El régimen histórico conserva sus cortes de 10 y 30 días; el
+   contrato nuevo confirmado solo pasa a mora al día siguiente del
+   vencimiento y nunca se suspende ni termina automáticamente.
 
-   Solo escala. Una suspensión no se levanta sola: pagar la levanta
-   (`pago.ts`) o la administración la reactiva a mano. Una
-   terminación no se levanta: el pago y la reactivación la rechazan.
-   Si el vencimiento sigue vencido, una reactivación manual avisa.
+   Una suspensión no se levanta con este recálculo. En el régimen
+   nuevo requiere regularización administrativa; una terminación no
+   se levanta mediante pago ni reactivación.
    ============================================================ */
 
 import { agenteDe, ipDe, json, leerJson, objeto, texto } from "../_lib/http";
@@ -41,11 +39,17 @@ export default manejar(["POST"], async (peticion) => {
   const ip = ipDe(peticion);
   const agente = agenteDe(peticion);
 
-  const [filas] = await enTransaccion(sesion.usuarioId, sesion.rol, (txn) => [
+  const [, filas] = await enTransaccion(sesion.usuarioId, sesion.rol, (txn) => [
+    txn`select s.id from suscripciones s
+        where s.estado <> 'terminada'
+          and (${suscripcionId}::uuid is null or s.id = ${suscripcionId}::uuid)
+          and (${proyectoId}::uuid is null or s.proyecto_id = ${proyectoId}::uuid)
+        order by s.id for update`,
     txn`with calc as (
           select s.id, s.proyecto_id, s.estado as anterior,
                  case
                    when s.proximo_vencimiento >= ${hoy}::date then 'al_dia'
+                   when bws_contrato_mora_nuevo(s.proyecto_id) then 'mora'
                    when ${hoy}::date <= s.proximo_vencimiento + s.dias_gracia + ${DIAS_MORA_SUSPENSION}::int then 'mora'
                    when ${hoy}::date <= s.proximo_vencimiento + s.dias_gracia + ${DIAS_MORA_TERMINACION}::int then 'suspendida'
                    else 'terminada'

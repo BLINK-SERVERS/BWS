@@ -18,6 +18,7 @@ import { agenteDe, ipDe } from "../_lib/http";
 import { enTransaccion } from "../_lib/db";
 import { proyectoDeExpediente } from "../_lib/expediente";
 import { manejar } from "../_lib/manejador";
+import { disposicionPdf, nombreArchivoPdf } from "../_lib/nombre-archivo";
 import { ErrorHttp } from "../_lib/respuestas";
 import { leerSesion } from "../_lib/sesion";
 
@@ -47,7 +48,7 @@ export default manejar(["GET"], async (peticion) => {
   // si la auditoría falla, la descarga no sale.
   const [filas] = await enTransaccion(sesion.usuarioId, sesion.rol, (txn) => [
     txn`with doc as (
-          select d.id, d.plantilla_version, d.hash_archivo,
+          select d.id, d.plantilla_version, d.hash_archivo, d.nombre_archivo,
                  coalesce(a.pdf, d.pdf) as pdf,
                  coalesce(a.sha256_ajustado, d.hash_archivo) as hash_servido,
                  a.sha256_ajustado is not null as ajustado
@@ -74,7 +75,7 @@ export default manejar(["GET"], async (peticion) => {
           from doc
           returning 1
         )
-        select id, pdf, hash_archivo, hash_servido, ajustado, plantilla_version from doc`,
+        select id, pdf, hash_archivo, hash_servido, ajustado, plantilla_version, nombre_archivo from doc`,
   ]);
 
   const fila = (filas ?? [])[0] as Record<string, unknown> | undefined;
@@ -85,10 +86,10 @@ export default manejar(["GET"], async (peticion) => {
   const pdf = new Uint8Array(fila.pdf as Uint8Array);
   const version = Number(fila.plantilla_version);
   const ajustado = Boolean(fila.ajustado);
-  const nombre = `${codigo}-v${version}${ajustado ? "-ajustado" : ""}.pdf`;
+  const nombre = nombreArchivoPdf(fila.nombre_archivo, codigo, version, ajustado);
   const cabeceras: Record<string, string> = {
     "content-type": "application/pdf",
-    "content-disposition": `attachment; filename="${nombre}"`,
+    "content-disposition": disposicionPdf(nombre),
     "content-length": String(pdf.length),
     "cache-control": "no-store",
     "x-content-type-options": "nosniff",

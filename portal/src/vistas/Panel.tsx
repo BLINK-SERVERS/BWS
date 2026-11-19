@@ -352,9 +352,7 @@ function TarjetaExpediente() {
           <tbody>
             {documentos.map((documento) => (
               <tr key={documento.codigo}>
-                <th scope="row">
-                  {documento.codigo} · {documento.titulo}
-                </th>
+                <th scope="row">{documento.titulo}</th>
                 <td>{documento.version}</td>
                 <td>
                   {documento.ajustado.sha256 ? (
@@ -362,16 +360,10 @@ function TarjetaExpediente() {
                       <span className="po-etiqueta po-etiqueta-ajuste">
                         Ajustado a mano por Blink
                       </span>
-                      <p className="po-hash">
-                        generado {documento.hash_archivo.slice(0, 16)}… · el que recibes{" "}
-                        {documento.ajustado.sha256.slice(0, 16)}…
-                      </p>
                       {documento.ajustado.nota ? <p>{documento.ajustado.nota}</p> : null}
                     </div>
                   ) : (
-                    <p className="po-hash">
-                      Generado por el sistema · {documento.hash_archivo.slice(0, 16)}…
-                    </p>
+                    <span>Generado por el sistema</span>
                   )}
                 </td>
                 <td>

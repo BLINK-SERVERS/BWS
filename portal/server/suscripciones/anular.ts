@@ -5,10 +5,10 @@
    pago original y guarda el motivo. El original sigue visible en
    el historial, que es exactamente lo que se quiere auditar.
 
-   Después de anular se corrige el vencimiento con los pagos que
-   siguen vigentes: el último periodo pagado, o el propio periodo
-   anulado si no queda ninguno. El estado solo puede escalar
-   (al_dia → mora → suspendida); reactivar es una acción aparte.
+   El régimen histórico conserva su cálculo desde el último pago.
+   En el nuevo se calcula el primer periodo sin cubrir, se invalida
+   cualquier revisión de intereses que ya no coincida y nunca se
+   reactiva por anular. Si falta el inicio se conserva el vencimiento.
    ============================================================ */
 
 import { agenteDe, ipDe, json, leerJson, objeto, texto } from "../_lib/http";
@@ -20,6 +20,7 @@ import { exigirAdmin, leerSesion } from "../_lib/sesion";
 import {
   estadoPorFecha,
   fechaTexto,
+  hoyUTC,
   vencimientoDelPeriodo,
   vencimientoTrasPeriodo,
 } from "../_lib/suscripcion";
@@ -45,7 +46,8 @@ export default manejar(["POST"], async (peticion) => {
     txn`select p.id, p.suscripcion_id, p.periodo, p.monto, p.moneda, p.tasa_bcv,
                p.referencia, p.fecha, p.estado, p.comprobante,
                exists (select 1 from pagos a where a.anulacion_de = p.id) as anulado,
-               s.proyecto_id, s.dia_cobro, s.dias_gracia,
+               s.proyecto_id, s.dia_cobro, s.dias_gracia, s.vencimiento_inicial_mora,
+               bws_contrato_mora_nuevo(s.proyecto_id) as regimen_nuevo,
                s.estado as suscripcion_estado
         from pagos p
         join suscripciones s on s.id = p.suscripcion_id
@@ -66,6 +68,26 @@ export default manejar(["POST"], async (peticion) => {
     throw new ErrorHttp(409, "La suscripción está terminada: no admite anulaciones.", "terminada");
   }
 
+  if (pago.regimen_nuevo) {
+    try {
+      const [filasAnulacion] = await enTransaccion(sesion.usuarioId, sesion.rol, (txn) => [
+        txn`select * from bws_anular_pago_mora(${pagoId}::uuid, ${motivo}, ${hoyUTC()}::date,
+              ${ipDe(peticion)}::inet, ${agenteDe(peticion)})`,
+      ]);
+      const resultado = filasAnulacion[0];
+      return json({
+        ok: true, pago_id: pagoId, periodo: String(pago.periodo),
+        suscripcion: { estado: String(resultado.nuevo), proximo_vencimiento: fechaTexto(resultado.proximo) },
+      });
+    } catch (error) {
+      const codigo = codigoPostgres(error);
+      if (codigo === "23505" || codigo === "P0001") {
+        throw new ErrorHttp(409, "No se pudo anular el pago; revisa su estado y el vencimiento inicial.", "anulacion_mora");
+      }
+      throw error;
+    }
+  }
+
   const suscripcionId = String(pago.suscripcion_id);
   const proyectoId = String(pago.proyecto_id);
   const diaCobro = Number(pago.dia_cobro);
@@ -75,14 +97,18 @@ export default manejar(["POST"], async (peticion) => {
   const agente = agenteDe(peticion);
 
   try {
-    const [, vigentes] = await enTransaccion(sesion.usuarioId, sesion.rol, (txn) => [
+    const [, insertada, vigentes] = await enTransaccion(sesion.usuarioId, sesion.rol, (txn) => [
+      txn`select id from suscripciones where id = ${suscripcionId} for update`,
       txn`insert into pagos
             (suscripcion_id, periodo, monto, moneda, tasa_bcv, referencia, fecha,
              estado, comprobante, anulacion_de, motivo)
-          values (${suscripcionId}::uuid, ${periodo}, ${Number(pago.monto).toFixed(2)},
-                  ${String(pago.moneda)}, ${pago.tasa_bcv === null ? null : Number(pago.tasa_bcv)},
+          select s.id, ${periodo}, ${Number(pago.monto).toFixed(2)}::numeric,
+                  ${String(pago.moneda)}, ${pago.tasa_bcv === null ? null : Number(pago.tasa_bcv)}::numeric,
                   ${String(pago.referencia)}, ${fechaTexto(pago.fecha)}::date,
-                  'anulado', ${pago.comprobante}, ${pagoId}::uuid, ${motivo})`,
+                  'anulado', ${pago.comprobante}::bytea, ${pagoId}::uuid, ${motivo}
+          from suscripciones s where s.id = ${suscripcionId}::uuid and s.estado <> 'terminada'
+            and not bws_contrato_mora_nuevo(s.proyecto_id)
+          returning id`,
       txn`select max(p.periodo) as ultimo
           from pagos p
           where p.suscripcion_id = ${suscripcionId}
@@ -90,6 +116,7 @@ export default manejar(["POST"], async (peticion) => {
             and not exists (select 1 from pagos a where a.anulacion_de = p.id)`,
     ]);
 
+    if (!insertada.length) throw new ErrorHttp(409, "La suscripción cambió; vuelve a intentar la anulación.", "suscripcion_cambiada");
     const ultimo = ((vigentes ?? [])[0] as Record<string, unknown> | undefined)?.ultimo;
     const vencimiento = ultimo
       ? vencimientoTrasPeriodo(String(ultimo), diaCobro)
@@ -101,16 +128,20 @@ export default manejar(["POST"], async (peticion) => {
       ? calculado
       : actual;
 
-    const [, estado] = await enTransaccion(sesion.usuarioId, sesion.rol, (txn) => [
+    const [, , , , estado] = await enTransaccion(sesion.usuarioId, sesion.rol, (txn) => [
+      txn`select id from suscripciones where id = ${suscripcionId} for update`,
       txn`update suscripciones
           set proximo_vencimiento = ${vencimiento}::date,
               estado = ${escalado},
               actualizada = now()
-          where id = ${suscripcionId}`,
+          where id = ${suscripcionId} and estado <> 'terminada'
+            and not bws_contrato_mora_nuevo(proyecto_id)`,
       txn`update licencias
           set estado = 'suspendida'
           where proyecto_id = ${proyectoId}::uuid and estado = 'activa'
-            and ${escalado === "suspendida"}`,
+            and ${escalado === "suspendida"}
+            and exists (select 1 from suscripciones s where s.id = ${suscripcionId}::uuid
+                        and s.estado = 'suspendida' and not bws_contrato_mora_nuevo(s.proyecto_id))`,
       txn`insert into eventos (actor, rol, accion, entidad, entidad_id, detalle, ip, agente)
           values (${sesion.usuarioId}, 'admin', 'pago.anulado', 'pagos', ${pagoId},
                   ${JSON.stringify({

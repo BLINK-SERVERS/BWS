@@ -42,12 +42,13 @@ export default manejar(["POST"], async (peticion) => {
     throw new ErrorHttp(403, "Captura y registra tu firma antes de enviar el proyecto.", "firma");
   }
 
-  const [filas] = await enTransaccion(sesion.usuarioId, sesion.rol, (txn) => [
+  const [filas, pendientes] = await enTransaccion(sesion.usuarioId, sesion.rol, (txn) => [
     txn`with enviado as (
         update proyectos set estado = 'enviado', enviado = now()
-        where cliente_id = ${cliente.id} and estado = 'borrador'
+        where cliente_id = ${cliente.id} and estado = 'borrador' and persona_tipo is not null
         returning id, nombre, categoria, dominio, buzones, alcance, complejidad,
-                  plan_clave, plan_nivel, plan_version, estado, creado, enviado
+                  plan_clave, plan_nivel, plan_version, estado, creado, enviado,
+                  persona_tipo, cliente_rep_nombre, cliente_rep_documento
       ), evento as (
         insert into eventos (actor, rol, accion, entidad, entidad_id)
         select ${sesion.usuarioId}, ${sesion.rol}, 'proyecto.enviado', 'proyectos', id::text
@@ -55,9 +56,19 @@ export default manejar(["POST"], async (peticion) => {
         returning 1
       )
       select * from enviado`,
+    txn`select id from proyectos
+        where cliente_id = ${cliente.id} and estado = 'borrador' and persona_tipo is null
+        limit 1`,
   ]);
 
   const fila = (filas ?? [])[0] as Record<string, unknown> | undefined;
+  if (!fila && pendientes.length) {
+    throw new ErrorHttp(
+      409,
+      "Elige si el proyecto es para ti o para tu empresa y guarda los datos antes de enviarlo.",
+      "ficha_incompleta",
+    );
+  }
   if (!fila) {
     throw new ErrorHttp(
       409,

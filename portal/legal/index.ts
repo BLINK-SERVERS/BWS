@@ -10,6 +10,7 @@ import { WEB_006 } from "./textos/web-006";
 import { LIC_007 } from "./textos/lic-007";
 import { NDA_008 } from "./textos/nda-008";
 import { CONTRATOS, contratoDe, type PersonaContrato } from "./textos/con-servicios";
+import { DOCUMENTOS_COMUNES_ACTUALIZADOS } from "./textos/comunes-actualizados";
 
 export { CONTRATOS, contratoDe, CATEGORIAS_CONTRATO, etiquetaPersona } from "./textos/con-servicios";
 export type { CategoriaContrato, PersonaContrato } from "./textos/con-servicios";
@@ -33,9 +34,13 @@ export const DOCUMENTOS: DocumentoLegal[] = [
   NDA_008,
 ];
 
+export const PLANTILLAS_ACTUALES = [...DOCUMENTOS_COMUNES_ACTUALIZADOS, ...CONTRATOS];
+export const DOCUMENTO_ACTUAL_POR_CODIGO = new Map(PLANTILLAS_ACTUALES.map((doc) => [doc.codigo, doc]));
+
 /** Los ocho documentos de un proyecto nuevo, en el orden en que se firman. */
 export function documentosDeExpediente(categoria: string, persona: PersonaContrato): DocumentoLegal[] {
-  return [REG_001, LEG_002, LEG_003, contratoDe(categoria, persona), PRI_005, WEB_006, LIC_007, NDA_008];
+  const comunes = DOCUMENTOS_COMUNES_ACTUALIZADOS;
+  return [...comunes.slice(0, 3), contratoDe(categoria, persona), ...comunes.slice(3)];
 }
 
 export const DOCUMENTO_POR_CODIGO = new Map(

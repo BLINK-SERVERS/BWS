@@ -3,8 +3,8 @@
    ------------------------------------------------------------
    La administración genera el expediente de un proyecto enviado.
    Los ocho documentos se sellan y se encadenan en el orden de
-   firma; cada PDF lleva las dos firmas estampadas y una página de
-   evidencia con su sello, su hash y su eslabón de cadena.
+   firma; cada PDF lleva las dos firmas estampadas y un QR de
+   verificación. Los sellos y la cadena quedan guardados en la base.
 
    El sello se calcula sobre los datos y las firmas, no sobre los
    bytes del PDF: el hash del archivo se guarda aparte. Generar dos
@@ -13,10 +13,12 @@
    ============================================================ */
 
 import { randomUUID } from "node:crypto";
-import { DOCUMENTOS } from "../../legal";
+import { documentosDeExpediente } from "../../legal";
+import { nombreDocumento } from "../../legal/nombre-documento";
+import { validarTextoDinamico } from "../../legal/texto-dinamico";
 import type { DocumentoLegal } from "../../legal/tipos";
 import { resolver } from "../../legal/validar";
-import { hashCadena, hashPlantilla, selloDeContenido, sha256Hex } from "../../render/hash";
+import { contextoDeSello, hashCadena, hashPlantilla, selloDeContenido, sha256Hex } from "../../render/hash";
 import { generarPDF } from "../../render/pdf";
 import { agenteDe, ipDe, json, leerJson, objeto, texto } from "../_lib/http";
 import { exigirOrigen } from "../_lib/csrf";
@@ -120,6 +122,24 @@ export default manejar(["POST"], async (peticion) => {
 
   const firma = await firmaDeExpediente(sesion, clienteId);
   const representante = await representanteDeExpediente(sesion);
+  const nombreRepresentante = representante.nombre.normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+    .replace(/\s+/g, " ").trim().toUpperCase();
+  const documentoRepresentante = representante.documento.toUpperCase().replace(/[\s.\-]/g, "");
+  if (
+    !["DIEGO BELENO", "DIEGO ANDRES BELENO VILLALOBOS"].includes(nombreRepresentante) ||
+    documentoRepresentante !== "V34201580"
+  ) {
+    throw new ErrorHttp(409, "La firma configurada no corresponde al representante legal indicado. Configura la firma de Diego Beleño antes de generar el expediente.", "representante_incorrecto");
+  }
+  if (sha256Hex(representante.png) !== representante.sha256 || sha256Hex(firma.png) !== firma.sha256) {
+    throw new ErrorHttp(409, "No se pudo comprobar la integridad de las firmas guardadas.", "firma_integra");
+  }
+
+  const persona = proyecto.vista.persona_tipo;
+  if (!persona) {
+    throw new ErrorHttp(409, "El proyecto no tiene registrado si el cliente es persona natural o jurídica.", "persona_no_registrada");
+  }
+  const documentos = documentosDeExpediente(proyecto.vista.categoria, persona);
 
   const [plantillas] = await enTransaccion(sesion.usuarioId, sesion.rol, (txn) => [
     txn`select codigo, version, sha256 from plantillas where activa`,
@@ -131,7 +151,7 @@ export default manejar(["POST"], async (peticion) => {
     ]),
   );
 
-  const desactualizadas = DOCUMENTOS.filter((doc: DocumentoLegal) => {
+  const desactualizadas = documentos.filter((doc: DocumentoLegal) => {
     const fila = publicadas.get(doc.codigo);
     return !fila || fila.version !== Number.parseInt(doc.version, 10) ||
       fila.sha256 !== hashPlantilla(doc);
@@ -151,6 +171,18 @@ export default manejar(["POST"], async (peticion) => {
   const datos = datosDeExpediente({ cliente, representante, proyecto, fecha });
   const firmas = firmasDeExpediente({ cliente, firma, representante, ip, agente });
 
+  // Regla 1.3: en los PDF no se admiten punto y coma, comillas angulares,
+  // viñetas de puntos ni asteriscos de negrita. Se comprueba antes de sellar,
+  // para no grabar un sello que después no corresponda al archivo.
+  const prohibidos = validarTextoDinamico(documentos, datos, firmas.cliente);
+  if (prohibidos.length) {
+    throw new ErrorHttp(
+      409,
+      `El expediente contiene datos con signos prohibidos (${prohibidos.join(", ")}). Pide al cliente que los corrija en el formulario antes de generar.`,
+      "texto_prohibido",
+    );
+  }
+
   const generados: {
     id: string;
     doc: DocumentoLegal;
@@ -161,10 +193,13 @@ export default manejar(["POST"], async (peticion) => {
     hashArchivo: string;
     hashAnterior: string;
     hashCadena: string;
+    contextoSello: string;
+    nombreArchivo: string;
   }[] = [];
 
   let hashAnterior = "GENESIS";
-  for (const doc of DOCUMENTOS) {
+  for (const doc of documentos) {
+    const id = randomUUID();
     const orden = generados.length + 1;
     const resuelto = resolver(doc, datos);
     const sello = selloDeContenido({
@@ -174,6 +209,9 @@ export default manejar(["POST"], async (peticion) => {
       utc,
     });
     const eslabon = hashCadena(hashAnterior, sello, orden);
+    const contextoSello = JSON.stringify(contextoDeSello(doc, datos, [firmas.representante, firmas.cliente]));
+    const tituloVisible = nombreDocumento(doc.titulo.split(" · ")[0], persona, proyecto.vista.categoria, cliente.razon_social);
+    const nombreArchivo = `${tituloVisible}.pdf`;
     const pdf = await generarPDF({
       doc: resuelto,
       datos,
@@ -189,9 +227,11 @@ export default manejar(["POST"], async (peticion) => {
         agente: agente ?? undefined,
       },
       fechaCreacion: fecha,
+      tituloVisible,
+      urlVerificacion: `https://bws.blink.com.ve/verify/${id}`,
     });
     generados.push({
-      id: randomUUID(),
+      id,
       doc,
       version: Number.parseInt(doc.version, 10),
       orden,
@@ -200,6 +240,8 @@ export default manejar(["POST"], async (peticion) => {
       hashArchivo: sha256Hex(pdf),
       hashAnterior,
       hashCadena: eslabon,
+      contextoSello,
+      nombreArchivo,
     });
     hashAnterior = eslabon;
   }
@@ -209,13 +251,20 @@ export default manejar(["POST"], async (peticion) => {
   // `firmar.ts` cuando confirma el expediente.
   try {
     await enTransaccion(sesion.usuarioId, sesion.rol, (txn) => [
+      // El cálculo ocurre fuera de la transacción HTTP. La función bloquea
+      // la misma fila que la captura histórica y comprueba, con un snapshot
+      // posterior al bloqueo, persona, representante y ausencia de documentos.
+      txn`select bws_exigir_generacion_proyecto(
+            ${proyectoId}::uuid, ${persona}, ${proyecto.vista.cliente_rep_nombre},
+            ${proyecto.vista.cliente_rep_documento})`,
       ...generados.map((g) =>
         txn`insert into documentos
               (id, proyecto_id, plantilla_codigo, plantilla_version, orden, pdf, sello,
-               hash_archivo, hash_anterior, hash_cadena, estado, firmado, utc_sello)
+               hash_archivo, hash_anterior, hash_cadena, estado, firmado, utc_sello, contexto_sello, nombre_archivo)
             values (${g.id}::uuid, ${proyectoId}::uuid, ${g.doc.codigo}, ${g.version},
                     ${g.orden}, ${g.pdf}, ${g.sello}, ${g.hashArchivo}, ${g.hashAnterior},
-                    ${g.hashCadena}, 'firmado', ${utc}::timestamptz, ${utc}::timestamptz)`,
+                    ${g.hashCadena}, 'firmado', ${utc}::timestamptz, ${utc}::timestamptz,
+                    ${g.contextoSello}::jsonb, ${g.nombreArchivo})`,
       ),
       ...generados.map((g) =>
         txn`insert into actos_firma
@@ -232,6 +281,16 @@ export default manejar(["POST"], async (peticion) => {
                   ${ip}, ${agente})`,
     ]);
   } catch (error) {
+    if (codigoPostgres(error) === "P2102") {
+      throw new ErrorHttp(503, "No se pudo comprobar el proyecto de forma segura.", "aislamiento");
+    }
+    if (codigoPostgres(error) === "P2101") {
+      throw new ErrorHttp(
+        409,
+        "El proyecto cambió o ya tiene documentos. Recarga la página antes de generar.",
+        "proyecto_cambiado",
+      );
+    }
     if (codigoPostgres(error) === "23505") {
       throw new ErrorHttp(
         409,

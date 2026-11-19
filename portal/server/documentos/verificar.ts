@@ -17,7 +17,7 @@
    ============================================================ */
 
 import { DOCUMENTO_POR_CODIGO } from "../../legal";
-import type { DocumentoLegal } from "../../legal/tipos";
+import type { DatosExpediente, DocumentoLegal, FirmaCapturada } from "../../legal/tipos";
 import { hashCadena, hashPlantilla, selloDeContenido, sha256Hex } from "../../render/hash";
 import { json } from "../_lib/http";
 import { enTransaccion } from "../_lib/db";
@@ -59,6 +59,7 @@ function documentoDeContenido(codigo: string, contenido: unknown): DocumentoLega
     resumen: "",
     campos: Array.isArray(objeto.campos) ? objeto.campos.map(String) : [],
     bloques: Array.isArray(objeto.bloques) ? (objeto.bloques as DocumentoLegal["bloques"]) : [],
+    ...(objeto.estilo === "clasico" ? { estilo: "clasico" as const } : {}),
   };
 }
 
@@ -77,7 +78,7 @@ export default manejar(["GET"], async (peticion) => {
 
   const [documentos, actos] = await enTransaccion(sesion.usuarioId, sesion.rol, (txn) => [
     txn`select d.id, d.plantilla_codigo, d.plantilla_version, d.orden, d.pdf, d.sello,
-               d.hash_archivo, d.hash_anterior, d.hash_cadena, d.estado, d.utc_sello,
+               d.hash_archivo, d.hash_anterior, d.hash_cadena, d.estado, d.utc_sello, d.contexto_sello,
                p.sha256 as plantilla_sha, p.contenido as plantilla_contenido,
                aj.id as ajuste_id, aj.sha256_original, aj.sha256_ajustado,
                aj.pdf as pdf_ajustado, aj.nota, aj.utc as ajuste_utc
@@ -92,7 +93,7 @@ export default manejar(["GET"], async (peticion) => {
         ) aj on true
         where d.proyecto_id = ${proyectoId}
         order by d.orden`,
-    txn`select a.documento_id, a.firmante, a.firma_id, a.representante_id, a.utc
+    txn`select a.documento_id, a.firmante, a.firma_id, a.representante_id, a.sello, a.utc
         from actos_firma a
         join documentos d on d.id = a.documento_id
         where d.proyecto_id = ${proyectoId}`,
@@ -128,9 +129,9 @@ export default manejar(["GET"], async (peticion) => {
   let anterior = "GENESIS";
   let integro = true;
   let cadenaOk = true;
-  let completo = true;
+  let completo = filas.length === 8;
 
-  const salida = filas.map((fila) => {
+  const salida = filas.map((fila, indice) => {
     const id = String(fila.id);
     const codigo = String(fila.plantilla_codigo);
     const orden = Number(fila.orden);
@@ -150,20 +151,32 @@ export default manejar(["GET"], async (peticion) => {
     let selloOk = false;
     if (docLegal && utc && !Number.isNaN(utc.getTime())) {
       plantillaOk = hashPlantilla(docLegal) === String(fila.plantilla_sha);
-      const datos = datosDeExpediente({ cliente, representante, proyecto, fecha: utc });
-      const esperado = selloDeContenido({
-        doc: docLegal,
-        datos,
-        firmas: [firmas.representante, firmas.cliente],
-        utc: utc.toISOString(),
-      });
-      selloOk = esperado === guardado.sello;
+      const contexto = fila.contexto_sello as {
+        datos: DatosExpediente;
+        firmas: Omit<FirmaCapturada, "png" | "ip" | "agente">[];
+      } | null;
+      if (!contexto || (contexto.datos && Array.isArray(contexto.firmas) && contexto.firmas.length === 2)) {
+        const datos = contexto?.datos ?? datosDeExpediente({ cliente, representante, proyecto, fecha: utc });
+        const firmasSello = contexto
+          ? [
+              { ...contexto.firmas[0], png: firmas.representante.png },
+              { ...contexto.firmas[1], png: firmas.cliente.png },
+            ]
+          : [firmas.representante, firmas.cliente];
+        const esperado = selloDeContenido({
+          doc: docLegal,
+          datos,
+          firmas: firmasSello,
+          utc: utc.toISOString(),
+        });
+        selloOk = esperado === guardado.sello;
+      }
     }
 
     const pdf = fila.pdf as Uint8Array;
     const archivoOk = sha256Hex(pdf) === guardado.archivo;
     const eslabon = hashCadena(anterior, guardado.sello, orden);
-    const eslabonOk = guardado.anteriorGuardado === anterior && guardado.cadena === eslabon;
+    const eslabonOk = orden === indice + 1 && guardado.anteriorGuardado === anterior && guardado.cadena === eslabon;
     anterior = guardado.cadena;
 
     // El ajuste a mano no entra en la cadena: se comprueba por su
@@ -188,7 +201,11 @@ export default manejar(["GET"], async (peticion) => {
     const propios = actosPorDocumento.get(id) ?? [];
     const actoRepresentante = propios.find((a) => a.firmante === "representante");
     const actoCliente = propios.find((a) => a.firmante === "cliente");
-    const documentoCompleto = Boolean(actoRepresentante && actoCliente);
+    const documentoCompleto = Boolean(
+      actoRepresentante && actoCliente &&
+      actoRepresentante.sello === guardado.sello && actoCliente.sello === guardado.sello &&
+      fila.estado !== "anulado",
+    );
 
     if (!plantillaOk || !selloOk || !archivoOk || !eslabonOk || !ajusteOk) integro = false;
     if (!eslabonOk) cadenaOk = false;

@@ -12,7 +12,7 @@
    viejo.
    ============================================================ */
 
-import { DOCUMENTO_POR_CODIGO } from "../../legal";
+import { DOCUMENTO_ACTUAL_POR_CODIGO } from "../../legal";
 import { fechaLarga } from "../../legal/fechas";
 import {
   correoNormalizado,
@@ -129,7 +129,7 @@ function resolverRegistro(persona: PersonaRegistro): {
   const resueltos = new Map<string, DocumentoResuelto>();
 
   for (const codigo of DOCUMENTOS_REGISTRO) {
-    const plantilla = DOCUMENTO_POR_CODIGO.get(codigo);
+    const plantilla = DOCUMENTO_ACTUAL_POR_CODIGO.get(codigo);
     if (!plantilla) throw new Error(`Falta la plantilla ${codigo}.`);
     const resuelto = resolver(plantilla, { variables, buzones: [], limites: [] });
     resueltos.set(codigo, resuelto);

@@ -52,19 +52,23 @@ export default manejar(["POST"], async (peticion) => {
   const ip = ipDe(peticion);
   const agente = agenteDe(peticion);
 
-  await enTransaccion(sesion.usuarioId, sesion.rol, (txn) => [
+  const [, cambio] = await enTransaccion(sesion.usuarioId, sesion.rol, (txn) => [
+    txn`select id from suscripciones where id = ${suscripcionId} for update`,
     txn`update suscripciones
         set estado = 'suspendida', actualizada = now()
-        where id = ${suscripcionId}`,
+        where id = ${suscripcionId} and estado <> 'terminada' returning id`,
     txn`update licencias
         set estado = 'suspendida'
-        where proyecto_id = ${proyectoId}::uuid and estado = 'activa'`,
+        where proyecto_id = ${proyectoId}::uuid and estado = 'activa'
+          and exists (select 1 from suscripciones where id = ${suscripcionId} and estado = 'suspendida')`,
     txn`insert into eventos (actor, rol, accion, entidad, entidad_id, detalle, ip, agente)
-        values (${sesion.usuarioId}, 'admin', 'suscripcion.suspendida', 'suscripciones',
+        select ${sesion.usuarioId}::uuid, 'admin', 'suscripcion.suspendida', 'suscripciones',
                 ${suscripcionId},
                 ${JSON.stringify({ motivo, estado_anterior: anterior })}::jsonb,
-                ${ip}, ${agente})`,
+                ${ip}::inet, ${agente}::text
+        where exists (select 1 from suscripciones where id = ${suscripcionId} and estado = 'suspendida')`,
   ]);
+  if (!cambio.length) throw new ErrorHttp(409, "La suscripción está terminada.", "terminada");
 
   return json({ ok: true, cambiado: true, estado: "suspendida", anterior });
 });
