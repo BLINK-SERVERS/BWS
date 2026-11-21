@@ -478,7 +478,7 @@ export async function generarPDF(opciones: OpcionesPDF): Promise<Uint8Array> {
       yCaja,
       anchoCaja,
       altoCaja,
-      "Firma preconfigurada de LA EMPRESA",
+      "Firma representante legal",
       representante,
       imagenRepresentante,
     );
@@ -487,7 +487,7 @@ export async function generarPDF(opciones: OpcionesPDF): Promise<Uint8Array> {
       yCaja,
       anchoCaja,
       altoCaja,
-      "Firma única inmutable capturada en el registro",
+      "Firma cliente",
       cliente,
       imagenCliente,
     );

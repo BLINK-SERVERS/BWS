@@ -99,8 +99,8 @@ function verificarTexto(ruta, doc, paginasEsperadas) {
   const firmas = paginas.at(-1)?.replace(/\s+/g, " ") ?? "";
   for (const textoFirma of [
     "Firmas",
-    "Firma preconfigurada de LA EMPRESA",
-    "Firma única inmutable capturada en el registro",
+    "Firma representante legal",
+    "Firma cliente",
     MARCA,
   ]) {
     if (!firmas.includes(textoFirma)) fallo(`falta ${textoFirma} en la última página de firmas`);
