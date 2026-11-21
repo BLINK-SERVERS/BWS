@@ -269,18 +269,16 @@ describe("condiciones del contrato", () => {
       // El precio se dice una sola vez por cláusula: sin mínimos ni repeticiones.
       assert.doesNotMatch(precio, /USD 31|parte de|mínimo de/i);
       assert.equal(precio.split("mensual").length - 1, 1, doc.codigo);
+      // Los medios de pago y el tratamiento fiscal se acuerdan al pagar: no se escriben aquí.
       for (const medio of ["Pago Móvil", "transferencia bancaria", "USDT", "USDC", "BTC", "ETH"]) {
-        assert.ok(texto.includes(medio), `${doc.codigo}: ${medio}`);
+        assert.ok(!texto.includes(medio), `${doc.codigo}: ${medio}`);
       }
-      assert.match(texto, /monto correspondiente se acuerda al momento de cada pago/);
+      assert.doesNotMatch(texto, /tributos|retenciones|condición fiscal|equivalentes de conversión/i);
       assert.doesNotMatch(texto, /tasa P2P de Binance|tasa de cambio de referencia/i);
       const octava = doc.bloques.findIndex((b) => b.tipo === "clausula" && b.ordinal === "OCTAVA:");
       const novena = doc.bloques.findIndex((b) => b.tipo === "clausula" && b.ordinal === "NOVENA:");
       assert.ok(octava >= 0 && novena > octava);
-      const pagos = JSON.stringify(doc.bloques.slice(octava, novena));
-      assert.match(pagos, /En cada pago, los tributos y las retenciones aplicables se calculan y gestionan/);
-      assert.match(pagos, /los soportes o comprobantes correspondientes se emiten y gestionan/);
-      assert.match(pagos, /según la condición fiscal declarada por \*\*EL CLIENTE\*\*/);
+      assert.equal(novena - octava, 1, doc.codigo);
       assert.doesNotMatch(texto, /(?:sin|no (?:se )?(?:cobra|aplica|emite)) (?:IVA|facturas?)/i);
       for (const campo of ["tasa_bcv_fecha", "tasa_bcv_valor", "tasa_p2p_valor", "tasa_p2p_fecha", "mantenimiento_bs", "mantenimiento_btc", "mantenimiento_eth"]) {
         assert.ok(!doc.campos.includes(campo), `${doc.codigo}: ${campo}`);

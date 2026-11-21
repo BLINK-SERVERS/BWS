@@ -128,22 +128,12 @@ function cuerpo(objeto: string, articulo: string, persona: PersonaContrato): Blo
         "**LA EMPRESA** ejecutará el Proyecto con la diligencia y calidad profesionales propias de su actividad, y responde por la corrección y precisión de los documentos que aporte. Avisará sin dilación a **EL CLIENTE** de los errores que advierta en la ejecución, y responde por los actos de sus empleados y subcontratistas en los términos de este contrato.",
     },
 
-    { tipo: "capitulo", texto: "CAPÍTULO III", subtitulo: "Del precio, la facturación y los gastos" },
+    { tipo: "capitulo", texto: "CAPÍTULO III", subtitulo: "Del precio y los gastos" },
     {
       tipo: "clausula",
       ordinal: "OCTAVA:",
       texto:
         "La tarifa mensual de desarrollo y mantenimiento es **{{tarifa_desarrollo}}**. El primer mes se paga al entregar la primera demo funcional y los siguientes por adelantado al inicio de cada mes. Desde la entrega definitiva, esa misma tarifa cubre el mantenimiento del servicio.",
-    },
-    {
-      tipo: "parrafo",
-      texto:
-        "El pago puede hacerse en bolívares mediante Pago Móvil o transferencia bancaria. También puede hacerse en USDT, USDC, BTC o ETH. El monto correspondiente se acuerda al momento de cada pago, sin fijar tasas ni equivalentes de conversión para pagos futuros.",
-    },
-    {
-      tipo: "parrafo",
-      texto:
-        "En cada pago, los tributos y las retenciones aplicables se calculan y gestionan, y los soportes o comprobantes correspondientes se emiten y gestionan, según la condición fiscal declarada por **EL CLIENTE** y lo que corresponda. El plan de infraestructura elegido y las funciones adicionales cotizadas se cobran según lo acordado. El dominio se rige por la cláusula siguiente.",
     },
     {
       tipo: "clausula",
