@@ -211,8 +211,8 @@ function TarjetaLicencia() {
             <div className="po-nota po-nota-aviso" role="alert">
               <p>
                 {terminada
-                  ? "La licencia terminó: no se generan documentos nuevos. Tus datos siguen disponibles para exportarlos y el dominio sigue a tu nombre."
-                  : "La licencia está suspendida: no se generan documentos nuevos. Tus datos siguen disponibles para exportarlos y el dominio sigue a tu nombre."}{" "}
+                  ? "La licencia terminó: no se generan documentos nuevos. Tus datos siguen disponibles para exportarlos y el dominio sigue en el registro de Blink."
+                  : "La licencia está suspendida: no se generan documentos nuevos. Tus datos siguen disponibles para exportarlos y el dominio sigue en el registro de Blink."}{" "}
                 Escríbenos a{" "}
                 <a href="mailto:business@blink.com.ve">business@blink.com.ve</a>{" "}
                 {terminada ? "para acordar la exportación." : "para regularizar el pago."}

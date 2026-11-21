@@ -210,8 +210,8 @@ export default manejar(["POST"], async (peticion) => {
     });
     const eslabon = hashCadena(hashAnterior, sello, orden);
     const contextoSello = JSON.stringify(contextoDeSello(doc, datos, [firmas.representante, firmas.cliente]));
-    const tituloVisible = nombreDocumento(doc.titulo.split(" · ")[0], persona, proyecto.vista.categoria, cliente.razon_social);
-    const nombreArchivo = `${tituloVisible}.pdf`;
+    const nombreBase = nombreDocumento(doc.titulo, persona, proyecto.vista.categoria, cliente.razon_social);
+    const nombreArchivo = `${nombreBase}.pdf`;
     const pdf = await generarPDF({
       doc: resuelto,
       datos,
@@ -227,7 +227,6 @@ export default manejar(["POST"], async (peticion) => {
         agente: agente ?? undefined,
       },
       fechaCreacion: fecha,
-      tituloVisible,
       urlVerificacion: `https://bws.blink.com.ve/verify/${id}`,
     });
     generados.push({

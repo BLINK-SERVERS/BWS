@@ -139,6 +139,7 @@ describe("variantes del contrato", () => {
       const texto = JSON.stringify(resuelto.bloques);
       assert.ok(!texto.includes("{{"), doc.codigo);
       assert.ok(texto.includes("CONTRATO DE SERVICIOS"), doc.codigo);
+      assert.ok(texto.includes("Maracaibo, Estado Zulia"), doc.codigo);
       assert.ok(texto.includes("bloquearla para todos los usuarios"), doc.codigo);
       assert.ok(texto.includes("propiedad exclusiva de"), doc.codigo);
       if (persona === "natural") {
@@ -194,7 +195,7 @@ describe("variantes del contrato", () => {
       for (const campo of ["cliente_rep_nombre", "cliente_rep_documento"]) {
         assert.equal(doc.campos.includes(campo), persona === "juridica", `${doc.codigo}: ${campo}`);
         if (persona === "juridica") {
-          const preambulo = resuelto.bloques[3];
+          const preambulo = resuelto.bloques[2];
           assert.ok(preambulo.tipo === "parrafo", doc.codigo);
           assert.ok(preambulo.texto.includes(datos.variables[campo]), `${doc.codigo}: ${campo}`);
           const variables = { ...datos.variables };
@@ -212,7 +213,7 @@ describe("condiciones del contrato", () => {
   for (const doc of CONTRATOS) {
     it(`${doc.codigo} conserva las condiciones y evita referencias visibles por código`, () => {
       const texto = JSON.stringify(doc.bloques);
-      assert.doesNotMatch(texto, /[;«»]/);
+      assert.doesNotMatch(texto, /[;«»·]/);
       assert.doesNotMatch(texto, /BWS-[A-Z]{3}-\d{3}/);
       assert.doesNotMatch(texto, /\b(?:ley(?:es)?|art[ií]culos?|c[oó]digo (?:civil|mercantil|penal))\b/i);
       assert.doesNotMatch(texto.replaceAll("BLINK TECHNOLOGY CORPORATION", "").replaceAll("Powered by Blink", ""), /blink/i);
@@ -220,8 +221,16 @@ describe("condiciones del contrato", () => {
       assert.match(texto, /V-34\.201\.580/);
       assert.match(texto, /J-50898639-3/);
       assert.doesNotMatch(texto, /\{\{(?:bws_razon_social|bws_documento|representante_nombre|representante_documento)\}\}/);
-      const preambuloEmpresa = doc.bloques[2];
-      const preambuloCliente = doc.bloques[3];
+      assert.doesNotMatch(texto, /no-reply@|\bCaracas\b/);
+      assert.equal(doc.titulo, "CONTRATO DE SERVICIOS");
+      const titulo = doc.bloques[0];
+      assert.ok(titulo.tipo === "titulo", doc.codigo);
+      assert.equal(titulo.texto, "CONTRATO DE SERVICIOS");
+      assert.equal(doc.bloques[1].tipo, "parrafo");
+      // La razón social se escribe una sola vez: la comparecencia que define a LA EMPRESA.
+      assert.equal(texto.split("**BLINK TECHNOLOGY CORPORATION**").length - 1, 1, doc.codigo);
+      const preambuloEmpresa = doc.bloques[1];
+      const preambuloCliente = doc.bloques[2];
       assert.ok(preambuloEmpresa.tipo === "parrafo" && preambuloCliente.tipo === "parrafo");
       assert.match(preambuloEmpresa.texto, /denominada en adelante \*\*LA EMPRESA\*\*/);
       if (doc.campos.includes("cliente_rep_nombre")) {
@@ -236,10 +245,7 @@ describe("condiciones del contrato", () => {
         "Nombre comercial", "Categoría", "Dominio", "Complejidad declarada", "Plan de infraestructura",
       ]);
       const plan = tabla.filas.find((fila) => fila[0] === "Plan de infraestructura")?.[1];
-      assert.ok(plan, doc.codigo);
-      assert.match(plan, /\{\{plan_nombre\}\}.*\{\{plan_precio\}\} mensuales de infraestructura/);
-      assert.match(plan, /Incluye desarrollo y mantenimiento en planes desde USD 31 mensuales/);
-      assert.match(plan, /descripción técnica es configurable según el alcance del formulario indicado a continuación/);
+      assert.equal(plan, "{{plan_nombre}}", doc.codigo);
       assert.match(texto, /Descripción técnica y alcance del formulario/);
       assert.match(texto, /\{\{proyecto_alcance\}\}/);
       assert.match(texto, /sin imponer una tecnología específica/);
@@ -258,8 +264,11 @@ describe("condiciones del contrato", () => {
       assert.match(clausula(doc, "SEXTA:"), /Se paga antes de ejecutarse/);
 
       const precio = clausula(doc, "OCTAVA:");
-      assert.match(precio, /desarrollo y mantenimiento parte de \*\*USD 31\*\*/);
+      assert.match(precio, /tarifa mensual de desarrollo y mantenimiento es \*\*\{\{tarifa_desarrollo\}\}\*\*/);
       assert.match(precio, /\{\{tarifa_desarrollo\}\}/);
+      // El precio se dice una sola vez por cláusula: sin mínimos ni repeticiones.
+      assert.doesNotMatch(precio, /USD 31|parte de|mínimo de/i);
+      assert.equal(precio.split("mensual").length - 1, 1, doc.codigo);
       for (const medio of ["Pago Móvil", "transferencia bancaria", "USDT", "USDC", "BTC", "ETH"]) {
         assert.ok(texto.includes(medio), `${doc.codigo}: ${medio}`);
       }
@@ -278,7 +287,7 @@ describe("condiciones del contrato", () => {
       }
 
       const dominio = clausula(doc, "NOVENA:");
-      assert.match(dominio, /a nombre y por cuenta de \*\*BLINK TECHNOLOGY CORPORATION\*\*/);
+      assert.match(dominio, /a nombre y por cuenta de \*\*LA EMPRESA\*\*/);
       assert.match(dominio, /gestiona y paga su registro y renovación/);
       assert.match(dominio, /conserva la propiedad del dominio y la cuenta de registro.*sin solicitar credenciales personales a \*\*EL CLIENTE\*\* ni vulnerar sus datos/);
       assert.match(dominio, /Se recomienda la extensión \.com\.ve.*EUR 16,04 al año.*la paga y gestiona directamente/);
@@ -286,6 +295,7 @@ describe("condiciones del contrato", () => {
       assert.match(dominio, /coopera con la transferencia del dominio si \*\*EL CLIENTE\*\* la solicita/);
       assert.match(dominio, /Al finalizar el Proyecto, \*\*EL CLIENTE\*\* recibe sus correos corporativos, claves y credenciales correspondientes/);
       assert.match(dominio, /incluidas las del panel de administración de la aplicación/);
+      assert.doesNotMatch(dominio, /buzones|no-reply@/);
 
       const licencia = clausula(doc, "DÉCIMA SEGUNDA:");
       assert.match(licencia, /Powered by Blink.*hasta que la compra total del código y del sistema sea acordada por escrito y pagada en su totalidad/);
@@ -299,7 +309,7 @@ describe("condiciones del contrato", () => {
       assert.match(clausula(doc, "VIGÉSIMA TERCERA:"), /se rige por las estipulaciones de este contrato y las políticas internas de la plataforma/);
       assert.match(clausula(doc, "DÉCIMA SEXTA:"), /treinta \(30\) días siguientes a la entrega definitiva/);
       assert.doesNotMatch(clausula(doc, "DÉCIMA SÉPTIMA:"), /doce \(12\) meses|limita al monto/i);
-      assert.match(clausula(doc, "DÉCIMA OCTAVA:"), /dominio sigue a nombre de \*\*BLINK TECHNOLOGY CORPORATION\*\*/);
+      assert.match(clausula(doc, "DÉCIMA OCTAVA:"), /dominio sigue a nombre de \*\*LA EMPRESA\*\*/);
       assert.match(clausula(doc, "VIGÉSIMA:"), /hasta que las partes acuerden por escrito términos definitivos de confidencialidad/);
       assert.match(clausula(doc, "VIGÉSIMA TERCERA:"), /jurisdicción exclusiva.*Maracaibo, Estado Zulia/);
       assert.match(clausula(doc, "VIGÉSIMA CUARTA:"), /Al estampar su firma, \*\*EL CLIENTE\*\* acepta expresamente la totalidad de los términos y cláusulas/);

@@ -23,12 +23,12 @@ export const CAMPOS: Campo[] = [
 
   { clave: "bws_razon_social", etiqueta: "Nombre o razón social de Blink", ejemplo: "Blink", grupo: "blink" },
   { clave: "bws_documento", etiqueta: "Documento fiscal de Blink (RIF o cédula)", ejemplo: "V-00000000", grupo: "blink" },
-  { clave: "bws_domicilio", etiqueta: "Domicilio fiscal de Blink", ejemplo: "Caracas, Distrito Capital, Venezuela", grupo: "blink" },
+  { clave: "bws_domicilio", etiqueta: "Domicilio fiscal de Blink", ejemplo: "Maracaibo, Estado Zulia", grupo: "blink" },
   { clave: "bws_correo", etiqueta: "Correo de Blink", ejemplo: "business@blink.com.ve", grupo: "blink" },
   { clave: "bws_telefono", etiqueta: "Teléfono de Blink", ejemplo: "+1 (631) 821 1938", grupo: "blink" },
   { clave: "representante_nombre", etiqueta: "Nombre del representante legal de Blink", ejemplo: "Nombre Apellido", grupo: "blink" },
   { clave: "representante_documento", etiqueta: "Documento del representante legal", ejemplo: "V-00000000", grupo: "blink" },
-  { clave: "representante_domicilio", etiqueta: "Domicilio del representante legal", ejemplo: "Caracas, Distrito Capital, Venezuela", grupo: "blink" },
+  { clave: "representante_domicilio", etiqueta: "Domicilio del representante legal", ejemplo: "Maracaibo, Estado Zulia", grupo: "blink" },
 
   { clave: "cliente_razon_social", etiqueta: "Razón social o nombre del cliente", ejemplo: "Cliente de Prueba, C.A.", grupo: "cliente" },
   { clave: "persona_tipo", etiqueta: "Persona del cliente", ejemplo: "Persona jurídica", grupo: "cliente" },

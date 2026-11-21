@@ -777,7 +777,7 @@ async function principal() {
     comprobar(
       "la suspensión bloquea sin quitar datos ni dominio",
       (await pagina.getByText(/Tus datos siguen disponibles/).count()) === 1 &&
-        (await pagina.getByText(/el dominio sigue a tu nombre/).count()) === 1,
+        (await pagina.getByText(/el dominio sigue en el registro de Blink/).count()) === 1,
     );
     await medir(pagina, "panel suspendido", 1440);
 

@@ -43,7 +43,7 @@ function valor(nombre: string, respaldo: string): { valor: string; provisional: 
 export function identidadPrestador(): Prestador {
   const razon = valor("BWS_RAZON_SOCIAL", "Blink");
   const documento = valor("BWS_DOCUMENTO", "V-00000000");
-  const domicilio = valor("BWS_DOMICILIO", "Caracas, Distrito Capital, Venezuela");
+  const domicilio = valor("BWS_DOMICILIO", "Maracaibo, Estado Zulia");
   const correo = valor("BWS_CORREO", "business@blink.com.ve");
   const telefono = valor("BWS_TELEFONO", "+1 (631) 821 1938");
   return {

@@ -170,7 +170,7 @@ describe("variables del expediente", () => {
     assert.ok(datos.variables.bws_razon_social.length > 0);
 
     assert.deepEqual(datos.buzones, [
-      { correo: "no-reply@estudio-ana.com.ve", uso: "Notificaciones automáticas (obligatorio)" },
+      { correo: "no-reply@estudio-ana.com.ve", uso: "Notificaciones automáticas" },
       { correo: "contacto@estudio-ana.com.ve", uso: "Correo operativo del proyecto" },
     ]);
     assert.deepEqual(datos.limites, [{ concepto: "Disponibilidad", valor: "continua" }]);

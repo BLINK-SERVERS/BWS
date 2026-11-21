@@ -13,8 +13,8 @@ describe("nombre del documento", () => {
 
   it("conserva completos los títulos actuales", () => {
     for (const doc of PLANTILLAS_ACTUALES) {
-      const titulo = doc.titulo.split(" · ")[0].normalize("NFC").toUpperCase().replace(/[^\p{L}\p{N}]+/gu, "_").replace(/^_+|_+$/g, "");
-      assert.ok(nombreDocumento(doc.titulo.split(" · ")[0], "natural", "Sitio web", "Cliente").startsWith(`${titulo}_BWS_`));
+      const titulo = doc.titulo.normalize("NFC").toUpperCase().replace(/[^\p{L}\p{N}]+/gu, "_").replace(/^_+|_+$/g, "");
+      assert.ok(nombreDocumento(doc.titulo, "natural", "Sitio web", "Cliente").startsWith(`${titulo}_BWS_`));
     }
   });
 

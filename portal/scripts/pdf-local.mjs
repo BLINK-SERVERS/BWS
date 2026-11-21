@@ -71,20 +71,21 @@ function datosDeMuestra(opciones) {
   return datos;
 }
 
-function verificarTexto(ruta, doc, paginasEsperadas, tituloVisible) {
+function verificarTexto(ruta, doc, paginasEsperadas) {
   const bruto = ejecutar("pdftotext", ["-layout", ruta, "-"]);
   const paginas = bruto.split("\f");
   if (!paginas.at(-1).trim()) paginas.pop();
   const texto = bruto.replace(/\s+/g, " ");
+  const desnudo = (valor) => valor.normalize("NFC").toUpperCase().replace(/[^\p{L}\p{N}]/gu, "");
   const fallo = (mensaje) => errores.push(`${doc.codigo}: ${mensaje}`);
 
   if (paginas.length !== paginasEsperadas) fallo("el texto extraído no coincide con el número de páginas");
   if (texto.includes("{{")) fallo("quedaron marcadores sin resolver");
   if (/\bBWS\s*[-–]\s*[A-Z]{3}\s*[-–]\s*\d{3}\b/i.test(texto)) fallo("aparece un código de documento visible");
-  if (/[;«»]/.test(texto)) fallo("aparece punto y coma o comillas angulares");
+  if (/[;«»·]/.test(texto)) fallo("aparece punto y coma, comilla angular o punto medio");
   if (/\b(?:undefined|null)\b/.test(texto)) fallo("el texto contiene undefined/null");
   if (/constancia\s+de\s+evidencia/i.test(texto)) fallo("aparece la página de evidencia");
-  if (!paginas[0]?.replace(/\s+/g, "").includes(tituloVisible)) fallo("falta el título completo del documento");
+  if (!desnudo(paginas[0] ?? "").includes(desnudo(doc.titulo))) fallo("falta el título completo del documento");
   if (doc.codigo.startsWith("BWS-CON-") && !texto.includes("Powered by Blink")) fallo("falta el crédito Powered by Blink");
   if (!paginas[0]?.replace(/\s+/g, " ").includes(MARCA)) fallo("la primera página no identifica la muestra");
 
@@ -156,14 +157,13 @@ function verificarFirmasYQR(ruta, doc, paginas, url) {
   }
 }
 
-async function generar(doc, datos, firmas, evidencia, urlVerificacion, tituloVisible) {
+async function generar(doc, datos, firmas, evidencia, urlVerificacion) {
   return generarPDF({
     doc: resolver(doc, datos),
     datos,
     firmas,
     evidencia,
     urlVerificacion,
-    tituloVisible,
     fechaCreacion: FECHA,
     leerFuente: lectorNodo,
   });
@@ -269,16 +269,16 @@ async function principal() {
     };
 
     const url = urlDeMuestra(doc);
-    const tituloVisible = nombreDocumento(doc.titulo.split(" · ")[0], persona, categoria, datos.variables.cliente_razon_social);
-    const bytes = await generar(doc, datos, firmas, evidencia, url, tituloVisible);
-    const segunda = await generar(doc, datos, firmas, evidencia, url, tituloVisible);
+    const nombreBase = nombreDocumento(doc.titulo, persona, categoria, datos.variables.cliente_razon_social);
+    const bytes = await generar(doc, datos, firmas, evidencia, url);
+    const segunda = await generar(doc, datos, firmas, evidencia, url);
     const hash = sha256(bytes);
     if (hash !== sha256(segunda)) errores.push(`${doc.codigo}: el PDF no es reproducible`);
 
-    const ruta = join(salida, `${tituloVisible}.pdf`);
+    const ruta = join(salida, `${nombreBase}.pdf`);
     await writeFile(ruta, bytes, { flag: "wx" });
     const paginas = verificarInfo(ruta, doc);
-    verificarTexto(ruta, doc, paginas, tituloVisible);
+    verificarTexto(ruta, doc, paginas);
     verificarFuentes(ruta, doc);
     verificarFirmasYQR(ruta, doc, paginas, url);
 

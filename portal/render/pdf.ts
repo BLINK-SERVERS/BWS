@@ -46,7 +46,6 @@ export interface OpcionesPDF {
   leerFuente?: LectorFuentes;
   /** URL real de verificación; si falta, no se dibuja ningún QR. */
   urlVerificacion?: string;
-  tituloVisible?: string;
 }
 
 // Tamaños del estilo histórico (Liberation): se conservan idénticos para
@@ -525,7 +524,7 @@ export async function generarPDF(opciones: OpcionesPDF): Promise<Uint8Array> {
 
   // El contrato clásico incorpora su título en los propios bloques.
   if (!clasico) {
-    const lineasTitulo = envolver(opciones.tituloVisible ?? doc.titulo, fuentes.serifBold, 18, ANCHO_CONTENIDO);
+    const lineasTitulo = envolver(doc.titulo, fuentes.serifBold, 18, ANCHO_CONTENIDO);
     for (const linea of lineasTitulo) {
       if (y - 22 < MARGEN.inf) nuevaPagina();
       texto(linea, fuentes.serifBold, 18, COLORES.tinta, MARGEN.izq, y);
@@ -544,7 +543,7 @@ export async function generarPDF(opciones: OpcionesPDF): Promise<Uint8Array> {
     // Los documentos comunes actualizados van en el estilo clásico pero no
     // llevan bloque de título: el título visible se dibuja aquí, centrado.
     y -= 4;
-    centrado(opciones.tituloVisible ?? doc.titulo, fuentes.serifBold, CLASICO.titulo, CLASICO.interlineadoTitulo);
+    centrado(doc.titulo, fuentes.serifBold, CLASICO.titulo, CLASICO.interlineadoTitulo);
     y -= 10;
     if (doc.resumen) {
       parrafo(doc.resumen, { color: COLORES.secundario, espacio: 16 });
@@ -555,7 +554,7 @@ export async function generarPDF(opciones: OpcionesPDF): Promise<Uint8Array> {
     const bloque = doc.bloques[indice];
     switch (bloque.tipo) {
       case "titulo":
-        tituloBloque(opciones.tituloVisible ?? bloque.texto);
+        tituloBloque(bloque.texto);
         break;
       case "subtitulo":
         subtitulo(bloque.texto);
@@ -630,11 +629,11 @@ export async function generarPDF(opciones: OpcionesPDF): Promise<Uint8Array> {
     });
   });
 
-  pdf.setTitle(opciones.tituloVisible ?? doc.titulo);
+  pdf.setTitle(doc.titulo);
   pdf.setAuthor("Blink Technology Corporation");
   pdf.setSubject(doc.resumen);
   pdf.setCreator("Blink Web Services");
-  pdf.setProducer("BWS · motor PDF 1.0");
+  pdf.setProducer("BWS motor PDF 1.0");
   pdf.setLanguage("es-VE");
   const fecha = opciones.fechaCreacion ?? new Date(evidencia.utc);
   pdf.setCreationDate(fecha);

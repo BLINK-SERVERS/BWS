@@ -5,6 +5,11 @@
    por dos personas (natural y jurídica). Sus cláusulas reúnen las
    condiciones operativas en un contrato de estilo clásico.
 
+   El título visible es siempre "CONTRATO DE SERVICIOS"; la
+   categoría y la persona solo cambian el objeto de la PRIMERA y el
+   nombre del archivo. La comparecencia define a **LA EMPRESA**, así
+   que el cuerpo la cita así y nunca repite la razón social.
+
    El objeto de la PRIMERA es texto literal por categoría, no una
    variable. La integración de estas variantes al expediente real
    es independiente de esta plantilla.
@@ -15,29 +20,15 @@ import type { Bloque, DocumentoLegal } from "../tipos";
 export type PersonaContrato = "natural" | "juridica";
 
 export const CATEGORIAS_CONTRATO = [
-  { categoria: "Sitio web", objeto: "página web", articulo: "una", etiqueta: "Página web" },
-  { categoria: "Aplicación web", objeto: "aplicación web (web app)", articulo: "una", etiqueta: "Aplicación web" },
-  {
-    categoria: "Tienda en línea",
-    objeto: "tienda en línea (web app de comercio electrónico)",
-    articulo: "una",
-    etiqueta: "Tienda en línea",
-  },
-  {
-    categoria: "Sistema interno",
-    objeto: "aplicación a medida (app) de uso interno",
-    articulo: "una",
-    etiqueta: "Sistema interno",
-  },
-  { categoria: "Portafolio", objeto: "portafolio digital", articulo: "un", etiqueta: "Portafolio" },
-  { categoria: "Otro", objeto: "desarrollo informático a medida", articulo: "un", etiqueta: "Otro" },
+  { categoria: "Sitio web", objeto: "página web", articulo: "una" },
+  { categoria: "Aplicación web", objeto: "aplicación web (web app)", articulo: "una" },
+  { categoria: "Tienda en línea", objeto: "tienda en línea (web app de comercio electrónico)", articulo: "una" },
+  { categoria: "Sistema interno", objeto: "aplicación a medida (app) de uso interno", articulo: "una" },
+  { categoria: "Portafolio", objeto: "portafolio digital", articulo: "un" },
+  { categoria: "Otro", objeto: "desarrollo informático a medida", articulo: "un" },
 ] as const;
 
 export type CategoriaContrato = (typeof CATEGORIAS_CONTRATO)[number]["categoria"];
-
-export function etiquetaPersona(persona: PersonaContrato): string {
-  return persona === "natural" ? "Persona natural" : "Persona jurídica";
-}
 
 const PREAMBULO_EMPRESA =
   "Entre **DIEGO ANDRES BELEÑO VILLALOBOS**, titular de la cédula de identidad **V-34.201.580**, actuando en nombre y representación de **BLINK TECHNOLOGY CORPORATION**, domiciliada en {{bws_domicilio}}, inscrita en el registro de información fiscal con el RIF **J-50898639-3**, denominada en adelante **LA EMPRESA**.";
@@ -48,10 +39,9 @@ const PREAMBULO_NATURAL =
 const PREAMBULO_JURIDICA =
   "Por otra parte, **{{cliente_razon_social}}**, domiciliada en {{cliente_domicilio}}, con registro de información fiscal (RIF) **{{cliente_documento_numero}}**, en adelante, denominada **EL CLIENTE**, representada en este acto por **{{cliente_rep_nombre}}**, titular de la cédula de identidad **{{cliente_rep_documento}}**, quien firma en su representación.";
 
-function cuerpo(objeto: string, articulo: string, etiqueta: string, persona: PersonaContrato): Bloque[] {
+function cuerpo(objeto: string, articulo: string, persona: PersonaContrato): Bloque[] {
   return [
     { tipo: "titulo", texto: "CONTRATO DE SERVICIOS" },
-    { tipo: "subtitulo", texto: `${etiqueta} · ${etiquetaPersona(persona)}` },
     { tipo: "parrafo", texto: PREAMBULO_EMPRESA },
     { tipo: "parrafo", texto: persona === "natural" ? PREAMBULO_NATURAL : PREAMBULO_JURIDICA },
     {
@@ -64,19 +54,19 @@ function cuerpo(objeto: string, articulo: string, etiqueta: string, persona: Per
     {
       tipo: "clausula",
       ordinal: "PRIMERA:",
-      texto: `**BLINK TECHNOLOGY CORPORATION** se compromete a crear ${articulo} ${objeto} para **EL CLIENTE**, mediante desarrollos informáticos y estrategia de presencia en Internet. También prestará asesoría, mantenimiento y expansión del Proyecto en los términos de este contrato.`,
+      texto: `**LA EMPRESA** se compromete a crear ${articulo} ${objeto} para **EL CLIENTE**, mediante desarrollos informáticos y estrategia de presencia en Internet. También prestará asesoría, mantenimiento y expansión del Proyecto en los términos de este contrato.`,
     },
     {
       tipo: "clausula",
       ordinal: "SEGUNDA:",
       texto:
-        "**BLINK TECHNOLOGY CORPORATION** es una empresa especializada en hardware, software y comunicaciones, y declara contar con la capacidad técnica y profesional para ejecutar el objeto de este contrato.",
+        "**LA EMPRESA** es una empresa especializada en hardware, software y comunicaciones, y declara contar con la capacidad técnica y profesional para ejecutar el objeto de este contrato.",
     },
     {
       tipo: "clausula",
       ordinal: "TERCERA:",
       texto:
-        "**BLINK TECHNOLOGY CORPORATION** se obliga a crear el Proyecto **{{proyecto_nombre}}**, bajo la dirección web **{{proyecto_dominio}}**, con el alcance definido en el Capítulo II de este contrato.",
+        "**LA EMPRESA** se obliga a crear el Proyecto **{{proyecto_nombre}}**, bajo la dirección web **{{proyecto_dominio}}**, con el alcance definido en el Capítulo II de este contrato.",
     },
 
     { tipo: "capitulo", texto: "CAPÍTULO II", subtitulo: "Del objeto, el alcance y las entregas" },
@@ -95,7 +85,7 @@ function cuerpo(objeto: string, articulo: string, etiqueta: string, persona: Per
         ["Categoría", "{{proyecto_categoria}}"],
         ["Dominio", "{{proyecto_dominio}}"],
         ["Complejidad declarada", "{{proyecto_complejidad}}"],
-        ["Plan de infraestructura", "{{plan_nombre}} ({{plan_precio}} mensuales de infraestructura). Incluye desarrollo y mantenimiento en planes desde USD 31 mensuales. La descripción técnica es configurable según el alcance del formulario indicado a continuación."],
+        ["Plan de infraestructura", "{{plan_nombre}}"],
       ],
     },
     { tipo: "parrafo", texto: "**Descripción técnica y alcance del formulario.** {{proyecto_alcance}}" },
@@ -107,7 +97,7 @@ function cuerpo(objeto: string, articulo: string, etiqueta: string, persona: Per
     {
       tipo: "parrafo",
       texto:
-        "El Proyecto incluye hasta cinco (5) buzones de correo corporativo, con el buzón no-reply@ obligatorio para notificaciones automáticas:",
+        "El Proyecto incluye hasta cinco (5) buzones de correo corporativo:",
     },
     { tipo: "buzones" },
     { tipo: "parrafo", texto: "No están incluidos en el precio ni en el alcance:" },
@@ -115,7 +105,7 @@ function cuerpo(objeto: string, articulo: string, etiqueta: string, persona: Per
       tipo: "lista",
       items: [
         "Las funciones, pantallas e integraciones no enumeradas en esta cláusula.",
-        "Los contenidos que **EL CLIENTE** no haya entregado a **BLINK TECHNOLOGY CORPORATION**.",
+        "Los contenidos que **EL CLIENTE** no haya entregado a **LA EMPRESA**.",
         "Toda función, mejora o cambio conversado, sugerido o insinuado que no figure por escrito en este contrato o en un acuerdo escrito entre las partes.",
       ],
     },
@@ -123,7 +113,7 @@ function cuerpo(objeto: string, articulo: string, etiqueta: string, persona: Per
       tipo: "clausula",
       ordinal: "QUINTA:",
       texto:
-        "**BLINK TECHNOLOGY CORPORATION** entregará una primera demo funcional del Proyecto en un plazo estimado de catorce (14) a cuarenta y dos (42) días hábiles, contado desde la activación del dominio. Sobre la demo se aplicarán las correcciones acordadas y se hará la entrega definitiva. **EL CLIENTE** debe aportar los contenidos, accesos y aprobaciones en tiempo útil. Su retraso desplaza el plazo en la misma medida. Cada entrega se da por aceptada si **EL CLIENTE** no la observa por escrito dentro de los cinco (5) días hábiles siguientes, con fallas reproducibles. La aceptación definitiva puede expresarse por escrito o producirse conforme al plazo indicado.",
+        "**LA EMPRESA** entregará una primera demo funcional del Proyecto en un plazo estimado de catorce (14) a cuarenta y dos (42) días hábiles, contado desde la activación del dominio. Sobre la demo se aplicarán las correcciones acordadas y se hará la entrega definitiva. **EL CLIENTE** debe aportar los contenidos, accesos y aprobaciones en tiempo útil. Su retraso desplaza el plazo en la misma medida. Cada entrega se da por aceptada si **EL CLIENTE** no la observa por escrito dentro de los cinco (5) días hábiles siguientes, con fallas reproducibles. La aceptación definitiva puede expresarse por escrito o producirse conforme al plazo indicado.",
     },
     {
       tipo: "clausula",
@@ -135,7 +125,7 @@ function cuerpo(objeto: string, articulo: string, etiqueta: string, persona: Per
       tipo: "clausula",
       ordinal: "SÉPTIMA:",
       texto:
-        "**BLINK TECHNOLOGY CORPORATION** ejecutará el Proyecto con la diligencia y calidad profesionales propias de su actividad, y responde por la corrección y precisión de los documentos que aporte. Avisará sin dilación a **EL CLIENTE** de los errores que advierta en la ejecución, y responde por los actos de sus empleados y subcontratistas en los términos de este contrato.",
+        "**LA EMPRESA** ejecutará el Proyecto con la diligencia y calidad profesionales propias de su actividad, y responde por la corrección y precisión de los documentos que aporte. Avisará sin dilación a **EL CLIENTE** de los errores que advierta en la ejecución, y responde por los actos de sus empleados y subcontratistas en los términos de este contrato.",
     },
 
     { tipo: "capitulo", texto: "CAPÍTULO III", subtitulo: "Del precio, la facturación y los gastos" },
@@ -143,7 +133,7 @@ function cuerpo(objeto: string, articulo: string, etiqueta: string, persona: Per
       tipo: "clausula",
       ordinal: "OCTAVA:",
       texto:
-        "La mensualidad de desarrollo y mantenimiento parte de **USD 31**. La tarifa mensual de desarrollo acordada es **{{tarifa_desarrollo}}**, con un mínimo de USD 31 mensuales. El primer mes se paga al entregar la primera demo funcional y los siguientes por adelantado al inicio de cada mes. Desde la entrega definitiva, la misma mensualidad corresponde al mantenimiento del servicio.",
+        "La tarifa mensual de desarrollo y mantenimiento es **{{tarifa_desarrollo}}**. El primer mes se paga al entregar la primera demo funcional y los siguientes por adelantado al inicio de cada mes. Desde la entrega definitiva, esa misma tarifa cubre el mantenimiento del servicio.",
     },
     {
       tipo: "parrafo",
@@ -159,7 +149,7 @@ function cuerpo(objeto: string, articulo: string, etiqueta: string, persona: Per
       tipo: "clausula",
       ordinal: "NOVENA:",
       texto:
-        "El dominio **{{proyecto_dominio}}** se registra a nombre y por cuenta de **BLINK TECHNOLOGY CORPORATION**, que gestiona y paga su registro y renovación, y conserva la propiedad del dominio y la cuenta de registro para agilizar el proceso sin solicitar credenciales personales a **EL CLIENTE** ni vulnerar sus datos. Se recomienda la extensión .com.ve, cuyo costo es de **EUR 16,04 al año**, porque **BLINK TECHNOLOGY CORPORATION** la paga y gestiona directamente para asegurar su correcto funcionamiento. Las demás extensiones están sujetas a precio y disponibilidad. **BLINK TECHNOLOGY CORPORATION** coopera con la transferencia del dominio si **EL CLIENTE** la solicita. El Proyecto incluye hasta cinco (5) buzones, incluido el no-reply@ obligatorio. Al finalizar el Proyecto, **EL CLIENTE** recibe sus correos corporativos, claves y credenciales correspondientes, incluidas las del panel de administración de la aplicación. El alojamiento y la infraestructura permanecen en las cuentas de **BLINK TECHNOLOGY CORPORATION** y no se entregan accesos raíz a los proveedores.",
+        "El dominio **{{proyecto_dominio}}** se registra a nombre y por cuenta de **LA EMPRESA**, que gestiona y paga su registro y renovación, y conserva la propiedad del dominio y la cuenta de registro para agilizar el proceso sin solicitar credenciales personales a **EL CLIENTE** ni vulnerar sus datos. Se recomienda la extensión .com.ve, cuyo costo es de **EUR 16,04 al año**, porque **LA EMPRESA** la paga y gestiona directamente para asegurar su correcto funcionamiento. Las demás extensiones están sujetas a precio y disponibilidad. **LA EMPRESA** coopera con la transferencia del dominio si **EL CLIENTE** la solicita. Al finalizar el Proyecto, **EL CLIENTE** recibe sus correos corporativos, claves y credenciales correspondientes, incluidas las del panel de administración de la aplicación. El alojamiento y la infraestructura permanecen en las cuentas de **LA EMPRESA** y no se entregan accesos raíz a los proveedores.",
     },
     {
       tipo: "clausula",
@@ -190,19 +180,19 @@ function cuerpo(objeto: string, articulo: string, etiqueta: string, persona: Per
       tipo: "clausula",
       ordinal: "DÉCIMA PRIMERA:",
       texto:
-        "El código fuente, la arquitectura, el sistema de diseño, los componentes, las plantillas, la documentación y la totalidad de la página web, aplicación, web app o portafolio desarrollados para **EL CLIENTE** son propiedad exclusiva de **BLINK TECHNOLOGY CORPORATION**. El pago de las mensualidades no transfiere ni presume la venta del código ni del sistema. Su compra total, si las partes la acuerdan, se documenta por escrito con un precio acordado y debe pagarse en su totalidad.",
+        "El código fuente, la arquitectura, el sistema de diseño, los componentes, las plantillas, la documentación y la totalidad de la página web, aplicación, web app o portafolio desarrollados para **EL CLIENTE** son propiedad exclusiva de **LA EMPRESA**. El pago de las mensualidades no transfiere ni presume la venta del código ni del sistema. Su compra total, si las partes la acuerdan, se documenta por escrito con un precio acordado y debe pagarse en su totalidad.",
     },
     {
       tipo: "clausula",
       ordinal: "DÉCIMA SEGUNDA:",
       texto:
-        "**BLINK TECHNOLOGY CORPORATION** otorga a **EL CLIENTE** una licencia de uso no exclusiva, no transferible y revocable, para la operación de su negocio a través de Internet durante la vida del servicio contratado. La licencia no permite obtener, copiar o reutilizar el código fuente, revender, sublicenciar, alquilar ni replicar la arquitectura o el sistema de diseño. La mención **Powered by Blink** permanecerá visible hasta que la compra total del código y del sistema sea acordada por escrito y pagada en su totalidad.",
+        "**LA EMPRESA** otorga a **EL CLIENTE** una licencia de uso no exclusiva, no transferible y revocable, para la operación de su negocio a través de Internet durante la vida del servicio contratado. La licencia no permite obtener, copiar o reutilizar el código fuente, revender, sublicenciar, alquilar ni replicar la arquitectura o el sistema de diseño. La mención **Powered by Blink** permanecerá visible hasta que la compra total del código y del sistema sea acordada por escrito y pagada en su totalidad.",
     },
     {
       tipo: "clausula",
       ordinal: "DÉCIMA TERCERA:",
       texto:
-        "Los textos, fotografías, logotipos y demás contenidos que **EL CLIENTE** entrega son de su propiedad o cuenta con derechos para usarlos, y **EL CLIENTE** puede seguir usándolos libremente. **EL CLIENTE** declara que son lícitos y libres de derechos de terceros y responde por ellos. **BLINK TECHNOLOGY CORPORATION** recibe una autorización limitada para tratarlos con la única finalidad de prestar el servicio y no adquiere derecho alguno sobre ellos.",
+        "Los textos, fotografías, logotipos y demás contenidos que **EL CLIENTE** entrega son de su propiedad o cuenta con derechos para usarlos, y **EL CLIENTE** puede seguir usándolos libremente. **EL CLIENTE** declara que son lícitos y libres de derechos de terceros y responde por ellos. **LA EMPRESA** recibe una autorización limitada para tratarlos con la única finalidad de prestar el servicio y no adquiere derecho alguno sobre ellos.",
     },
 
     { tipo: "capitulo", texto: "CAPÍTULO V", subtitulo: "De la mora, la suspensión, la garantía y la responsabilidad" },
@@ -210,19 +200,19 @@ function cuerpo(objeto: string, articulo: string, etiqueta: string, persona: Per
       tipo: "clausula",
       ordinal: "DÉCIMA CUARTA:",
       texto:
-        "No existe período de gracia. Al vencimiento de una mensualidad impagada, **BLINK TECHNOLOGY CORPORATION** puede suspender el servicio. Las mensualidades vencidas se acumulan como deuda mientras el contrato permanezca vigente, incluso durante la suspensión. Podrán aplicarse intereses si las partes los acuerdan por escrito o si resultan aplicables, sin fijar una tasa en este contrato.",
+        "No existe período de gracia. Al vencimiento de una mensualidad impagada, **LA EMPRESA** puede suspender el servicio. Las mensualidades vencidas se acumulan como deuda mientras el contrato permanezca vigente, incluso durante la suspensión. Podrán aplicarse intereses si las partes los acuerdan por escrito o si resultan aplicables, sin fijar una tasa en este contrato.",
     },
     {
       tipo: "clausula",
       ordinal: "DÉCIMA QUINTA:",
       texto:
-        "La licencia de uso está condicionada al pago puntual de la mensualidad. Si **EL CLIENTE** deja de pagarla, **BLINK TECHNOLOGY CORPORATION** puede quitar el acceso a la aplicación y bloquearla para todos los usuarios, incluidos los usuarios finales de **EL CLIENTE**, sin obligación de entregar el código fuente. Al suspenderse, la aplicación sale de línea y **BLINK TECHNOLOGY CORPORATION** conserva el código, la arquitectura, el despliegue y la infraestructura. La reactivación exige el pago de todas las mensualidades acumuladas y los intereses moratorios aplicables, y el registro correspondiente.",
+        "La licencia de uso está condicionada al pago puntual de la mensualidad. Si **EL CLIENTE** deja de pagarla, **LA EMPRESA** puede quitar el acceso a la aplicación y bloquearla para todos los usuarios, incluidos los usuarios finales de **EL CLIENTE**, sin obligación de entregar el código fuente. Al suspenderse, la aplicación sale de línea y **LA EMPRESA** conserva el código, la arquitectura, el despliegue y la infraestructura. La reactivación exige el pago de todas las mensualidades acumuladas y los intereses moratorios aplicables, y el registro correspondiente.",
     },
     {
       tipo: "clausula",
       ordinal: "DÉCIMA SEXTA:",
       texto:
-        "**BLINK TECHNOLOGY CORPORATION** corregirá sin costo las fallas reproducibles del alcance entregado que **EL CLIENTE** reporte dentro de los treinta (30) días siguientes a la entrega definitiva. Quedan fuera de la garantía: el uso indebido, los cambios hechos por terceros, los contenidos de **EL CLIENTE**, las funciones fuera de alcance y las fallas de los proveedores de infraestructura. Vencida la garantía, la atención de fallas y el soporte continúan con la mensualidad de mantenimiento.",
+        "**LA EMPRESA** corregirá sin costo las fallas reproducibles del alcance entregado que **EL CLIENTE** reporte dentro de los treinta (30) días siguientes a la entrega definitiva. Quedan fuera de la garantía: el uso indebido, los cambios hechos por terceros, los contenidos de **EL CLIENTE**, las funciones fuera de alcance y las fallas de los proveedores de infraestructura. Vencida la garantía, la atención de fallas y el soporte continúan con la mensualidad de mantenimiento.",
     },
     {
       tipo: "clausula",
@@ -234,7 +224,7 @@ function cuerpo(objeto: string, articulo: string, etiqueta: string, persona: Per
       tipo: "clausula",
       ordinal: "DÉCIMA OCTAVA:",
       texto:
-        "Cualquiera de las partes puede terminar este contrato con aviso escrito de treinta (30) días. **BLINK TECHNOLOGY CORPORATION** puede suspender o terminar de inmediato por impago, uso ilícito o riesgo de seguridad. Los meses cursados no se reembolsan. Al terminar, **EL CLIENTE** puede exportar sus datos. **BLINK TECHNOLOGY CORPORATION** los conserva durante noventa (90) días y después los elimina o anonimiza con aviso. La licencia termina y el código no se entrega, salvo que se haya acordado y pagado su compra total. El dominio sigue a nombre de **BLINK TECHNOLOGY CORPORATION**, que coopera con su transferencia a solicitud de **EL CLIENTE**. Sobreviven las cláusulas de propiedad intelectual, confidencialidad y responsabilidad.",
+        "Cualquiera de las partes puede terminar este contrato con aviso escrito de treinta (30) días. **LA EMPRESA** puede suspender o terminar de inmediato por impago, uso ilícito o riesgo de seguridad. Los meses cursados no se reembolsan. Al terminar, **EL CLIENTE** puede exportar sus datos. **LA EMPRESA** los conserva durante noventa (90) días y después los elimina o anonimiza con aviso. La licencia termina y el código no se entrega, salvo que se haya acordado y pagado su compra total. El dominio sigue a nombre de **LA EMPRESA**, que coopera con su transferencia a solicitud de **EL CLIENTE**. Sobreviven las cláusulas de propiedad intelectual, confidencialidad y responsabilidad.",
     },
 
     { tipo: "capitulo", texto: "CAPÍTULO VI", subtitulo: "De los datos personales y la confidencialidad" },
@@ -242,16 +232,16 @@ function cuerpo(objeto: string, articulo: string, etiqueta: string, persona: Per
       tipo: "clausula",
       ordinal: "DÉCIMA NOVENA:",
       texto:
-        "Respecto de los datos de los usuarios finales de la aplicación, **EL CLIENTE** es el responsable del tratamiento y **BLINK TECHNOLOGY CORPORATION** la encargada. El encargo comprende:",
+        "Respecto de los datos de los usuarios finales de la aplicación, **EL CLIENTE** es el responsable del tratamiento y **LA EMPRESA** la encargada. El encargo comprende:",
     },
     {
       tipo: "lista",
       items: [
         "Alojar, procesar, respaldar y dar soporte a los datos únicamente siguiendo instrucciones documentadas de **EL CLIENTE** y para prestar el servicio.",
-        "**BLINK TECHNOLOGY CORPORATION** no usará los datos para fines propios, no los venderá ni los cederá.",
+        "**LA EMPRESA** no usará los datos para fines propios, no los venderá ni los cederá.",
         "Los subencargados son los proveedores de alojamiento, base de datos y correo que se contraten para el Proyecto. Cualquier cambio sustancial se informa a **EL CLIENTE**.",
-        "**BLINK TECHNOLOGY CORPORATION** aplica medidas razonables de seguridad y avisará de los incidentes que afecten datos personales dentro de las setenta y dos (72) horas de conocidos.",
-        "Al terminar, **BLINK TECHNOLOGY CORPORATION** devuelve o elimina los datos en un plazo de noventa (90) días, y certifica la eliminación si se solicita.",
+        "**LA EMPRESA** aplica medidas razonables de seguridad y avisará de los incidentes que afecten datos personales dentro de las setenta y dos (72) horas de conocidos.",
+        "Al terminar, **LA EMPRESA** devuelve o elimina los datos en un plazo de noventa (90) días, y certifica la eliminación si se solicita.",
         "**EL CLIENTE** puede auditar el cumplimiento una vez al año, con aviso y sin acceso a datos de otros clientes.",
       ],
     },
@@ -264,7 +254,7 @@ function cuerpo(objeto: string, articulo: string, etiqueta: string, persona: Per
       tipo: "clausula",
       ordinal: "VIGÉSIMA:",
       texto:
-        "Cada parte mantiene reservada la información confidencial de la otra y solo la usa para ejecutar este contrato. La obligación se extiende a empleados y proveedores que la necesiten y continúa, incluso después de la terminación, hasta que las partes acuerden por escrito términos definitivos de confidencialidad. **BLINK TECHNOLOGY CORPORATION** podrá exhibir el Proyecto en su portafolio y en menciones comerciales, sin divulgar información confidencial de **EL CLIENTE**. Para información especialmente sensible las partes pueden firmar un acuerdo de confidencialidad antes de compartirla.",
+        "Cada parte mantiene reservada la información confidencial de la otra y solo la usa para ejecutar este contrato. La obligación se extiende a empleados y proveedores que la necesiten y continúa, incluso después de la terminación, hasta que las partes acuerden por escrito términos definitivos de confidencialidad. **LA EMPRESA** podrá exhibir el Proyecto en su portafolio y en menciones comerciales, sin divulgar información confidencial de **EL CLIENTE**. Para información especialmente sensible las partes pueden firmar un acuerdo de confidencialidad antes de compartirla.",
     },
 
     { tipo: "capitulo", texto: "CAPÍTULO VII", subtitulo: "De las políticas de uso y disposiciones finales" },
@@ -333,14 +323,14 @@ export function construirContrato(categoria: CategoriaContrato, persona: Persona
       : [...CAMPOS_COMUNES, "cliente_rep_nombre", "cliente_rep_documento"];
   return {
     codigo,
-    titulo: `Contrato de servicios · ${definicion.etiqueta} · ${etiquetaPersona(persona)}`,
+    titulo: "CONTRATO DE SERVICIOS",
     version: "1.0",
     fecha: "2026-11-18",
     firma: "proyecto",
     resumen:
-      "Contrato del proyecto: alcance, entregas, desarrollo y mantenimiento desde USD 31 mensuales, propiedad del código de BLINK TECHNOLOGY CORPORATION, licencia de uso y suspensión por impago.",
+      "Contrato del proyecto: alcance, entregas, tarifa mensual de desarrollo y mantenimiento, propiedad del código de la empresa, licencia de uso y suspensión por impago.",
     campos,
-    bloques: cuerpo(definicion.objeto, definicion.articulo, definicion.etiqueta, persona),
+    bloques: cuerpo(definicion.objeto, definicion.articulo, persona),
     estilo: "clasico",
   };
 }

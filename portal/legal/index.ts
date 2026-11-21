@@ -12,7 +12,7 @@ import { NDA_008 } from "./textos/nda-008";
 import { CONTRATOS, contratoDe, type PersonaContrato } from "./textos/con-servicios";
 import { DOCUMENTOS_COMUNES_ACTUALIZADOS } from "./textos/comunes-actualizados";
 
-export { CONTRATOS, contratoDe, CATEGORIAS_CONTRATO, etiquetaPersona } from "./textos/con-servicios";
+export { CONTRATOS, contratoDe, CATEGORIAS_CONTRATO } from "./textos/con-servicios";
 export type { CategoriaContrato, PersonaContrato } from "./textos/con-servicios";
 
 /** Los siete documentos comunes a todo expediente. */
@@ -67,12 +67,12 @@ export function datosDePrueba(opciones?: {
     fecha_documento: "11 de noviembre de 2026",
     bws_razon_social: "Blink",
     bws_documento: "V-00000000",
-    bws_domicilio: "Caracas, Distrito Capital, Venezuela",
+    bws_domicilio: "Maracaibo, Estado Zulia",
     bws_correo: "business@blink.com.ve",
     bws_telefono: "+1 (631) 821 1938",
     representante_nombre: "Nombre Apellido",
     representante_documento: "V-00000000",
-    representante_domicilio: "Caracas, Distrito Capital, Venezuela",
+    representante_domicilio: "Maracaibo, Estado Zulia",
     cliente_razon_social: "Cliente de Prueba, C.A.",
     cliente_documento_tipo: "RIF",
     cliente_documento_numero: "J-12345678-9",
@@ -126,7 +126,7 @@ export function datosDePrueba(opciones?: {
       { correo: "soporte@tiendaejemplo.com.ve", uso: "Atención al cliente" },
       { correo: "contacto@tiendaejemplo.com.ve", uso: "Contacto general" },
       { correo: "negocios@tiendaejemplo.com.ve", uso: "Alianzas y proveedores" },
-      { correo: "no-reply@tiendaejemplo.com.ve", uso: "Notificaciones automáticas (obligatorio)" },
+      { correo: "no-reply@tiendaejemplo.com.ve", uso: "Notificaciones automáticas" },
     ],
     limites: plan.limites.map((l) => ({ ...l })),
   };

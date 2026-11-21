@@ -200,8 +200,8 @@ export async function enviarExpediente(
         "",
         `Las dos partes firmaron los documentos originales del proyecto «${String(filaProyecto.nombre)}». Adjuntamos ${docs.length} archivos PDF:`,
         "",
-        ...docs.map((doc) =>
-          `· ${doc.titulo} — ${doc.ajustado ? "copia ajustada por Blink" : "original firmado"}`,
+        ...docs.map((doc, indice) =>
+          `${indice + 1}. ${doc.titulo} — ${doc.ajustado ? "copia ajustada por Blink" : "original firmado"}`,
         ),
         "",
         "Las firmas electrónicas de los documentos originales son simples, no certificadas. La evidencia de esas firmas está disponible en el portal.",

@@ -742,7 +742,7 @@ export function Proyecto({ sesion }: { sesion: SesionPortal | null | undefined }
             etiqueta="Dominio"
             valor={dominio}
             alCambiar={setDominio}
-            ayuda="El dominio .com.ve se registra a tu nombre y Blink solo lo tramita."
+            ayuda="El dominio .com.ve se registra a nombre de Blink, que lo paga y renueva. Puedes pedir su transferencia."
             error={errores.dominio}
           />
         </fieldset>

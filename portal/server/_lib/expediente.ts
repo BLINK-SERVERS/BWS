@@ -274,7 +274,7 @@ export async function representanteDeExpediente(
 
 function usoDeBuzon(correo: string): string {
   return correo.startsWith("no-reply@")
-    ? "Notificaciones automáticas (obligatorio)"
+    ? "Notificaciones automáticas"
     : "Correo operativo del proyecto";
 }
 
