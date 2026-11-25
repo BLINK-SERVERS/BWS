@@ -111,8 +111,11 @@ svg {
   user-drag: none;
 }
 :focus-visible {
-  outline: 2px solid var(--color-accent);
-  outline-offset: 2px;
+  /* Anillo literal de Apple (`.button:focus`): sombra de 4 px, sin outline.
+     El outline del navegador se quita porque la sombra hace el mismo trabajo
+     de visibilidad y no desplaza caja. */
+  outline: none;
+  box-shadow: var(--focus-ring);
 }
 
 /* --- Iconos SVG del sitio ---

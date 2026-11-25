@@ -28,6 +28,11 @@
    se resuelve donde se declara el token (:root) y no seguiría al tema
    de la sección.
 
+   Los azules (spec manzana §1): hay DOS papeles y dos valores, no tres.
+   Relleno de botón = `--color-action-fill` (#0071e3, hover #0066cc).
+   Enlace y glifo tintado = `--lp-enlace` (#0066cc claro / #2997ff oscuro).
+   `--lp-acento` (#007AFF, azul del sistema iOS) está retirado de esta hoja.
+
    Escala tipográfica de marketing: la app usa los cuerpos de iOS 27
    (17/22); una landing necesita titulares mucho mayores. Se derivan con
    `clamp()` sobre la MISMA pila y se documentan como extensión de la
@@ -41,11 +46,17 @@
   --lp-texto: #1d1d1f;              /* --color-text-primary (claro) */
   --lp-texto-2: #424242;            /* --color-text-secondary (claro) */
   --lp-texto-3: #6e6e6e;            /* --color-text-tertiary (claro) */
-  --lp-enlace: #0066cc;             /* --color-accent-text (claro) */
-  --lp-acento: #007aff;             /* --blink-blue-light */
+  --lp-enlace: #0066cc;             /* enlace de texto sobre claro, literal de Apple (#06c) */
   --lp-borde: rgba(66, 66, 66, 0.16);   /* --color-border (claro) */
   --lp-relleno: rgba(66, 66, 66, 0.06); /* --color-neutral-soft (claro) */
   --lp-relleno-fuerte: rgba(66, 66, 66, 0.1);
+
+  /* Materiales de la barra, literales de `globalheader.css` de Apple. */
+  --lp-nav-fondo: var(--nav-fondo-claro);
+  /* Radio de ficha: 40 px de escritorio → 30 px ≤1068 → 20 px ≤734. Los dos
+     quiebres se repuntan abajo, en los media queries, para que tipografía,
+     radios y contenedor cambien de escala en el mismo punto. */
+  --lp-radio-ficha: var(--radius-tile);
 
   /* --- Escala de marketing (extensión documentada de iOS 27) --- */
   /* El mínimo manda solo por debajo de ~516 px de ventana, y ahí es
@@ -54,13 +65,20 @@
      partía «cosas: una» por la mitad; con 2rem (32 px) mide 314 + 292 px
      dentro de los 358 px disponibles en un iPhone de 390 y el quiebre
      queda justo después de los dos puntos, que es el quiebre de la frase.
-     Medido con `scripts/medir-titular.mjs`, no calculado a ojo. */
-  --lp-fs-hero: clamp(2rem, 6.2vw, 4.75rem);
+     Medido con `scripts/medir-titular.mjs`, no calculado a ojo.
+     La spec manzana §2 sube el techo a 5,5rem (88 px) y el piso a
+     2,125rem (34 px): el aire de Apple no lo da el tamaño sino el peso
+     600 con ls −0,015em, declarado en `.lp-hero__titular`. Revalidar el
+     quiebre del titular en móvil con `scripts/medir-titular.mjs`. */
+  --lp-fs-hero: clamp(2.125rem, 6.6vw, 5.5rem);
   --lp-fs-seccion: clamp(2rem, 4.8vw, 3.5rem);
   --lp-fs-beneficio: clamp(1.375rem, 2.5vw, 2rem);
   --lp-fs-parrafo: clamp(1.0625rem, 1.55vw, 1.3125rem);
   --lp-fs-cuerpo: 1.0625rem;        /* 17 px, --ios-fs-body */
   --lp-fs-nota: 0.75rem;            /* 12 px, --ios-fs-caption1 */
+  /* Antetítulo del hero y eyebrow de Apple (`.typography-router-eyebrow`):
+     21 px en peso 600. */
+  --lp-fs-antetitulo: 1.3125rem;
 
   --lp-ancho: 980px;
   --lp-curva: cubic-bezier(0.32, 0.72, 0, 1); /* curva iOS de traslación */
@@ -82,11 +100,11 @@
   --lp-texto: #ffffff;              /* --color-text-primary (oscuro) */
   --lp-texto-2: #ebebf5;            /* --color-text-secondary (oscuro) */
   --lp-texto-3: #a1a1aa;            /* --color-text-tertiary (oscuro) */
-  --lp-enlace: #8cc7ff;             /* --color-accent-text (oscuro) */
-  --lp-acento: #0091ff;             /* --blink-blue-dark */
+  --lp-enlace: #2997ff;             /* enlace sobre oscuro, literal de Apple Cash (#2997ff) */
   --lp-borde: rgba(235, 235, 245, 0.18);
   --lp-relleno: rgba(235, 235, 245, 0.07);
   --lp-relleno-fuerte: rgba(235, 235, 245, 0.12);
+  --lp-nav-fondo: var(--nav-fondo-oscuro);
 }
 
 /* Tema gris: mismo texto claro que la sección blanca, sobre el papel
@@ -105,7 +123,11 @@
 .lp-seccion {
   background: var(--lp-fondo);
   color: var(--lp-texto);
-  padding-block: clamp(3.5rem, 8vw, 6.5rem);
+  /* Ritmo desigual a propósito (spec §5): Apple no repite el mismo aire en
+     todas sus secciones — 152 / 155 / 140 / 79 px literales en la suya. El
+     techo de 152 px es el `.section-spend-it` de Apple Cash; el cierre baja
+     a la mitad, ver `.lp-cierre`. */
+  padding-block: clamp(88px, 11vw, 152px);
 }
 
 .lp-seccion[id] {
@@ -122,13 +144,28 @@
 }
 
 .lp-titulo-seccion {
+  /* 56 px (el techo del clamp) en peso 600 con ls −0,009em: Apple no engorda
+     el titular, lo abre. Literal de `.typography-router-section-headline`
+     (64/600/1.0625/−0,009em) bajado a nuestro cuerpo de sección. */
   font-size: var(--lp-fs-seccion);
-  font-weight: 700;
-  line-height: 1.08;
-  letter-spacing: -0.022em;
+  font-weight: 600;
+  line-height: 1.07;
+  letter-spacing: -0.009em;
   text-align: center;
   text-wrap: balance;
   color: var(--lp-texto);
+}
+
+/* Antetítulo: 21 px / 600, el eyebrow de Apple (`.typography-router-eyebrow`).
+   La clase la escribe Carlos en su lote; si él la nombra distinto, esta regla
+   se le sigue sin tocar el valor. */
+.lp-antetitulo,
+.lp-eyebrow {
+  font-size: var(--lp-fs-antetitulo);
+  font-weight: 600;
+  line-height: 1.19;
+  letter-spacing: 0em;
+  color: var(--lp-texto-2);
 }
 
 .lp-subtitulo {
@@ -144,7 +181,9 @@
    el resto en cuerpo normal, dentro del mismo párrafo. */
 .lp-dos-tonos {
   font-size: var(--lp-fs-parrafo);
-  line-height: 1.45;
+  /* Interlineado del cuerpo literal de Apple Cash
+     (`.typography-tile-backface-copy`: 17px / 1.2353641176). */
+  line-height: 1.235;
   letter-spacing: -0.005em;
   color: var(--lp-texto-2);
   text-wrap: pretty;
@@ -175,8 +214,16 @@
   cursor: pointer;
 }
 
+/* El hover de enlace de Apple es opacidad, no subrayado (literal
+  `.more:hover{opacity:.6}`). */
 .lp-enlace:hover {
-  text-decoration: underline;
+  opacity: 0.6;
+}
+
+.lp-enlace:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+  border-radius: var(--radius-sm);
 }
 
 .lp-enlace .icon {
@@ -205,16 +252,24 @@
   align-items: center;
   justify-content: center;
   gap: 0.4rem;
+  /* Literal de `.button` en main.built.css de Apple Cash:
+     min-width:28px · padding:8px 16px · border-radius:980px ·
+     font-size:17px · letter-spacing:-0.022em · line-height:1.17648. */
+  min-width: 28px;
   min-height: 48px;
-  padding: 0.7rem 1.4rem;
+  padding: 8px 16px;
   border: 0;
-  border-radius: var(--radius-pill);
+  border-radius: var(--radius-button);
   font-family: inherit;
-  /* 19 px / 700 = texto grande a efectos de contraste (WCAG 1.4.3). */
-  font-size: 1.1875rem;
-  font-weight: 700;
-  letter-spacing: -0.01em;
-  line-height: 1.2;
+  /* El peso baja de 700 a 600: es el peso con el que Apple entinta su display
+     y sus botones. Aclaremos el cálculo, que antes estaba mal escrito: 4,70:1
+     es la razón blanco sobre #0071e3 y no depende del peso (solo cambia el
+     umbral, y 17 px sigue siendo texto normal), así que el botón pasa AA con
+     margen de 0,20. Lo que sí reprobaba era el hover. */
+  font-size: 17px;
+  font-weight: 600;
+  letter-spacing: -0.022em;
+  line-height: 1.17648;
   text-decoration: none;
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
@@ -224,18 +279,50 @@
     background var(--transition-speed);
 }
 
+/* Variante grande (`.button-super` de Apple) para el CTA del hero. La clase
+   la pone Carlos en `Landing.tsx`; sin ella el botón del hero sale con el
+   cuerpo normal de 8×16, que es correcto pero no la variante de la spec §3. */
+.lp-boton--grande {
+  padding: 18px 31px;
+}
+
+/* Cierre de ficha al modo Apple: el patrón `.more` de la referencia es texto
+   + chevron pegado, sin caja y sin botón. `lp-enlace` ya aporta el inline
+   flex, el color y el blanco táctil de 44 px; aquí se aprieta el chevron
+   contra la última palabra y se le da el aire que la rejilla no le deja. */
+.lp-enlace--mas {
+  margin-top: 1.25rem;
+  gap: 0.1em;
+  font-size: 17px;
+  font-weight: 400;
+  letter-spacing: -0.022em;
+}
+
+.lp-enlace--mas .icon {
+  width: 0.6em;
+  height: 0.6em;
+}
+
+.lp-boton:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
 .lp-boton:active {
   transform: scale(0.98);
 }
 
 .lp-boton--primario {
-  /* Relleno de acción de la app: blanco encima da 5,6:1, no 4,0:1. */
+  /* Relleno de acción de Apple (#0071e3): blanco encima 4,70:1, AA de
+     texto normal. Con el token viejo (#0066cc) era 5,57:1; se acepta la
+     bajada porque #0066cc es el azul de ENLACE y estaba haciendo los dos
+     papeles a la vez. Ver `.lp-boton`. */
   background: var(--color-action-fill);
   color: var(--color-text-on-accent);
 }
 
 .lp-boton--primario:hover {
-  filter: brightness(1.08);
+  background: var(--color-action-fill-hover);
 }
 
 .lp-boton--fantasma {
@@ -245,7 +332,7 @@
 }
 
 .lp-boton--fantasma:hover {
-  text-decoration: underline;
+  opacity: 0.6;
 }
 
 .lp-boton .icon {
@@ -269,6 +356,8 @@
 
 .lp-salto:focus {
   left: 0;
+  outline: none;
+  box-shadow: var(--focus-ring);
 }
 
 /* ============================================================
@@ -323,7 +412,8 @@
      resulta en 0,3 em. En `em` para que tampoco se abra al escalar. */
   gap: 0.3em;
   font-size: clamp(1.75rem, 1.2rem + 3vw, 3.4625rem);
-  color: var(--lp-acento);
+  /* Papel de texto tintado sobre la página → el azul de enlace del tema. */
+  color: var(--lp-enlace);
 }
 
 .lp-marca-bws__blink {
@@ -387,9 +477,14 @@
   position: sticky;
   top: 0;
   z-index: 40;
-  background: rgb(from var(--lp-fondo) r g b / 0.72);
-  -webkit-backdrop-filter: saturate(180%) blur(var(--ios-material-blur-large));
-  backdrop-filter: saturate(180%) blur(var(--ios-material-blur-large));
+  /* Material literal de `globalheader.css`: desenfoque de 20 px (no los 30
+     del material iOS grande) sobre rgba(250,250,252,.8) en claro y
+     rgba(22,22,23,.8) en oscuro. El token `--lp-nav-fondo` lo decide la
+     sección que envuelve la barra; como el header vive fuera de las secciones,
+     resuelve al valor claro. */
+  background: var(--lp-nav-fondo);
+  -webkit-backdrop-filter: saturate(180%) blur(var(--nav-blur));
+  backdrop-filter: saturate(180%) blur(var(--nav-blur));
   border-bottom: 1px solid var(--lp-borde);
 }
 
@@ -511,9 +606,9 @@
 .lp-hero {
   padding-block: clamp(3rem, 7vw, 5rem) clamp(2.5rem, 6vw, 4rem);
   text-align: center;
-  /* Velo muy tenue del acento sobre el papel: la misma paleta. */
+  /* Velo muy tenue del azul de acción sobre el papel: la misma paleta. */
   background:
-    radial-gradient(120% 70% at 50% 0%, rgb(from var(--lp-acento) r g b / 0.07) 0%, rgb(from var(--lp-acento) r g b / 0) 62%),
+    radial-gradient(120% 70% at 50% 0%, rgb(from var(--color-action-fill) r g b / 0.07) 0%, rgb(from var(--color-action-fill) r g b / 0) 62%),
     var(--lp-fondo);
 }
 
@@ -532,9 +627,11 @@
   max-width: 22ch;
   margin-inline: auto;
   font-size: var(--lp-fs-hero);
-  font-weight: 700;
-  line-height: 1.05;
-  letter-spacing: -0.028em;
+  /* El punto del cambio (spec §2): peso 600 y ls −0,015em, no 700 apretado.
+     El aire de Apple viene de abrir el titular, no de engordarlo. */
+  font-weight: 600;
+  line-height: 1.04;
+  letter-spacing: -0.015em;
   text-wrap: balance;
   color: var(--lp-texto);
 }
@@ -542,8 +639,10 @@
 .lp-hero__sub {
   max-width: 46ch;
   margin: 0.9rem auto 0;
-  font-size: var(--lp-fs-parrafo);
-  font-weight: 500;
+  /* Antetítulo: 21 px / 600, el eyebrow de Apple (`.typography-router-eyebrow`).
+     El interlineado se sostiene en 1,4 para que la frase no se cierre. */
+  font-size: var(--lp-fs-antetitulo);
+  font-weight: 600;
   line-height: 1.4;
   letter-spacing: -0.012em;
   text-wrap: pretty;
@@ -575,7 +674,8 @@
 .lp-beneficio__check {
   display: block;
   margin-bottom: 0.9rem;
-  color: var(--lp-acento);
+  /* Tinta de glifo = papel de enlace del tema (claro #0066cc, oscuro #2997ff). */
+  color: var(--lp-enlace);
   animation: lp-check 0.5s var(--lp-curva) both;
 }
 
@@ -622,7 +722,8 @@
 .lp-pieza__icono {
   display: block;
   margin-bottom: 1rem;
-  color: var(--lp-acento);
+  /* Tinta de glifo = papel de enlace del tema. */
+  color: var(--lp-enlace);
 }
 
 .lp-pieza__icono .icon {
@@ -631,8 +732,27 @@
 }
 
 .lp-pieza .lp-dos-tonos {
+  /* Cuerpo de 17 px con el interlineado literal de Apple Cash (1,235). */
   font-size: var(--lp-fs-cuerpo);
-  line-height: 1.5;
+  line-height: 1.235;
+}
+
+/* Radio y sombra de ficha (spec §4): `--lp-radio-ficha` vale 40 px, baja a
+   30 en ≤1068 y a 20 en ≤734 (los dos repuntes viven en los media queries de
+   abajo, sobre `.lp`, para que la cascada no se pelee con el quiebre). La
+   única sombra difusa de la página de Apple es
+   `4px 12px 40px 6px rgba(0,0,0,.09)`.
+   OJO — decisión tomada en caliente fuera de la spec: la regla existe para
+   que el radio y la sombra tengan contra qué verse; sin superficie son
+   invisibles. La spec §7 solo prohíbe explícitamente dársela a `.lp-beneficio`
+   («la lista se queda sin fondo»), que queda afuera. Si el dueño prefiere no
+   tocar ninguna ficha, se borra este bloque entero y las dos variables siguen
+   declaradas, esperando al lote de Carlos. */
+.lp-pieza,
+.lp-tile {
+  background: var(--lp-fondo-alt);
+  border-radius: var(--lp-radio-ficha);
+  box-shadow: var(--shadow-tile);
 }
 
 /* ============================================================
@@ -677,12 +797,13 @@
   width: 40px;
   height: 40px;
   margin-bottom: 1.15rem;
-  border-radius: var(--radius-pill);
-  /* Blanco sobre `--lp-acento` (#007AFF) da 3,36:1 y se reprueba AA:
-     el dígito es texto normal (17 px en negrita no alcanza la categoría
-     de "texto grande", que pide 18,66 px). Se usa el azul de enlace
-     propio de la sección gris (#0066cc), que sube a 5,6:1 y es el mismo
-     que ya viste los botones. */
+  border-radius: var(--radius-button);
+  /* El dígito es texto normal de 17 px: no entra en la categoría de "texto
+     grande" de WCAG (piden ≥18,66 px), así que necesita 4,5:1. Con el viejo
+     acento del sistema el blanco daba 3,36:1 y se reprobaba, por eso se usa el
+     azul de ENLACE del tema: #0066cc en claro sube a 5,57:1. El relleno de
+     botón de la spec §1 (#0071e3, 4,70:1) queda más justo, así que la píldora
+     del número NO lo sigue y se queda con `--lp-enlace`. */
   background: var(--lp-enlace);
   color: #ffffff;
   font-size: 1.0625rem;
@@ -972,6 +1093,9 @@
 
 .lp-cierre {
   text-align: center;
+  /* La sección de cierre (`#hablemos`) respira a la mitad del ritmo general,
+     spec §5: es lo que rompe el metrónomo de los ocho bloques iguales. */
+  padding-block: clamp(44px, 5.5vw, 76px);
 }
 
 .lp-cierre__cta {
@@ -1152,18 +1276,36 @@
 
 /* ============================================================
    Responsive
+   ------------------------------------------------------------
+   Dos quiebres nada más, los de Apple (spec §6): 1068 px y 734 px. Todo lo
+   que cambia de escala —tipografía, radios de ficha, contenedor— lo hace en
+   el mismo punto. El bloque que estaba en 767 px se migró a 734; el de
+   420 px queda porque no es un quiebre de escala sino el ancho por debajo del
+   cual el subword largo del lockup («Web Services») le pelea espacio al botón
+   de la barra y hay que cambiarlo por la sigla; lo decidió `scripts/detalle.mjs`
+   y 734 no lo cubre.
    ============================================================ */
 
 @media (max-width: 1068px) {
+  .lp {
+    /* Ficha: 40 → 30 px, literal de `.tile` en el breakpoint de 1068. */
+    --lp-radio-ficha: 30px;
+  }
+
   .lp-servicios__rejilla {
     grid-template-columns: minmax(0, 1fr);
     gap: 2rem;
-    max-width: 620px;
+    max-width: 692px; /* contenedor de Apple en ≤1068 */
     margin-inline: auto;
   }
 }
 
-@media (max-width: 767px) {
+@media (max-width: 734px) {
+  .lp {
+    /* Ficha: 30 → 20 px, literal de `.tile` en el breakpoint de 734. */
+    --lp-radio-ficha: 20px;
+  }
+
   .lp-nav__enlaces {
     display: none;
   }

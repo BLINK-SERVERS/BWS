@@ -81,7 +81,7 @@ export const HERO = {
 
 export const BENEFICIOS = {
   id: "resuelves",
-  titulo: "Cosas por las que dejas de preocuparte.",
+  titulo: "Lo que dejas de cargar.",
   piezas: [
     {
       titulo: "Todo el trámite.",
@@ -96,8 +96,8 @@ export const BENEFICIOS = {
       cuerpo: "Tú apruebas. Nosotros guardamos, ordenamos y respondemos por el resto.",
     },
     {
-      titulo: "Atado a la tecnología que sostiene a Blink.",
-      cuerpo: "No es un experimento: es la forma en que ya trabajamos todos los días.",
+      titulo: "Que algo se caiga un domingo.",
+      cuerpo: "Si el sitio deja de responder o el correo con tu marca se atasca, avisas por el canal del pie y lo dejamos andando otra vez. Está abierto a la hora que sea, también un domingo.",
     },
   ],
 };
@@ -110,7 +110,7 @@ export const SERVICIOS = {
     {
       icono: "pagina" as const,
       titulo: "Páginas web",
-      cuerpo: "Su negocio, bien presentado, bonito y fácil de explorar para los usuarios.",
+      cuerpo: "Tu negocio, bien presentado, bonito y fácil de explorar para los usuarios.",
     },
     {
       icono: "app" as const,
@@ -127,8 +127,8 @@ export const SERVICIOS = {
 
 export const PROCESO = {
   id: "proceso",
-  titulo: "¿Cómo trabajamos?",
-  bajada: "Es muy sencillo.",
+  titulo: "Así trabajamos",
+  bajada: "Tres pasos.",
   pasos: [
     {
       titulo: "Cuéntanos la idea",
@@ -139,7 +139,7 @@ export const PROCESO = {
       cuerpo: "Tu proyecto ya está en marcha: solo tienes que esperar y, tal vez, responder algunas preguntas.",
     },
     {
-      titulo: "¿Ya está en Internet?",
+      titulo: "Ya está en Internet",
       cuerpo: "Cuando menos te lo esperas ya está listo: te entregamos tus correos corporativos, tus credenciales y todo lo que necesites.",
     },
   ],
@@ -148,12 +148,12 @@ export const PROCESO = {
 export const PROMESA = {
   id: "promesa",
   /** Sin subtítulo: la promesa se lee sola y no pide que se le explique. */
-  titulo: "Tu proyecto funcionará bajo la misma tecnología que hace funcionar a Blink.",
+  titulo: "Tu proyecto, sobre la tecnología que sostiene a Blink.",
 };
 
 export const SOCIOS = {
   id: "aliados",
-  titulo: "Trabajamos con los mejores en esto.",
+  titulo: "Los que ya lo hacen.",
   /* Sin nota legal y sin líneas de apoyo: la banda se dibuja, no se
      explica. Los nombres solo se leen como texto de marca, al lado de
      cada logo. */
@@ -181,7 +181,7 @@ export const PREGUNTAS = {
     {
       pregunta: "¿Tengo que saber de tecnología?",
       respuesta:
-        "Nada, para eso estamos nosotros. Tú nos dices cómo se ve y qué hace; del resto nos ocupamos nosotros.",
+        "Nada, para eso estamos nosotros. Nos dices cómo quieres que se vea y qué debe hacer el sitio, y lo dejamos listo para que lo revises y des el visto bueno.",
     },
     {
       pregunta: "¿Por qué no publican tarifas?",

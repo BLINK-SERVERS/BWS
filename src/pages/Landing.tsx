@@ -139,6 +139,14 @@ export function Landing() {
               </li>
             ))}
           </ul>
+
+          {/* Cierre de la ficha al modo Apple: texto + chevron pegado, sin caja
+              (patrón `.more` de la referencia). La cadena y el destino salen de
+              `contenido.ts` — HERO.ctaPrimaria —, no se inventa texto aquí. */}
+          <a className="lp-enlace lp-enlace--mas" href={HERO.ctaPrimaria.url}>
+            {HERO.ctaPrimaria.texto}
+            <Icono nombre="chevron" />
+          </a>
         </Seccion>
 
         {/* --- 3. Qué hacemos --- */}
@@ -150,11 +158,24 @@ export function Landing() {
                 <span className="lp-pieza__icono">
                   <Icono nombre={pieza.icono} />
                 </span>
+                {/* El título de la pieza queda en `lp-subtitulo`, que es la
+                    única clase tipada en landing.css. La pendiente es
+                    `.lp-pieza__titulo`: la medición del «antes» ya registró
+                    que no existe, y declararla aquí sin hoja sería pintar
+                    de adivinanza. Va en el reporte para PEDRO. */}
                 <h3 className="lp-subtitulo">{pieza.titulo}</h3>
                 <p className="lp-dos-tonos">{pieza.cuerpo}</p>
               </li>
             ))}
           </ul>
+
+          {/* Mismo cierre de ficha, otro destino: lo que sigue a «qué hacemos»
+              es hablar con alguien, no abrir otra cuenta. El canal del pie ya
+              existe en `contenido.ts`, así que no se escribe texto nuevo. */}
+          <a className="lp-enlace lp-enlace--mas" href={PIE.canal.url}>
+            {PIE.canal.texto}
+            <Icono nombre="chevron" />
+          </a>
         </Seccion>
 
         {/* --- 4. Proceso --- */}
