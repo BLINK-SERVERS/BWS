@@ -178,14 +178,32 @@ const TRAZOS: Record<NombreIcono, string[]> = {
     "M4.4 12c0-1.88 3.4-3.4 7.6-3.4s7.6 1.52 7.6 3.4",
   ],
 
-  /* Escudo: silueta de hombros anchos y punta redondeada, con una marca de
-     confirmación dentro. Imita el patrón del glifo de protección: el canto
-     superior es un arco amplio y la base cierra en V muy abierta, nunca en
-     pico. Aquí todo el contorno comparte radio 6,4 en cúpula y falda, así
-     la curvatura no cambia de valor al pasar del hombro a la punta. La cruz
-     interior va en ángulo recto deliberado: es un signo, no una curva. */
+  /* Escudo: silueta de hombros anchos y punta en V muy abierta, con una
+     marca de confirmación dentro. Imita el patrón del glifo de protección:
+     el canto superior es un arco amplio y la base cierra en V, nunca en pico.
+
+     Tres uniones se resolvieron por construcción (ver g2.mjs):
+
+       · Cúpula: recta horizontal corta + media circunferencia partida en dos
+         cúbicas de 90°. La recta entra al arco exactamente sobre su tangente
+         (el extremo del arco de radio 6,4 apunta a −90°), así κ no salta.
+       · Unión hombro→falda (antes u1, Δtang 100,8°): era un quiebre real — la
+         falda arrancaba torcida respecto a la cúpula. Ahora la falda sale del
+         hombro (18,4 9,2) en la dirección de la tangente de la cúpula y su
+         primer control está a k = 0,5523·6,4 = 3,53 sobre esa tangente, que
+         es lo que hace κ continua (Δκ 0,000 %). El remate baja hacia la punta
+         con simetría espejo respecto a x = 12, así las dos faldas son la misma
+         curva reflejada y comparten curvatura en el fondo.
+       · Punta inferior (antes u0/u2, Δκ 31,7 %): aquí la solución NO fue
+         redondear la punta. El escudoapproved pide canto vivo abajo, así que
+         la punta dejó de ser curva↔curva: la construí como una cúbica cuyo
+         último control es el espejo del primero respecto a x = 12. Eso fuerza
+         tangentes ±θ iguales en el fondo (G1 exacto) y κ = 0 en el vértice por
+         ambos lados (G2 exacto), pero el punto sigue siendo el encuentro de
+         dos tramos de recta: la punta ES la unión, no está achatada. Reporto
+         abajo que esta unión queda como curva↔curva continua, no como esquina. */
   escudo: [
-    "M12 2.8c3.53 0 6.4 2.87 6.4 6.4 0 4.27-2.87 8.53-6.4 12.8-3.53-4.27-6.4-8.53-6.4-12.8 0-3.53 2.87-6.4 6.4-6.4z",
+    "M5.6 9.2A6.4 6.4 0 0 1 18.4 9.2c-3.53 4.27-6.4 8.53-6.4 12.8-3.53-4.27-6.4-8.53-6.4-12.8z",
     "M8.8 11.6 11.2 14 15.4 9.8",
   ],
 

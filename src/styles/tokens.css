@@ -312,7 +312,7 @@
      El rgba(0,125,250,.6) de Apple se aplana contra el fondo y queda entre
      2,14:1 y 2,45:1: WCAG 1.4.11 pide 3:1 al indicador de foco. Se conserva
      el grosor y el azul, se quita el alfa (medido: 4,02:1 blanco,
-     5,23:1 negro, 3,86:1 papel gris). */
+     5,23:1 negro, 3,60:1 papel gris). */
   --focus-ring: 0 0 0 4px #007aff;
 
   /* Radio de desenfoque segun la apariencia. El material "Dark/Regular"

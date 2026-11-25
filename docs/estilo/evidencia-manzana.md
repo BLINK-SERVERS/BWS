@@ -465,7 +465,7 @@ O sea: la flechita es un carácter de la webfont de iconos, no un SVG ni un SF S
   to ensure that people can select it easily"* — `hig/buttons.md`.
 - Tamaño de control recomendado: **iOS/iPadOS 44x44 pt por defecto, mínimo 28x28 pt**;
   watchOS igual. Tabla en `hig/accessibility.md`.
--visionOS: alturas de botón Mini 28 pt, Small 32 pt, Regular 44 pt, Large 52 pt, Extra large 64 pt;
+- visionOS: alturas de botón Mini 28 pt, Small 32 pt, Regular 44 pt, Large 52 pt, Extra large 64 pt;
   separar centros de botones **al menos 60 pt**.
 - *"Prefer capsule-shape buttons"* y *"the more rounded a button's shape, the easier it is for
   people to look steadily at it"* — justificación formal de `border-radius: 980px`.

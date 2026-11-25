@@ -252,9 +252,13 @@
   align-items: center;
   justify-content: center;
   gap: 0.4rem;
-  /* Literal de `.button` en main.built.css de Apple Cash:
+  /* Medidas literales de `.button` en main.built.css de Apple Cash:
      min-width:28px · padding:8px 16px · border-radius:980px ·
-     font-size:17px · letter-spacing:-0.022em · line-height:1.17648. */
+     font-size:17px · letter-spacing:-0.022em · line-height:1.17648.
+     Dos desviaciones nuestras, declaradas aquí para que no se vendan como
+     literales: Apple entina el botón en 400 y nosotros en 600, y el botón de
+     Apple mide ~36 px de alto frente a los 44 px de `min-height`, que es el
+     blanco táctil con el que este sitio ya cumplía WCAG 2.5.5. */
   min-width: 28px;
   min-height: 48px;
   padding: 8px 16px;

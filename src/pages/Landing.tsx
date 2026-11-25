@@ -109,7 +109,7 @@ export function Landing() {
             <p className="lp-hero__sub">{HERO.sub}</p>
 
             <p className="lp-hero__cta">
-              <a className="lp-boton lp-boton--primario" href={HERO.ctaPrimaria.url}>
+              <a className="lp-boton lp-boton--primario lp-boton--grande" href={HERO.ctaPrimaria.url}>
                 {HERO.ctaPrimaria.texto}
                 <Icono nombre="flecha" />
               </a>
