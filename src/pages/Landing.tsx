@@ -1,3 +1,4 @@
+import { useLayoutEffect, useRef, type CSSProperties } from "react";
 import { Acordeon } from "../components/Acordeon";
 import { Icono } from "../components/Icono";
 import { MarcaBWS } from "../components/MarcaBWS";
@@ -57,8 +58,45 @@ const asunto = encodeURIComponent("Hola BWS: quiero montar una página");
 const correo = `mailto:${CONTACTO.correo}?subject=${asunto}`;
 
 export function Landing() {
+  const raiz = useRef<HTMLDivElement>(null);
+
+  useLayoutEffect(() => {
+    const nodo = raiz.current;
+    if (
+      !nodo ||
+      !("IntersectionObserver" in window) ||
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches
+    ) {
+      return;
+    }
+
+    const elementos = Array.from(nodo.querySelectorAll<HTMLElement>("[data-reveal]"));
+    const observador = new IntersectionObserver(
+      (entradas) => {
+        for (const entrada of entradas) {
+          if (!entrada.isIntersecting) continue;
+          entrada.target.classList.add("is-visible");
+          observador.unobserve(entrada.target);
+        }
+      },
+      { threshold: 0.12, rootMargin: "0px 0px -6% 0px" },
+    );
+
+    for (const elemento of elementos) {
+      elemento.classList.add("reveal-ready");
+      observador.observe(elemento);
+    }
+
+    return () => {
+      observador.disconnect();
+      for (const elemento of elementos) {
+        elemento.classList.remove("reveal-ready", "is-visible");
+      }
+    };
+  }, []);
+
   return (
-    <div className="lp" id="arriba">
+    <div className="lp" id="arriba" ref={raiz}>
       <a className="lp-salto" href="#contenido">
         Saltar al contenido
       </a>
@@ -153,16 +191,16 @@ export function Landing() {
         <Seccion id={SERVICIOS.id} tema="clara" titulo={SERVICIOS.titulo}>
           <p className="lp-cuerpo-icono">{SERVICIOS.bajada}</p>
           <ul className="lp-servicios__rejilla">
-            {SERVICIOS.piezas.map((pieza) => (
-              <li key={pieza.titulo} className="lp-pieza">
+            {SERVICIOS.piezas.map((pieza, indice) => (
+              <li
+                key={pieza.titulo}
+                className="lp-pieza"
+                data-reveal
+                style={{ "--reveal-delay": `${indice * 80}ms` } as CSSProperties}
+              >
                 <span className="lp-pieza__icono">
                   <Icono nombre={pieza.icono} />
                 </span>
-                {/* El título de la pieza queda en `lp-subtitulo`, que es la
-                    única clase tipada en landing.css. La pendiente es
-                    `.lp-pieza__titulo`: la medición del «antes» ya registró
-                    que no existe, y declararla aquí sin hoja sería pintar
-                    de adivinanza. Va en el reporte para PEDRO. */}
                 <h3 className="lp-subtitulo">{pieza.titulo}</h3>
                 <p className="lp-dos-tonos">{pieza.cuerpo}</p>
               </li>
@@ -183,7 +221,11 @@ export function Landing() {
           <p className="lp-cuerpo-icono">{PROCESO.bajada}</p>
           <ol className="lp-pasos lp-pasos--tres">
             {PROCESO.pasos.map((paso, indice) => (
-              <li key={paso.titulo}>
+              <li
+                key={paso.titulo}
+                data-reveal
+                style={{ "--reveal-delay": `${indice * 90}ms` } as CSSProperties}
+              >
                 <span className="lp-numero" aria-hidden="true">
                   {indice + 1}
                 </span>

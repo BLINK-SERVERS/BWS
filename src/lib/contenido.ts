@@ -110,7 +110,7 @@ export const SERVICIOS = {
     {
       icono: "pagina" as const,
       titulo: "Páginas web",
-      cuerpo: "Tu negocio, bien presentado, bonito y fácil de explorar para los usuarios.",
+      cuerpo: "Tu negocio, bien presentado, bonita y fácil de explorar para los usuarios.",
     },
     {
       icono: "app" as const,

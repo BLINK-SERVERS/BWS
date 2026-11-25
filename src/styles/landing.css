@@ -710,6 +710,24 @@
   margin-bottom: 0.4em;
 }
 
+/* Solo servicios y proceso entran al viewport; el resto de la página no se
+   mueve. Sin JavaScript los elementos nunca reciben `reveal-ready`. */
+[data-reveal].reveal-ready {
+  opacity: 0;
+  transform: translate3d(0, 20px, 0) scale(0.992);
+  transition:
+    opacity 640ms cubic-bezier(0.2, 0.65, 0.25, 1),
+    transform 640ms cubic-bezier(0.2, 0.65, 0.25, 1);
+  transition-delay: var(--reveal-delay, 0ms);
+  will-change: opacity, transform;
+}
+
+[data-reveal].reveal-ready.is-visible {
+  opacity: 1;
+  transform: none;
+  will-change: auto;
+}
+
 /* ============================================================
    Qué hacemos — parrilla de piezas (icono + título + dos tonos)
    ============================================================ */
@@ -723,36 +741,56 @@
   list-style: none;
 }
 
+.lp-pieza {
+  position: relative;
+  display: flex;
+  min-width: 0;
+  min-height: 320px;
+  flex-direction: column;
+  align-items: flex-start;
+  padding: clamp(1.75rem, 3vw, 2.25rem);
+  overflow: hidden;
+  background: var(--lp-fondo-alt);
+  border: 1px solid rgba(0, 0, 0, 0.035);
+  border-radius: var(--lp-radio-ficha);
+  box-shadow: var(--shadow-tile);
+}
+
 .lp-pieza__icono {
-  display: block;
-  margin-bottom: 1rem;
-  /* Tinta de glifo = papel de enlace del tema. */
-  color: var(--lp-enlace);
+  display: grid;
+  width: 56px;
+  height: 56px;
+  flex: none;
+  place-items: center;
+  margin-bottom: 1.75rem;
+  color: var(--color-action-fill);
+  background: #fff;
+  border: 1px solid rgba(0, 0, 0, 0.04);
+  border-radius: 16px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
 }
 
 .lp-pieza__icono .icon {
-  width: 32px;
-  height: 32px;
+  width: 30px;
+  height: 30px;
+  stroke-width: 1.5;
+}
+
+.lp-pieza .lp-subtitulo {
+  margin-bottom: 0.65rem;
+  font-size: clamp(1.375rem, 2vw, 1.625rem);
+  font-weight: 600;
+  line-height: 1.18;
+  letter-spacing: -0.018em;
 }
 
 .lp-pieza .lp-dos-tonos {
-  /* Cuerpo de 17 px con el interlineado literal de Apple Cash (1,235). */
+  max-width: 38ch;
+  margin: 0;
   font-size: var(--lp-fs-cuerpo);
   line-height: 1.235;
 }
 
-/* Radio y sombra de ficha (spec §4): `--lp-radio-ficha` vale 40 px, baja a
-   30 en ≤1068 y a 20 en ≤734 (los dos repuntes viven en los media queries de
-   abajo, sobre `.lp`, para que la cascada no se pelee con el quiebre). La
-   única sombra difusa de la página de Apple es
-   `4px 12px 40px 6px rgba(0,0,0,.09)`.
-   OJO — decisión tomada en caliente fuera de la spec: la regla existe para
-   que el radio y la sombra tengan contra qué verse; sin superficie son
-   invisibles. La spec §7 solo prohíbe explícitamente dársela a `.lp-beneficio`
-   («la lista se queda sin fondo»), que queda afuera. Si el dueño prefiere no
-   tocar ninguna ficha, se borra este bloque entero y las dos variables siguen
-   declaradas, esperando al lote de Carlos. */
-.lp-pieza,
 .lp-tile {
   background: var(--lp-fondo-alt);
   border-radius: var(--lp-radio-ficha);
@@ -1302,6 +1340,10 @@
     max-width: 692px; /* contenedor de Apple en ≤1068 */
     margin-inline: auto;
   }
+
+  .lp-pieza {
+    min-height: 0;
+  }
 }
 
 @media (max-width: 734px) {
@@ -1326,6 +1368,26 @@
   .lp-beneficios__rejilla {
     grid-template-columns: minmax(0, 1fr);
     gap: 2rem;
+  }
+
+  .lp-pieza {
+    padding: 1.5rem;
+  }
+
+  .lp-pieza__icono {
+    width: 50px;
+    height: 50px;
+    margin-bottom: 1.25rem;
+    border-radius: 14px;
+  }
+
+  .lp-pieza__icono .icon {
+    width: 28px;
+    height: 28px;
+  }
+
+  [data-reveal].reveal-ready {
+    transition-delay: 0ms;
   }
 
   /* El proceso pasa a una columna antes de que los títulos de tres
@@ -1418,6 +1480,13 @@
    ============================================================ */
 
 @media (prefers-reduced-motion: reduce) {
+  [data-reveal].reveal-ready {
+    opacity: 1;
+    transform: none;
+    transition: none;
+    will-change: auto;
+  }
+
   .lp-beneficio__check {
     animation: none;
     opacity: 1;

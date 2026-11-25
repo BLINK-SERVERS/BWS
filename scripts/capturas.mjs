@@ -79,6 +79,17 @@ for (const { nombre, ancho, alto } of ANCHOS) {
   /* --- escala 1: la página entera, el FAQ y el barrido de desbordes --- */
   const pagina = await abrir(ancho, alto, 1);
 
+  // Las entradas de scroll necesitan pasar por el viewport antes de fotografiarse.
+  await pagina.evaluate(async () => {
+    const paso = window.innerHeight * 0.75;
+    for (let y = 0; y < document.documentElement.scrollHeight; y += paso) {
+      window.scrollTo(0, y);
+      await new Promise((resolver) => setTimeout(resolver, 80));
+    }
+    window.scrollTo(0, 0);
+  });
+  await pagina.waitForTimeout(800);
+
   await pagina
     .screenshot({ path: archivo(nombre, "completa"), fullPage: true })
     .catch(aviso(nombre, "completa"));
