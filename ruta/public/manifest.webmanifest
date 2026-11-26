@@ -1,14 +1,14 @@
 {
-  "name": "Ruta · Carros en Maracaibo",
-  "short_name": "Ruta",
-  "description": "Compra y vende carros en Maracaibo y San Francisco.",
+  "name": "Car Market · Compra y vende carros",
+  "short_name": "Car Market",
+  "description": "Compra y vende carros. Publica, filtra y conversa dentro de Car Market.",
   "lang": "es-VE",
   "start_url": "/cars/#/",
   "scope": "/cars/",
   "display": "standalone",
   "orientation": "any",
-  "background_color": "#F5F3EF",
-  "theme_color": "#FF5A36",
+  "background_color": "#FFFEFB",
+  "theme_color": "#000000",
   "icons": [
     {
       "src": "/cars/icono-192.png",

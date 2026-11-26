@@ -56,8 +56,8 @@ export default function App() {
 
   useEffect(() => {
     const base = ruta.split("?")[0];
-    const titulo = base.startsWith("/auto/") ? "Detalle del carro" : base === "/publicar" ? "Publicar carro" : base === "/guardados" ? "Guardados" : base === "/chat" ? "Mensajes" : base === "/perfil" ? "Tu cuenta" : "Carros en Maracaibo y San Francisco";
-    document.title = `${titulo} · Ruta`;
+    const titulo = base.startsWith("/auto/") ? "Detalle del carro" : base === "/publicar" ? "Publicar carro" : base === "/guardados" ? "Guardados" : base === "/chat" ? "Mensajes" : base === "/perfil" ? "Tu cuenta" : "Carros";
+    document.title = `${titulo} · Car Market`;
     window.scrollTo({ top: 0, behavior: "instant" });
   }, [ruta]);
 
@@ -191,7 +191,7 @@ export default function App() {
   } else if (base === "/perfil") {
     contenido = <Perfil publicaciones={publicaciones.length} guardados={guardados.size} tema={tema} usuario={usuario} comprobando={comprobandoSesion} errorSesion={errorSesion} onTema={setTema} onAutenticado={autenticar} onSalir={desconectar} />;
   } else {
-    contenido = <section className="estado-vacio estado-vacio--pagina"><span className="estado-vacio__icono"><Icono nombre="info" tamano={34} /></span><h1>Esta página no existe.</h1><p>Vuelve al catálogo para seguir explorando.</p><a className="boton boton--primario" href="#/">Ir a Ruta</a></section>;
+    contenido = <section className="estado-vacio estado-vacio--pagina"><span className="estado-vacio__icono"><Icono nombre="info" tamano={34} /></span><h1>Esta página no existe.</h1><p>Vuelve al catálogo para seguir explorando.</p><a className="boton boton--primario" href="#/">Ir a Car Market</a></section>;
   }
 
   return (

@@ -31,11 +31,10 @@ export function Catalogo({ vehiculos, guardados, gustados, onGuardar, onGustar }
     <div className="pagina catalogo">
       <section className="catalogo__cabecera" aria-labelledby="titulo-catalogo">
         <div>
-          <p className="eyebrow"><Icono nombre="ubicacion" tamano={16} />Maracaibo y San Francisco</p>
           <h1 id="titulo-catalogo">Encuentra tu próximo carro.</h1>
-          <p>Publicaciones de particulares y concesionarios, con conversación dentro de Ruta.</p>
+          <p>Publicaciones de particulares y concesionarios, con conversación dentro de Car Market.</p>
         </div>
-        <a className="boton boton--primario catalogo__publicar" href="#/publicar">
+        <a className="boton boton--enfasis catalogo__publicar" href="#/publicar">
           <Icono nombre="publicar" tamano={20} />
           Publicar carro
         </a>

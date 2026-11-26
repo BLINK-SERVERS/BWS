@@ -150,7 +150,7 @@ export function Detalle({ vehiculo, similares, guardados, gustados, onGuardar, o
             </div>
             {vehiculo.vendedor.verificado && <span className="verificado" title="Identidad verificada"><Icono nombre="verificado" /><span className="sr-only">Identidad verificada</span></span>}
           </div>
-          <div className="aviso-seguridad"><Icono nombre="escudo" /><p><strong>Coordina con cuidado.</strong> Ruta no procesa pagos ni custodia el vehículo. Verifica los documentos antes de acordar una entrega.</p></div>
+          <div className="aviso-seguridad"><Icono nombre="escudo" /><p><strong>Coordina con cuidado.</strong> Car Market no procesa pagos ni custodia el vehículo. Verifica los documentos antes de acordar una entrega.</p></div>
           <button className="enlace-sutil" type="button" onClick={() => setReporteAbierto(true)}><Icono nombre="bandera" tamano={16} />Reportar publicación</button>
         </aside>
       </div>

@@ -73,8 +73,8 @@ export function Acceso({ comprobando, errorSesion, onAutenticado }: AccesoProps)
   return (
     <div className="pagina acceso">
       <header className="pagina__cabecera">
-        <p className="eyebrow">Tu cuenta Ruta</p>
-        <h1>{modo === "registro" ? "Crea tu cuenta en Ruta." : "Qué bueno verte de nuevo."}</h1>
+        <p className="eyebrow">Tu cuenta Car Market</p>
+        <h1>{modo === "registro" ? "Crea tu cuenta en Car Market." : "Qué bueno verte de nuevo."}</h1>
         <p>Tu cuenta se guarda en el servidor. El catálogo, las publicaciones y el chat de este piloto siguen siendo demostración.</p>
       </header>
 

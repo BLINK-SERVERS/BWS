@@ -3,7 +3,7 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
-  "description": "Ruta, marketplace independiente de carros en Maracaibo y San Francisco. Prototipo Powered by Blink.",
+  "description": "Car Market, marketplace independiente de carros. Prototipo Powered by Blink.",
   "scripts": {
     "dev": "vite --host 0.0.0.0",
     "build": "vite build",

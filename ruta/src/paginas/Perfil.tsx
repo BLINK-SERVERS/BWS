@@ -42,7 +42,7 @@ export function Perfil({ publicaciones, guardados, tema, usuario, comprobando, e
 
   return (
     <div className="pagina perfil">
-      <header className="pagina__cabecera"><p className="eyebrow">Cuenta activa</p><h1>Tu espacio en Ruta.</h1><p>Administra tu cuenta y preferencias.</p></header>
+      <header className="pagina__cabecera"><p className="eyebrow">Cuenta activa</p><h1>Tu espacio en Car Market.</h1><p>Administra tu cuenta y preferencias.</p></header>
       <section className="perfil__identidad">
         <span className="avatar avatar--muy-grande">{iniciales(usuario.nombre)}</span>
         <div className="perfil__datos"><h2>{usuario.nombre}</h2><p>{rolLegible(usuario.rol)} · {usuario.ciudad}</p><span className="perfil__correo">{usuario.correo}</span><span className="etiqueta etiqueta--neutral">Sesión iniciada</span></div>
@@ -62,12 +62,12 @@ export function Perfil({ publicaciones, guardados, tema, usuario, comprobando, e
       <div className="perfil__diseno">
         <section className="tarjeta-ajustes" aria-labelledby="identidad-titulo">
           <div className="tarjeta-ajustes__titulo"><span><Icono nombre="escudo" /></span><div><h2 id="identidad-titulo">Verificación de identidad</h2><p>KYC de cédula y selfie frontal</p></div></div>
-          <div className="estado-verificacion"><span className="estado-verificacion__icono"><Icono nombre="usuario" /></span><div><strong>Todavía no está habilitada</strong><p>Este piloto no captura documentos ni selfies. La verificación se abrirá cuando exista el flujo privado de Ruta.</p></div></div>
+          <div className="estado-verificacion"><span className="estado-verificacion__icono"><Icono nombre="usuario" /></span><div><strong>Todavía no está habilitada</strong><p>Este piloto no captura documentos ni selfies. La verificación se abrirá cuando exista el flujo privado de Car Market.</p></div></div>
           <button className="boton boton--secundario boton--ancho" type="button" disabled>Verificar identidad</button>
         </section>
 
         <section className="tarjeta-ajustes" aria-labelledby="apariencia-titulo">
-          <div className="tarjeta-ajustes__titulo"><span><Icono nombre="sol" /></span><div><h2 id="apariencia-titulo">Apariencia</h2><p>Elige cómo quieres ver Ruta</p></div></div>
+          <div className="tarjeta-ajustes__titulo"><span><Icono nombre="sol" /></span><div><h2 id="apariencia-titulo">Apariencia</h2><p>Elige cómo quieres ver Car Market</p></div></div>
           <div className="opciones-tema" role="group" aria-label="Tema de la aplicación">
             {([
               ["claro", "Claro", "sol"],

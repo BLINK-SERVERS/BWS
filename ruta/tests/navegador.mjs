@@ -80,12 +80,61 @@ try {
   await ir();
   await pagina.getByRole("heading", { name: "Encuentra tu próximo carro." }).waitFor();
   assert.equal(await pagina.locator(".tarjeta-vehiculo").count(), 8);
+  assert.equal(await pagina.title(), "Carros · Car Market");
+  assert.doesNotMatch(await pagina.locator("body").innerText(), /Maracaibo y San Francisco/i);
+  const identidad = await pagina.evaluate(() => ({
+    negro: getComputedStyle(document.documentElement).getPropertyValue("--negro").trim(),
+    gris: getComputedStyle(document.documentElement).getPropertyValue("--gris").trim(),
+    blanco: getComputedStyle(document.documentElement).getPropertyValue("--blanco").trim(),
+    fondo: getComputedStyle(document.body).backgroundColor,
+    cuerpo: getComputedStyle(document.body).fontWeight,
+    titulo: getComputedStyle(document.querySelector("h1")).fontWeight,
+    logo: getComputedStyle(document.querySelector(".marca__texto strong")).fontWeight,
+    fuenteLogo: getComputedStyle(document.querySelector(".marca__texto strong")).fontFamily,
+  }));
+  assert.deepEqual(identidad, {
+    negro: "#000",
+    gris: "#424242",
+    blanco: "#fffefb",
+    fondo: "rgb(255, 254, 251)",
+    cuerpo: "400",
+    titulo: "500",
+    logo: "700",
+    fuenteLogo: '"Samsung Sharp Sans", Inter, ui-sans-serif, system-ui, sans-serif',
+  });
+  assert.match(identidad.fuenteLogo, /Samsung Sharp Sans/);
+  const publicar = pagina.locator(".catalogo__publicar");
+  const fondoEnfasis = await publicar.evaluate((elemento) => getComputedStyle(elemento, "::before").backgroundImage);
+  const sombraEnfasis = await publicar.evaluate((elemento) => getComputedStyle(elemento, "::before").boxShadow);
+  assert.match(fondoEnfasis, /linear-gradient/);
+  assert.match(sombraEnfasis, /inset/);
+  assert.equal(await publicar.evaluate((elemento) => getComputedStyle(elemento).borderRadius), "8px");
+  await publicar.hover();
+  assert.notEqual(await publicar.evaluate((elemento) => getComputedStyle(elemento, "::before").backgroundImage), fondoEnfasis);
   await comprobarSinDesbordamiento();
   await auditar("catálogo");
   await pagina.screenshot({ path: `${capturas}/catalogo-1440.png`, fullPage: true });
   await pagina.getByLabel("Buscar carros").focus();
   assert.equal(await pagina.getByLabel("Buscar carros").evaluate((elemento) => getComputedStyle(elemento).outlineStyle), "solid");
 
+  await pagina.evaluate(() => window.scrollTo(0, 0));
+  await pagina.evaluate(() => window.scrollTo(0, 600));
+  await pagina.waitForFunction(() => document.querySelector(".barra-superior")?.getAttribute("data-oculta") === "true");
+  await pagina.locator(".barra-superior").waitFor({ state: "hidden" });
+  await pagina.evaluate(() => window.scrollTo(0, 400));
+  await pagina.waitForFunction(() => !document.querySelector(".barra-superior")?.hasAttribute("data-oculta"));
+  await pagina.locator(".barra-superior").waitFor({ state: "visible" });
+  await pagina.locator(".barra-superior__tema").focus();
+  await pagina.evaluate(() => window.scrollTo(0, 800));
+  assert.equal(await pagina.locator(".barra-superior").getAttribute("data-oculta"), null);
+  assert.equal(await pagina.locator(".barra-superior__tema").evaluate((elemento) => elemento === document.activeElement), true);
+  await pagina.evaluate(() => document.activeElement?.blur());
+  await ir("/guardados");
+  await pagina.evaluate(() => window.scrollTo(0, 600));
+  assert.equal(await pagina.locator(".barra-superior").getAttribute("data-oculta"), null);
+  console.log("PASS identidad, tipografía y barra superior por scroll");
+
+  await ir();
   const primera = pagina.locator(".tarjeta-vehiculo").first();
   const tituloGuardado = await primera.locator("h3").innerText();
   await primera.getByRole("button", { name: /^Guardar / }).click();
@@ -179,7 +228,7 @@ try {
     await pagina.getByLabel("Correo", { exact: true }).fill(correoPrueba);
     await pagina.locator("input[name='clave']").fill("PruebaNavegador2026!");
     await pagina.getByRole("button", { name: "Crear mi cuenta", exact: true }).click();
-    await pagina.getByRole("heading", { name: "Tu espacio en Ruta." }).waitFor();
+    await pagina.getByRole("heading", { name: "Tu espacio en Car Market." }).waitFor();
     await pagina.getByRole("heading", { name: nombrePrueba }).waitFor();
     const sesionCookie = await contexto.cookies();
     assert.ok(sesionCookie.some((galleta) => galleta.name === cookieSesion && galleta.httpOnly));
@@ -216,7 +265,7 @@ try {
     console.log("PASS registro real, sesión persistente, cierre y acceso responsive");
   }
 
-  for (const [ancho, alto] of [[1440, 900], [1024, 768], [768, 1024], [390, 844], [320, 568]]) {
+  for (const [ancho, alto] of [[1440, 900], [1024, 768], [768, 1024], [390, 844], [375, 812], [320, 568], [844, 390]]) {
     await pagina.setViewportSize({ width: ancho, height: alto });
     await ir();
     await pagina.locator("#titulo-catalogo").waitFor();
@@ -252,6 +301,10 @@ try {
   await comprobarSinDesbordamiento();
   await comprobarObjetivosTactiles();
   await pagina.screenshot({ path: `${capturas}/catalogo-texto-200-390.png`, fullPage: true });
+  await pagina.setViewportSize({ width: 320, height: 568 });
+  await comprobarSinDesbordamiento();
+  await comprobarObjetivosTactiles();
+  await pagina.screenshot({ path: `${capturas}/catalogo-texto-200-320.png`, fullPage: true });
   console.log("PASS texto al 200%");
 
   const movimientoReducido = await contexto.newPage();
@@ -263,11 +316,33 @@ try {
     return [{ elemento: elemento.className, duracion: estilo.animationDuration, iteraciones: estilo.animationIterationCount }];
   }));
   assert.ok(animaciones.every((animacion) => Number.parseFloat(animacion.duracion) <= 0.01), `Movimiento no reducido: ${JSON.stringify(animaciones)}`);
+  const transiciones = await movimientoReducido.evaluate(() => [...document.querySelectorAll("*")].flatMap((elemento) => {
+    const estilo = getComputedStyle(elemento);
+    if (estilo.transitionDuration === "0s") return [];
+    return { elemento: elemento.className, duracion: estilo.transitionDuration };
+  }).filter((transicion) => transicion.duracion.split(",").some((duracion) => Number.parseFloat(duracion) > 0.01)));
+  assert.deepEqual(transiciones, [], `Transiciones no reducidas: ${JSON.stringify(transiciones)}`);
   await movimientoReducido.close();
   console.log("PASS movimiento reducido");
 
+  const coloresForzados = await contexto.newPage();
+  await coloresForzados.emulateMedia({ forcedColors: "active" });
+  await coloresForzados.goto(`${baseURL}#/`, { waitUntil: "networkidle" });
+  await coloresForzados.getByRole("heading", { name: "Encuentra tu próximo carro." }).waitFor();
+  await coloresForzados.addScriptTag({ path: axePath });
+  const auditoriaForzada = await coloresForzados.evaluate(async () => window.axe.run(document, {
+    runOnly: { type: "tag", values: ["wcag2a", "wcag2aa", "wcag21aa"] },
+  }));
+  assert.deepEqual(auditoriaForzada.violations, [], `Accesibilidad con colores forzados: ${JSON.stringify(auditoriaForzada.violations)}`);
+  assert.equal(await coloresForzados.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1), true);
+  await coloresForzados.screenshot({ path: `${capturas}/catalogo-colores-forzados-390.png`, fullPage: true });
+  await coloresForzados.close();
+  console.log("PASS colores forzados");
+
   const pwaActiva = await pagina.evaluate(async () => {
     if (!("serviceWorker" in navigator)) return false;
+    const registraciones = await navigator.serviceWorker.getRegistrations();
+    if (!registraciones.length) return false;
     await navigator.serviceWorker.ready;
     return Boolean(navigator.serviceWorker.controller);
   });
@@ -280,7 +355,7 @@ try {
       await pagina.getByRole("heading", { name: "Encuentra tu próximo carro." }).waitFor();
       assert.equal(await pagina.locator(".tarjeta-vehiculo").count(), 8);
       assert.equal(await pagina.locator(".tarjeta-vehiculo img").first().evaluate((imagen) => imagen.complete && imagen.naturalWidth > 0), true);
-      assert.equal(await pagina.evaluate(() => document.fonts.check("16px Inter")), true);
+      assert.equal(await pagina.evaluate(() => document.fonts.check("700 16px Inter")), true);
       const urlEnCache = await pagina.evaluate(async () => {
         const nombres = await caches.keys();
         const respuestas = await Promise.all(nombres.map((nombre) => caches.open(nombre).then((cache) => cache.keys())));

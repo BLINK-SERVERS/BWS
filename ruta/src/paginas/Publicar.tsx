@@ -207,7 +207,7 @@ export function Publicar({ onPublicar, onAviso }: PublicarProps) {
     <div className="pagina publicar">
       <nav className="migas"><a href="#/"><Icono nombre="flecha-izquierda" tamano={17} />Volver a explorar</a></nav>
       <header className="publicar__cabecera">
-        <p className="eyebrow">Vende desde Ruta</p>
+        <p className="eyebrow">Vende desde Car Market</p>
         <h1>Publica tu carro.</h1>
         <p>Cuenta lo que ofreces, muestra el estado real y recibe mensajes de compradores interesados.</p>
       </header>

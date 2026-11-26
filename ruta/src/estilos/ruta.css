@@ -18,7 +18,7 @@ body {
   min-height: 100svh;
   background: var(--fondo);
   color: var(--texto);
-  font-family: "Inter", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-family: var(--fuente);
   font-size: 1rem;
   line-height: 1.55;
   -webkit-tap-highlight-color: transparent;
@@ -83,7 +83,7 @@ h1,
 h2,
 h3,
 strong {
-  font-weight: 600;
+  font-weight: 500;
 }
 
 h1 {
@@ -164,7 +164,7 @@ fieldset {
   padding: 0.7rem 1.15rem;
   border: 1px solid transparent;
   border-radius: var(--radio-pill);
-  font-weight: 600;
+  font-weight: 500;
   line-height: 1.2;
   white-space: nowrap;
   transition: background var(--duracion-base) var(--curva), border-color var(--duracion-base) var(--curva), color var(--duracion-base) var(--curva), transform var(--duracion-rapida) var(--curva), box-shadow var(--duracion-base) var(--curva);
@@ -187,13 +187,52 @@ fieldset {
   border-color: var(--accion);
   background: var(--accion);
   color: var(--accion-texto);
-  box-shadow: 0 4px 12px rgb(255 90 54 / 0.14);
+  box-shadow: var(--sombra-1);
 }
 
 .boton--primario:hover:not(:disabled) {
   border-color: var(--accion-hover);
   background: var(--accion-hover);
-  box-shadow: 0 7px 18px rgb(255 90 54 / 0.2);
+  box-shadow: var(--sombra-2);
+}
+
+.boton--enfasis {
+  position: relative;
+  isolation: isolate;
+  gap: 0.4rem;
+  overflow: hidden;
+  padding: 0.6rem 0.75rem;
+  border-color: var(--accion-enfasis-borde);
+  border-radius: var(--radio-xs);
+  background: var(--accion-enfasis-degradado-fin);
+  color: var(--accion-enfasis-texto);
+  box-shadow: var(--accion-enfasis-sombra);
+  font-size: 0.875rem;
+  font-weight: 500;
+  line-height: 1.25;
+}
+
+.boton--enfasis::before {
+  position: absolute;
+  z-index: -1;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(to bottom, var(--accion-enfasis-degradado-inicio), var(--accion-enfasis-degradado-fin));
+  box-shadow: inset 0 1px 0 0 var(--accion-enfasis-hover-inicio);
+  content: "";
+  pointer-events: none;
+}
+
+.boton--enfasis:hover:not(:disabled) {
+  transform: none;
+}
+
+.boton--enfasis:hover:not(:disabled)::before {
+  background: linear-gradient(to bottom, var(--accion-enfasis-hover-inicio), var(--accion-enfasis-degradado-fin));
+}
+
+.boton--enfasis:active:not(:disabled) {
+  transform: scale(0.99);
 }
 
 .boton--secundario {
@@ -264,16 +303,16 @@ fieldset {
 }
 
 .boton-icono--flotante {
-  border: 1px solid rgb(255 255 255 / 0.65);
-  background: rgb(255 255 255 / 0.94);
-  color: var(--tinta-950);
+  border: 1px solid rgb(255 254 251 / 0.65);
+  background: rgb(255 254 251 / 0.94);
+  color: var(--negro);
   box-shadow: var(--sombra-1);
   backdrop-filter: blur(12px);
 }
 
 .boton-icono--flotante:hover:not(:disabled) {
-  background: #FFFFFF;
-  color: var(--tinta-950);
+  background: var(--blanco);
+  color: var(--negro);
 }
 
 .boton-icono.is-active {
@@ -281,8 +320,8 @@ fieldset {
 }
 
 .boton-icono--flotante.is-active {
-  background: var(--coral-100);
-  color: var(--coral-900);
+  background: var(--accion-suave);
+  color: var(--enlace);
 }
 
 .boton-icono--gusto.is-active {
@@ -318,7 +357,7 @@ fieldset {
   background: var(--accion);
   color: var(--accion-texto);
   font-size: 0.75rem;
-  font-weight: 700;
+  font-weight: 500;
   line-height: 1;
 }
 
@@ -343,7 +382,7 @@ fieldset {
   background: var(--accion-suave);
   color: var(--enlace);
   font-size: 0.8rem;
-  font-weight: 700;
+  font-weight: 500;
   letter-spacing: -0.02em;
 }
 
@@ -380,13 +419,13 @@ fieldset {
   padding: 0.25rem 0.6rem;
   border-radius: var(--radio-pill);
   font-size: 0.75rem;
-  font-weight: 600;
+  font-weight: 500;
   line-height: 1.2;
 }
 
 .etiqueta--nuevo {
-  background: var(--tinta-950);
-  color: var(--papel-50);
+  background: var(--accion);
+  color: var(--accion-texto);
 }
 
 .etiqueta--verificado {
@@ -406,7 +445,7 @@ fieldset {
   margin-bottom: 0.65rem;
   color: var(--enlace);
   font-size: 0.78rem;
-  font-weight: 700;
+  font-weight: 500;
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
@@ -433,33 +472,20 @@ fieldset {
   display: inline-flex;
   min-height: 44px;
   align-items: center;
-  gap: 0.75rem;
   width: fit-content;
-}
-
-.marca__icono {
-  width: 2.65rem;
-  height: 2.65rem;
-  flex: 0 0 auto;
 }
 
 .marca__texto {
   display: flex;
-  flex-direction: column;
-  line-height: 1.1;
+  line-height: 1;
+  white-space: nowrap;
 }
 
 .marca__texto strong {
-  font-size: 1.6rem;
+  font-family: var(--fuente-marca);
+  font-size: 1.7rem;
+  font-weight: 700;
   letter-spacing: -0.055em;
-}
-
-.marca__texto span {
-  margin-top: 0.25rem;
-  color: var(--texto-terciario);
-  font-size: 0.65rem;
-  font-weight: 500;
-  letter-spacing: 0.01em;
 }
 
 .barra-lateral > .marca {
@@ -495,7 +521,7 @@ fieldset {
   border-radius: var(--radio-sm);
   background: var(--accion-suave);
   color: var(--enlace);
-  font-weight: 600;
+  font-weight: 500;
 }
 
 .nav-lateral__enlace .contador {
@@ -511,7 +537,7 @@ fieldset {
   border-radius: var(--radio-pill);
   background: var(--accion);
   color: var(--accion-texto);
-  font-weight: 600;
+  font-weight: 500;
 }
 
 .nav-lateral__publicar:hover,
@@ -537,7 +563,7 @@ fieldset {
   gap: 0.5rem;
   color: var(--texto-secundario);
   font-size: 0.72rem;
-  font-weight: 600;
+  font-weight: 500;
 }
 
 .indicador-demo__punto {
@@ -546,11 +572,6 @@ fieldset {
   border-radius: 50%;
   background: var(--accion);
   box-shadow: 0 0 0 4px var(--accion-suave);
-}
-
-.barra-lateral__pie p {
-  color: var(--texto-terciario);
-  font-size: 0.78rem;
 }
 
 .tema-lateral {
@@ -595,12 +616,17 @@ fieldset {
   gap: 1rem;
   padding: 0 2.5rem;
   border-bottom: 1px solid var(--borde-suave);
-  background: rgb(245 243 239 / 0.9);
+  background: var(--superficie-translucida);
   backdrop-filter: blur(18px);
+  transition: transform var(--duracion-base) var(--curva), opacity var(--duracion-base) var(--curva), visibility 0s linear 0s;
 }
 
-[data-theme="oscuro"] .barra-superior {
-  background: rgb(11 15 20 / 0.9);
+.barra-superior--oculta {
+  visibility: hidden;
+  transform: translateY(-100%);
+  opacity: 0;
+  pointer-events: none;
+  transition: transform var(--duracion-base) var(--curva), opacity var(--duracion-base) var(--curva), visibility 0s linear var(--duracion-base);
 }
 
 .barra-superior__marca {
@@ -609,20 +635,11 @@ fieldset {
 
 .marca--compacta {
   min-height: 48px;
-  gap: clamp(0.4rem, 2vw, 0.75rem);
-}
-
-.marca--compacta .marca__icono {
-  width: clamp(2rem, 9vw, 2.25rem);
-  height: clamp(2rem, 9vw, 2.25rem);
 }
 
 .marca--compacta .marca__texto strong {
-  font-size: clamp(1rem, 4vw, 1.35rem);
-}
-
-.marca--compacta .marca__texto span {
-  display: none;
+  font-size: clamp(1.05rem, 4vw, 1.35rem);
+  letter-spacing: -0.05em;
 }
 
 .barra-superior__ruta {
@@ -728,7 +745,7 @@ fieldset {
   margin-bottom: 0.35rem;
   color: var(--texto-secundario);
   font-size: 0.8rem;
-  font-weight: 600;
+  font-weight: 500;
 }
 
 .buscador {
@@ -746,7 +763,7 @@ fieldset {
 
 .buscador:focus-within {
   border-color: var(--foco);
-  box-shadow: 0 0 0 3px rgb(11 92 173 / 0.13);
+  box-shadow: 0 0 0 3px var(--foco-anillo);
 }
 
 .buscador > svg {
@@ -889,7 +906,7 @@ fieldset {
   background: transparent;
   color: inherit;
   font-size: 0.78rem;
-  font-weight: 600;
+  font-weight: 500;
   text-decoration: underline;
   text-underline-offset: 0.2em;
 }
@@ -966,8 +983,8 @@ fieldset {
   gap: 0.3rem;
   padding: 0.3rem 0.5rem;
   border-radius: var(--radio-pill);
-  background: #0B0F14;
-  color: #FFFFFF;
+  background: var(--negro);
+  color: var(--blanco);
   font-size: 0.72rem;
 }
 
@@ -1110,7 +1127,7 @@ fieldset {
   z-index: 100;
   inset: 0;
   display: flex;
-  background: rgb(11 15 20 / 0.55);
+  background: var(--velo);
   backdrop-filter: blur(5px);
   animation: fondo-entra var(--duracion-base) ease both;
 }
@@ -1238,7 +1255,7 @@ fieldset {
 .campo > span:first-child {
   color: var(--texto-secundario);
   font-size: 0.78rem;
-  font-weight: 600;
+  font-weight: 500;
 }
 
 .campo > span small {
@@ -1270,7 +1287,7 @@ fieldset {
 .campo select:focus,
 .campo textarea:focus {
   border-color: var(--foco);
-  box-shadow: 0 0 0 3px rgb(11 92 173 / 0.12);
+  box-shadow: 0 0 0 3px var(--foco-anillo);
 }
 
 .campo input::placeholder,
@@ -1301,7 +1318,7 @@ fieldset {
 
 .campo__prefijo:focus-within {
   border-color: var(--foco);
-  box-shadow: 0 0 0 3px rgb(11 92 173 / 0.12);
+  box-shadow: 0 0 0 3px var(--foco-anillo);
 }
 
 .campo__prefijo > span {
@@ -1463,8 +1480,8 @@ fieldset {
   gap: 0.35rem;
   padding: 0.4rem 0.65rem;
   border-radius: var(--radio-pill);
-  background: rgb(11 15 20 / 0.76);
-  color: #FFFFFF;
+  background: rgb(0 0 0 / 0.76);
+  color: var(--blanco);
   font-size: 0.76rem;
   pointer-events: none;
 }
@@ -1543,7 +1560,7 @@ fieldset {
 .detalle__precio {
   margin-top: 0.7rem;
   font-size: 2rem;
-  font-weight: 600;
+  font-weight: 500;
   letter-spacing: -0.045em;
 }
 
@@ -1589,7 +1606,7 @@ fieldset {
 .revision__datos dd {
   margin-top: 0.15rem;
   font-size: 0.86rem;
-  font-weight: 600;
+  font-weight: 500;
 }
 
 .detalle__acciones {
@@ -1741,7 +1758,7 @@ fieldset {
   gap: 0.35rem;
   color: var(--enlace-informativo);
   font-size: 0.82rem;
-  font-weight: 600;
+  font-weight: 500;
 }
 
 .seccion__cabecera a:hover {
@@ -1779,7 +1796,7 @@ fieldset {
 .zoom {
   padding: 1rem;
   overflow-y: auto;
-  background: var(--tinta-950);
+  background: var(--negro);
 }
 
 .zoom img {
@@ -1794,7 +1811,7 @@ fieldset {
   justify-content: space-between;
   gap: 1rem;
   padding-top: 1rem;
-  color: var(--papel-50);
+  color: var(--blanco);
   font-size: 0.82rem;
 }
 
@@ -1887,7 +1904,7 @@ fieldset {
   border-radius: 50%;
   background: var(--superficie);
   font-size: 0.8rem;
-  font-weight: 600;
+  font-weight: 500;
 }
 
 .paso.is-active .paso__numero {
@@ -1956,7 +1973,7 @@ fieldset {
 .formulario__titulo > span {
   color: var(--enlace);
   font-size: 0.72rem;
-  font-weight: 700;
+  font-weight: 500;
   letter-spacing: 0.06em;
   text-transform: uppercase;
 }
@@ -2062,8 +2079,8 @@ fieldset {
   left: 0.45rem;
   padding: 0.2rem 0.4rem;
   border-radius: var(--radio-xs);
-  background: var(--tinta-950);
-  color: var(--papel-50);
+  background: var(--accion);
+  color: var(--accion-texto);
   font-size: 0.65rem;
 }
 
@@ -2241,7 +2258,7 @@ fieldset {
 .conversaciones__titulo > span {
   color: var(--enlace);
   font-size: 0.7rem;
-  font-weight: 600;
+  font-weight: 500;
 }
 
 .conversacion {
@@ -2517,7 +2534,7 @@ fieldset {
 
 .composer textarea:focus {
   border-color: var(--foco);
-  box-shadow: 0 0 0 3px rgb(11 92 173 / 0.12);
+  box-shadow: 0 0 0 3px var(--foco-anillo);
 }
 
 .composer__ayuda {
@@ -2879,7 +2896,7 @@ fieldset {
   background: transparent;
   color: var(--texto-secundario);
   font-size: 0.82rem;
-  font-weight: 600;
+  font-weight: 500;
 }
 
 .acceso__modos button:hover {
@@ -2930,7 +2947,7 @@ fieldset {
   background: transparent;
   color: var(--enlace-informativo);
   font-size: 0.76rem;
-  font-weight: 600;
+  font-weight: 500;
   transform: translateY(-50%);
 }
 
@@ -2955,7 +2972,7 @@ fieldset {
   border: 0;
   background: transparent;
   color: var(--enlace-informativo);
-  font-weight: 700;
+  font-weight: 500;
   text-decoration: underline;
   text-underline-offset: 0.18em;
 }
@@ -3075,7 +3092,7 @@ fieldset {
 
 .aviso > svg {
   flex: 0 0 auto;
-  color: var(--accion);
+  color: var(--fondo);
 }
 
 .aviso .boton-icono {
@@ -3085,7 +3102,7 @@ fieldset {
 }
 
 .aviso .boton-icono:hover {
-  background: rgb(255 255 255 / 0.12);
+  background: rgb(255 254 251 / 0.12);
 }
 
 @keyframes pagina-entra {
@@ -3178,12 +3195,8 @@ fieldset {
     align-items: start;
     padding: 0.45rem 0.35rem env(safe-area-inset-bottom);
     border-top: 1px solid var(--borde-suave);
-    background: rgb(255 255 255 / 0.96);
+    background: var(--superficie-flotante);
     backdrop-filter: blur(18px);
-  }
-
-  [data-theme="oscuro"] .navegacion-inferior {
-    background: rgb(21 26 33 / 0.96);
   }
 
   .nav-inferior__enlace {
@@ -3702,11 +3715,6 @@ fieldset {
 }
 
 @media (max-width: 23.75rem) {
-  .marca__icono {
-    width: 2.35rem;
-    height: 2.35rem;
-  }
-
   .marca__texto strong {
     font-size: 1.4rem;
   }

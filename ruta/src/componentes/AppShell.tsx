@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { Icono } from "./Icono";
 import type { IconoNombre } from "./Icono";
 import { Marca } from "./Marca";
@@ -60,6 +60,62 @@ function textoTema(tema: Tema): string {
 
 export function AppShell({ children, ruta, noLeidos, tema, usuario, onCambiarTema }: AppShellProps) {
   const activa = seccionActiva(ruta);
+  const explorando = ruta.split("?")[0] === "/";
+  const [barraVisible, setBarraVisible] = useState(true);
+  const barraOculta = explorando && !barraVisible;
+
+  useEffect(() => {
+    setBarraVisible(true);
+    if (!explorando) return;
+
+    let posicion = window.scrollY;
+    let desplazamiento = 0;
+    let visible = true;
+    let enfocadoDentro = false;
+
+    function mostrar(siguiente: boolean) {
+      if (visible === siguiente) return;
+      visible = siguiente;
+      setBarraVisible(siguiente);
+    }
+
+    function alDesplazar() {
+      const actual = window.scrollY;
+      if (enfocadoDentro) {
+        posicion = actual;
+        mostrar(true);
+        return;
+      }
+      desplazamiento += actual - posicion;
+      posicion = actual;
+
+      if (actual <= 48) {
+        mostrar(true);
+        desplazamiento = 0;
+      } else if (desplazamiento > 8) {
+        mostrar(false);
+        desplazamiento = 0;
+      } else if (desplazamiento < -8) {
+        mostrar(true);
+        desplazamiento = 0;
+      }
+    }
+
+    function alCambiarFoco(evento: FocusEvent) {
+      if (!(evento.target instanceof Node)) return;
+      const barra = document.querySelector(".barra-superior");
+      enfocadoDentro = evento.type === "focusin" && Boolean(barra?.contains(evento.target));
+    }
+
+    window.addEventListener("scroll", alDesplazar, { passive: true });
+    document.addEventListener("focusin", alCambiarFoco);
+    document.addEventListener("focusout", alCambiarFoco);
+    return () => {
+      window.removeEventListener("scroll", alDesplazar);
+      document.removeEventListener("focusin", alCambiarFoco);
+      document.removeEventListener("focusout", alCambiarFoco);
+    };
+  }, [explorando]);
 
   return (
     <div className="app-shell">
@@ -95,7 +151,6 @@ export function AppShell({ children, ruta, noLeidos, tema, usuario, onCambiarTem
             <span className="indicador-demo__punto" />
             Cuentas reales · catálogo de demostración
           </div>
-          <p>Carros en Maracaibo y San Francisco.</p>
           <button className="tema-lateral" type="button" onClick={onCambiarTema} aria-label={`Cambiar tema. Actual: ${textoTema(tema)}`}>
             <Icono nombre={iconoTema(tema)} />
             <span>{textoTema(tema)}</span>
@@ -106,12 +161,12 @@ export function AppShell({ children, ruta, noLeidos, tema, usuario, onCambiarTem
       </aside>
 
       <div className="columna-principal">
-        <header className="barra-superior">
+        <header className={`barra-superior ${barraOculta ? "barra-superior--oculta" : ""}`} data-oculta={barraOculta ? "true" : undefined}>
           <div className="barra-superior__marca">
             <Marca compacta />
           </div>
           <div className="barra-superior__ruta">
-            <span>Ruta</span>
+            <span>Car Market</span>
             <Icono nombre="chevron-derecha" tamano={16} />
             <strong>{tituloRuta(ruta)}</strong>
           </div>

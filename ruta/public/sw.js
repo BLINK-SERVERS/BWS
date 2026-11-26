@@ -1,4 +1,4 @@
-const CACHE = "ruta-shell-v4";
+const CACHE = "car-market-shell-v6";
 const BASE = new URL("./", self.location.href).pathname;
 const SHELL = ["manifest.webmanifest", "favicon.svg", "icono-192.png", "icono-512.png"].map((ruta) => BASE + ruta);
 

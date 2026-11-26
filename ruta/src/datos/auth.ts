@@ -36,14 +36,14 @@ async function pedir(ruta: string, opciones: RequestInit = {}): Promise<unknown>
       },
     });
   } catch {
-    throw new ErrorCuenta("No pudimos conectar con Ruta. Revisa tu conexión e inténtalo de nuevo.", 0, "red");
+    throw new ErrorCuenta("No pudimos conectar con Car Market. Revisa tu conexión e inténtalo de nuevo.", 0, "red");
   }
 
   let datos: unknown;
   try {
     datos = await respuesta.json() as unknown;
   } catch {
-    throw new ErrorCuenta("Ruta respondió de forma inesperada. Inténtalo de nuevo.", respuesta.status, "respuesta");
+    throw new ErrorCuenta("Car Market respondió de forma inesperada. Inténtalo de nuevo.", respuesta.status, "respuesta");
   }
 
   if (!respuesta.ok) {
