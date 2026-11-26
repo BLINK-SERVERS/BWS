@@ -1,0 +1,50 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "ruta-marketplace",
+  "main": "worker.ts",
+  "compatibility_date": "2026-11-26",
+  "compatibility_flags": ["nodejs_compat"],
+  "upload_source_maps": true,
+  "workers_dev": false,
+  "vars": {
+    "ENTORNO": "produccion",
+    "APP_ORIGEN": "https://cars.blink.com.ve"
+  },
+  "env": {
+    "local": {
+      "routes": [],
+      "vars": {
+        "ENTORNO": "local",
+        "APP_ORIGEN": "http://cars.blink.com.ve"
+      },
+      "hyperdrive": [
+        { "binding": "HYPERDRIVE", "id": "a6e6a1d311864c1cab7dd76c8968743d" }
+      ],
+      "durable_objects": {
+        "bindings": [{ "name": "CLAVE", "class_name": "Clave" }]
+      }
+    }
+  },
+  "assets": {
+    "directory": "./dist",
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application",
+    "run_worker_first": ["/", "/cars", "/cars/*", "/api", "/api/*"]
+  },
+  "routes": [
+    { "pattern": "cars.blink.com.ve", "custom_domain": true }
+  ],
+  "hyperdrive": [
+    { "binding": "HYPERDRIVE", "id": "a6e6a1d311864c1cab7dd76c8968743d" }
+  ],
+  "durable_objects": {
+    "bindings": [{ "name": "CLAVE", "class_name": "Clave" }]
+  },
+  "migrations": [
+    { "tag": "v1", "new_sqlite_classes": ["Clave"] }
+  ],
+  "observability": {
+    "enabled": true,
+    "head_sampling_rate": 1
+  }
+}

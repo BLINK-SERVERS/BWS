@@ -1,0 +1,131 @@
+@font-face {
+  font-family: "Inter";
+  src: url("/cars/fonts/Inter-Regular.otf") format("opentype");
+  font-style: normal;
+  font-weight: 400 500;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Inter";
+  src: url("/cars/fonts/Inter-SemiBold.otf") format("opentype");
+  font-style: normal;
+  font-weight: 600 800;
+  font-display: swap;
+}
+
+:root {
+  --tinta-950: #0B0F14;
+  --tinta-900: #151A21;
+  --tinta-800: #242C36;
+  --papel-50: #F5F3EF;
+  --papel-100: #ECE9E3;
+  --papel-200: #DEDAD2;
+  --blanco: #FFFFFF;
+  --coral-100: #FFE4DC;
+  --coral-500: #FF5A36;
+  --coral-600: #E54828;
+  --coral-700: #C9361F;
+  --coral-900: #9F2F1A;
+  --verde-100: #DDF3E7;
+  --verde-600: #16794B;
+  --rojo-100: #FCE1DE;
+  --rojo-600: #C9362B;
+  --azul-700: #0B5CAD;
+  --azul-200: #8CC8FF;
+  --pizarra-300: #C9C5BD;
+  --pizarra-500: #626E79;
+  --pizarra-600: #4D5966;
+  --borde-oscuro: #3B4652;
+  --texto-oscuro-2: #B9C0C8;
+  --texto-oscuro-3: #919BA6;
+  --coral-oscuro: #FF7A5C;
+  --coral-oscuro-hover: #FF9278;
+  --verde-oscuro: #66D69E;
+  --rojo-oscuro: #FF8A80;
+
+  --fondo: var(--papel-50);
+  --superficie: var(--blanco);
+  --superficie-alterna: var(--papel-100);
+  --texto: var(--tinta-950);
+  --texto-secundario: var(--pizarra-600);
+  --texto-terciario: var(--pizarra-500);
+  --borde: var(--pizarra-300);
+  --borde-suave: var(--papel-200);
+  --relleno-desactivado: var(--papel-200);
+  --accion: var(--coral-500);
+  --accion-hover: var(--coral-600);
+  --accion-prensado: var(--coral-700);
+  --accion-texto: var(--tinta-950);
+  --accion-suave: var(--coral-100);
+  --enlace: var(--coral-900);
+  --enlace-informativo: var(--azul-700);
+  --verificado: var(--verde-600);
+  --verificado-fondo: var(--verde-100);
+  --peligro: var(--rojo-600);
+  --peligro-fondo: var(--rojo-100);
+  --foco: var(--azul-700);
+  --patrocinado: var(--azul-700);
+
+  --radio-xs: 0.5rem;
+  --radio-sm: 0.75rem;
+  --radio-md: 1.25rem;
+  --radio-lg: 1.75rem;
+  --radio-pill: 62.5rem;
+  --espacio-1: 0.25rem;
+  --espacio-2: 0.5rem;
+  --espacio-3: 0.75rem;
+  --espacio-4: 1rem;
+  --espacio-5: 1.25rem;
+  --espacio-6: 1.5rem;
+  --espacio-8: 2rem;
+  --espacio-10: 2.5rem;
+  --espacio-12: 3rem;
+  --espacio-16: 4rem;
+  --espacio-24: 6rem;
+  --duracion-rapida: 120ms;
+  --duracion-base: 200ms;
+  --duracion-lenta: 300ms;
+  --duracion-entrada: 500ms;
+  --curva: cubic-bezier(0.22, 0.25, 0, 1);
+  --sombra-1: 0 1px 2px rgb(11 15 20 / 0.05), 0 6px 18px rgb(11 15 20 / 0.05);
+  --sombra-2: 0 12px 36px rgb(11 15 20 / 0.12);
+  --sombra-flotante: 0 12px 32px rgb(11 15 20 / 0.18);
+  --ancho-lateral: 15.5rem;
+  --altura-superior: 4.5rem;
+  --objetivo-tactil: 48px;
+  color-scheme: light;
+  font-family: "Inter", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+}
+
+[data-theme="oscuro"] {
+  --fondo: var(--tinta-950);
+  --superficie: var(--tinta-900);
+  --superficie-alterna: var(--tinta-800);
+  --texto: var(--papel-50);
+  --texto-secundario: var(--texto-oscuro-2);
+  --texto-terciario: var(--texto-oscuro-3);
+  --borde: var(--borde-oscuro);
+  --borde-suave: var(--tinta-800);
+  --relleno-desactivado: var(--tinta-800);
+  --accion: var(--coral-oscuro);
+  --accion-hover: var(--coral-oscuro-hover);
+  --accion-prensado: var(--coral-oscuro-hover);
+  --accion-texto: var(--tinta-950);
+  --accion-suave: var(--tinta-800);
+  --enlace: var(--coral-oscuro-hover);
+  --enlace-informativo: var(--azul-200);
+  --verificado: var(--verde-oscuro);
+  --verificado-fondo: var(--tinta-800);
+  --peligro: var(--rojo-oscuro);
+  --peligro-fondo: var(--tinta-800);
+  --foco: var(--azul-200);
+  --patrocinado: var(--azul-200);
+  --sombra-1: 0 1px 2px rgb(0 0 0 / 0.2), 0 8px 22px rgb(0 0 0 / 0.18);
+  --sombra-2: 0 16px 40px rgb(0 0 0 / 0.32);
+  --sombra-flotante: 0 14px 36px rgb(0 0 0 / 0.38);
+  color-scheme: dark;
+}

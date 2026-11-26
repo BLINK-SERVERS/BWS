@@ -1,0 +1,9 @@
+node_modules
+dist
+.taste-skill/
+.taste-skill/*.png
+*.local
+.DS_Store
+.dev.vars
+.wrangler
+*.log
